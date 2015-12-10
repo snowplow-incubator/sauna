@@ -1,0 +1,7 @@
+aws {
+  access_key_id = _
+  secret_access_key = _
+}
+optimizely.token = _
+sauna.root = /opt/sauna
+queue.name = snowplow-sauna-sandbox
