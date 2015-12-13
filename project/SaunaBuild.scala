@@ -56,6 +56,8 @@ object SaunaBuild extends Build {
                       "-target", "1.8",
                       "-Xlint"
                     ),
+    scalacOptions in (Compile, console) ~= (_ filterNot (_ == "-Xfatal-warnings")),
+    scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value,
     ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
   )
 }
