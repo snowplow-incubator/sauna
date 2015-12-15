@@ -16,13 +16,13 @@ object SaunaConfig {
     val conf = ConfigFactory.parseFile(file)
 
     SaunaConfig(
-      conf.getString("queue.name"),
-      conf.getString("aws.access_key_id"),
-      conf.getString("aws.secret_access_key"),
-      conf.getString("optimizely.token"),
-      conf.getString("sauna.root"),
-      conf.getString("logging.hipchat.room_id"),
-      conf.getString("logging.hipchat.token")
+      queueName = conf.getString("queue.name"),
+      accessKeyId = conf.getString("aws.access_key_id"),
+      secretAccessKey = conf.getString("aws.secret_access_key"),
+      optimizelyToken = conf.getString("optimizely.token"),
+      saunaRoot = conf.getString("sauna.root"),
+      hipchatRoomId = conf.getString("logging.hipchat.room_id"),
+      hipchatToken = conf.getString("logging.hipchat.token")
     )
   }
 }
