@@ -12,7 +12,8 @@
  */
 package com.snowplowanalytics.sauna
 
-import java.io.File
+import java.io.{InputStream, File}
+import scala.io.Source.fromInputStream
 
 import awscala.{Region, Credentials}
 import awscala.s3.S3
@@ -20,8 +21,6 @@ import awscala.sqs.SQS
 
 import com.snowplowanalytics.sauna.responders.optimizely._
 import com.snowplowanalytics.sauna.observers._
-
-
 
 /**
   * Main class, starts the Sauna program.
@@ -45,10 +44,14 @@ object Sauna extends App {
   val localObserver = new LocalObserver(saunaConfig.saunaRoot)
   val watchers = Seq(s3Observer, localObserver)
 
-  def process(lines: Seq[String]): Unit =
+  def process(is: InputStream): Unit = {
+    val lines = fromInputStream(is).getLines()
+                                   .toSeq
+
     lines.collect(TargetingList)
          .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-         .foreach { case (_, tls) => OptimizelyApi.targetingLists(tls, saunaConfig.optimizelyToken) }
+         .foreach { case (_, tls) => OptimizelyApi.targetingLists(tls) }
+  }
 
   watchers.foreach(_.watch(process))
 }

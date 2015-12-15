@@ -12,21 +12,22 @@
  */
 package com.snowplowanalytics.sauna.observers
 
-import java.io.File
+import java.io.{FileInputStream, InputStream, File}
 import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
 import java.nio.file.FileSystems
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.WatchEvent
 
+import com.snowplowanalytics.sauna.loggers.Hipchat
+
 import scala.collection.JavaConversions._
-import scala.io.Source.fromFile
 
 /**
   * Observes files in local filesystem.
   */
 class LocalObserver(observedDir: String) extends Observer {
-  def watch(process: (Seq[String]) => Unit): Unit = {
+  def watch(process: (InputStream) => Unit): Unit = {
     val watcher = FileSystems.getDefault.newWatchService()
     val observedDirWithSeparator = if (observedDir.endsWith(File.separator)) observedDir else observedDir + File.separator
     val dir = Paths.get(observedDirWithSeparator)
@@ -38,9 +39,10 @@ class LocalObserver(observedDir: String) extends Observer {
           val watchKey = watcher.take()
           watchKey.pollEvents().foreach { case event: WatchEvent[Path] @unchecked =>
             val file = new File(observedDirWithSeparator + event.context())
-            val lines = fromFile(file).getLines().toSeq
+            Hipchat.notification(s"Detected new local file ${file.getName}.")
+            val is = new FileInputStream(file)
 
-            process(lines)
+            process(is)
 
             if (!file.delete()) {
               System.err.println(s"Unable to delete ${file.getAbsolutePath}")

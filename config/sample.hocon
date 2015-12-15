@@ -5,3 +5,9 @@ aws {
 optimizely.token = _
 sauna.root = /opt/sauna
 queue.name = snowplow-sauna-sandbox
+logging {
+  hipchat {
+    room_id = _
+    token = _
+  }
+}

@@ -12,11 +12,12 @@
  */
 package com.snowplowanalytics.sauna.observers
 
+import java.io.InputStream
 import java.net.URLDecoder._
-import scala.io.Source.fromInputStream
 
 import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
+import com.snowplowanalytics.sauna.loggers.Hipchat
 import play.api.libs.json.Json
 
 /**
@@ -28,14 +29,17 @@ class S3Observer(val s3: S3, val sqs: SQS, val queue: Queue) extends Observer {
   /**
     * Gets file content from S3 bucket.
     */
-  def getLines(bucketName: String, fileName: String): Seq[String] = {
-    s3.get(Bucket(bucketName), fileName) match {
-      case Some(o) => fromInputStream(o.content).getLines.toSeq
-      case None => Seq()
-    }
+  def getInputStream(bucketName: String, fileName: String): InputStream = {
+    s3.get(Bucket(bucketName), fileName)
+      .map(_.content)
+      .getOrElse( // empty one
+        new InputStream {
+          override def read(): Int = -1
+        }
+      )
   }
 
-  def watch(process: (Seq[String]) => Unit): Unit = {
+  def watch(process: (InputStream) => Unit): Unit = {
     new Thread {
       override def run(): Unit = {
         while (true) {
@@ -44,8 +48,9 @@ class S3Observer(val s3: S3, val sqs: SQS, val queue: Queue) extends Observer {
              .foreach { case message =>
                val (bucketName, fileName) = getBucketAndFile(message.body)
                                            .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
-               val lines = getLines(bucketName, fileName)
-               process(lines)
+               Hipchat.notification(s"Detected new S3 file $fileName.")
+               val is = getInputStream(bucketName, fileName)
+               process(is)
                sqs.delete(message)
              }
         }

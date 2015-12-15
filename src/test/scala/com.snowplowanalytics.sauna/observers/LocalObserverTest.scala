@@ -12,8 +12,9 @@
  */
 package com.snowplowanalytics.sauna.observers
 
-import java.io.{PrintWriter, File}
+import java.io.{InputStream, PrintWriter, File}
 import java.util.UUID
+import scala.io.Source.fromInputStream
 
 import org.scalatest._
 
@@ -25,7 +26,7 @@ class LocalObserverTest extends FunSuite {
     val line1 = "aaaaaa"
     val line2 = "bbbbbb"
     var expectedLines: Seq[String] = null
-    def process(lines: Seq[String]): Unit = expectedLines = lines
+    def process(is: InputStream): Unit = expectedLines = fromInputStream(is).getLines().toSeq
 
     new LocalObserver(path).watch(process)
 
