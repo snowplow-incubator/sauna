@@ -13,6 +13,8 @@
 package com.snowplowanalytics.sauna
 
 import java.io.{InputStream, File}
+import com.snowplowanalytics.sauna.loggers.HipchatLogger
+
 import scala.io.Source.fromInputStream
 
 import awscala.{Region, Credentials}
@@ -40,8 +42,10 @@ object Sauna extends App {
   val queue = sqs.queue(saunaConfig.queueName)
                  .getOrElse(throw new Exception("No queue with that name found"))
 
-  val s3Observer = new S3Observer(s3, sqs, queue)
-  val localObserver = new LocalObserver(saunaConfig.saunaRoot)
+  val optimizely = new OptimizelyApi with HipchatLogger
+  val s3Observer = new S3Observer(s3, sqs, queue) with HipchatLogger
+  val localObserver = new LocalObserver(saunaConfig.saunaRoot) with HipchatLogger
+
   val watchers = Seq(s3Observer, localObserver)
 
   def process(is: InputStream): Unit =
@@ -49,7 +53,7 @@ object Sauna extends App {
                        .toSeq
                        .collect(TargetingList)
                        .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-                       .foreach { case (_, tls) => OptimizelyApi.targetingLists(tls) }
+                       .foreach { case (_, tls) => optimizely.targetingLists(tls) }
 
-  watchers.foreach(_.watch(process))
+  watchers.foreach(_.observe(process))
 }

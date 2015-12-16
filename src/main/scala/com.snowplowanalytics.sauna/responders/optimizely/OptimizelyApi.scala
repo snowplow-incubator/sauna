@@ -14,14 +14,16 @@ package com.snowplowanalytics.sauna.responders.optimizely
 
 import scala.concurrent.ExecutionContext.Implicits.global
 
+import play.api.libs.json.Json
+
 import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
-import com.snowplowanalytics.sauna.loggers.Hipchat
+import com.snowplowanalytics.sauna.loggers.Logger
 
 /**
   * Encapsulates any action with Optimizely.
   */
-object OptimizelyApi extends HasWSClient {
-  val urlPrefix = "https://www.optimizelyapis.com/experiment/v1/projects/"
+class OptimizelyApi extends HasWSClient { self: Logger =>
+  import OptimizelyApi._
 
   /**
     * Uploads data to Optimizely.
@@ -37,9 +39,23 @@ object OptimizelyApi extends HasWSClient {
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
             .post(TargetingList.merge(tls))
             .foreach {
-              case r if r.status == 201 => Hipchat.notification("Successfully uploaded targeting lists.")
-              case r if r.status == 409 => Hipchat.notification("Unable to upload targeting lists because they already exist.")
-              case r => Hipchat.notification(s"Unable to upload targeting list: [${r.body}].")
+              case r if r.status == 201 =>
+                val json = Json.parse(r.body)
+                val listName = (json \ "name").asOpt[String]
+                                              .getOrElse("Not found, probably Optimizely has changed.")
+                self.notification(s"Successfully uploaded targeting lists with name [$listName].")
+
+              case r if r.status == 409 =>
+                val json = Json.parse(r.body)
+                val message = (json \ "message").asOpt[String]
+                                             .getOrElse("Not found, probably Optimizely has changed.")
+                self.notification(message)
+
+              case r => self.notification(s"Unable to upload targeting list: [${r.body}].")
             }
   }
+}
+
+object OptimizelyApi {
+  val urlPrefix = "https://www.optimizelyapis.com/experiment/v1/projects/"
 }

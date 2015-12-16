@@ -10,20 +10,14 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.observers
+package com.snowplowanalytics.sauna.loggers
 
-import java.io.InputStream
-
-/**
-  * After new file appeared, Sauna should process it somehow.
-  * Implementations of this trait can watch for "a place were new files can appear".
-  */
-trait Observer {
+trait MutedLogger extends Logger {
 
   /**
-    * Main method, that describes "how to start watching for some area".
+    * Does nothing.
     *
-    * @param process A function what is supposed to be called on new files.
+    * @param message Text of notification.
     */
-  def observe(process: (InputStream) => Unit): Unit
+  override def notification(message: String): Unit = {}
 }

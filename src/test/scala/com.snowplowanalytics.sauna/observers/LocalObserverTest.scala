@@ -18,6 +18,8 @@ import scala.io.Source.fromInputStream
 
 import org.scalatest._
 
+import com.snowplowanalytics.sauna.loggers.MutedLogger
+
 class LocalObserverTest extends FunSuite {
   test("integration") {
     val path = "/opt/sauna/"
@@ -28,7 +30,7 @@ class LocalObserverTest extends FunSuite {
     var expectedLines: Seq[String] = null
     def process(is: InputStream): Unit = expectedLines = fromInputStream(is).getLines().toSeq
 
-    new LocalObserver(path).watch(process)
+    (new LocalObserver(path) with MutedLogger).observe(process)
 
     Thread.sleep(100)
 

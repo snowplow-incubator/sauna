@@ -12,26 +12,12 @@
  */
 package com.snowplowanalytics.sauna.loggers
 
-import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
-
-/**
-  * Encapsulates any action with HipChat.
-  */
-object Hipchat extends HasWSClient {
-  val urlPrefix = "https://api.hipchat.com/v2/"
+trait Logger {
 
   /**
-    * Makes notification to some HipChat room.
+    * Makes (unstructured) notification to somebody.
     *
     * @param message Text of notification.
     */
-  def notification(message: String,
-                   roomId: String = Sauna.saunaConfig.hipchatRoomId,
-                   token: String = Sauna.saunaConfig.hipchatToken): Unit = {
-    val content = s"""{"color":"green","message":"$message","notify":false,"message_format":"text"}"""
-
-    val _ = wsClient.url(urlPrefix + s"room/$roomId/notification")
-                    .withHeaders("Authorization" -> s"Bearer $token", "Content-Type" -> "application/json")
-                    .post(content)
-  }
+  def notification(message: String): Unit
 }

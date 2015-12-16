@@ -19,15 +19,15 @@ import java.nio.file.Path
 import java.nio.file.Paths
 import java.nio.file.WatchEvent
 
-import com.snowplowanalytics.sauna.loggers.Hipchat
-
 import scala.collection.JavaConversions._
+
+import com.snowplowanalytics.sauna.loggers.Logger
 
 /**
   * Observes files in local filesystem.
   */
-class LocalObserver(observedDir: String) extends Observer {
-  def watch(process: (InputStream) => Unit): Unit = {
+class LocalObserver(observedDir: String) extends Observer { self: Logger =>
+  def observe(process: (InputStream) => Unit): Unit = {
     val watcher = FileSystems.getDefault.newWatchService()
     val observedDirWithSeparator = if (observedDir.endsWith(File.separator)) observedDir else observedDir + File.separator
     val dir = Paths.get(observedDirWithSeparator)
@@ -39,7 +39,7 @@ class LocalObserver(observedDir: String) extends Observer {
           val watchKey = watcher.take()
           watchKey.pollEvents().foreach { case event: WatchEvent[Path] @unchecked =>
             val file = new File(observedDirWithSeparator + event.context())
-            Hipchat.notification(s"Detected new local file ${file.getName}.")
+            self.notification(s"Detected new local file ${file.getName}.")
             val is = new FileInputStream(file)
 
             process(is)

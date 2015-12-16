@@ -17,13 +17,14 @@ import java.net.URLDecoder._
 
 import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
-import com.snowplowanalytics.sauna.loggers.Hipchat
 import play.api.libs.json.Json
+
+import com.snowplowanalytics.sauna.loggers.Logger
 
 /**
   * Observes some AWS S3 bucket.
   */
-class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer {
+class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer { self: Logger =>
   import S3Observer._
 
   /**
@@ -32,14 +33,14 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer {
   def getInputStream(bucketName: String, fileName: String): InputStream = {
     s3.get(Bucket(bucketName), fileName)
       .map(_.content)
-      .getOrElse( // empty one
+      .getOrElse( // easier to return empty one than wrap whole stuff in Option-like
         new InputStream {
           override def read(): Int = -1
         }
       )
   }
 
-  def watch(process: (InputStream) => Unit): Unit = {
+  def observe(process: (InputStream) => Unit): Unit = {
     new Thread {
       override def run(): Unit = {
         while (true) {
@@ -48,7 +49,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer {
              .foreach { case message =>
                val (bucketName, fileName) = getBucketAndFile(message.body)
                                            .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
-               Hipchat.notification(s"Detected new S3 file $fileName.")
+               self.notification(s"Detected new S3 file $fileName.")
                val is = getInputStream(bucketName, fileName)
                process(is)
                sqs.delete(message)
@@ -60,6 +61,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer {
 }
 
 object S3Observer {
+
   /**
     * Gets bucket and file names from given json.
     */
