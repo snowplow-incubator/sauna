@@ -21,6 +21,7 @@ import com.snowplowanalytics.sauna.loggers.Hipchat
   * Encapsulates any action with Optimizely.
   */
 object OptimizelyApi extends HasWSClient {
+  val urlPrefix = "https://www.optimizelyapis.com/experiment/v1/projects/"
 
   /**
     * Uploads data to Optimizely.
@@ -32,7 +33,7 @@ object OptimizelyApi extends HasWSClient {
                      token: String = Sauna.saunaConfig.optimizelyToken): Unit = {
     val projectId = tls.head.projectId // all tls have one projectId
 
-    wsClient.url(s"https://www.optimizelyapis.com/experiment/v1/projects/$projectId/targeting_lists/")
+    wsClient.url(urlPrefix + s"$projectId/targeting_lists/")
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
             .post(TargetingList.merge(tls))
             .foreach {

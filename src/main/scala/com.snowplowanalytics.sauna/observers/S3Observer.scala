@@ -23,7 +23,7 @@ import play.api.libs.json.Json
 /**
   * Observes some AWS S3 bucket.
   */
-class S3Observer(val s3: S3, val sqs: SQS, val queue: Queue) extends Observer {
+class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer {
   import S3Observer._
 
   /**
