@@ -42,13 +42,13 @@ class OptimizelyApi extends HasWSClient { self: Logger =>
               case r if r.status == 201 =>
                 val json = Json.parse(r.body)
                 val listName = (json \ "name").asOpt[String]
-                                              .getOrElse("Not found, probably Optimizely has changed.")
+                                              .getOrElse("Not found, probably Optimizely api has changed.")
                 self.notification(s"Successfully uploaded targeting lists with name [$listName].")
 
               case r if r.status == 409 =>
                 val json = Json.parse(r.body)
                 val message = (json \ "message").asOpt[String]
-                                             .getOrElse("Not found, probably Optimizely has changed.")
+                                                .getOrElse("Not found, probably Optimizely api has changed.")
                 self.notification(message)
 
               case r => self.notification(s"Unable to upload targeting list: [${r.body}].")
