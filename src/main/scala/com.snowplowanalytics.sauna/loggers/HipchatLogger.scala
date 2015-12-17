@@ -14,9 +14,6 @@ package com.snowplowanalytics.sauna.loggers
 
 import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
 
-/**
-  * Encapsulates any action with HipChat.
-  */
 trait HipchatLogger extends HasWSClient with Logger {
   import HipchatLogger._
 
@@ -25,7 +22,7 @@ trait HipchatLogger extends HasWSClient with Logger {
     *
     * @param message Text of notification.
     */
-  def notification(message: String): Unit = {
+  override def notification(message: String): Unit = {
     val roomId = Sauna.saunaConfig.hipchatRoomId
     val token = Sauna.saunaConfig.hipchatToken
     val content = s"""{"color":"green","message":"$message","notify":false,"message_format":"text"}"""

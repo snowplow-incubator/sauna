@@ -12,6 +12,8 @@
  */
 package com.snowplowanalytics.sauna.responders.optimizely
 
+import java.util.UUID
+
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api.libs.json.Json
@@ -38,20 +40,27 @@ class OptimizelyApi extends HasWSClient { self: Logger =>
     wsClient.url(urlPrefix + s"$projectId/targeting_lists/")
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
             .post(TargetingList.merge(tls))
-            .foreach {
-              case r if r.status == 201 =>
-                val json = Json.parse(r.body)
-                val listName = (json \ "name").asOpt[String]
-                                              .getOrElse("Not found, probably Optimizely api has changed.")
-                self.notification(s"Successfully uploaded targeting lists with name [$listName].")
+            .foreach { case r =>
+              val json = Json.parse(r.body)
+              val status = r.status
+              val id = (json \ "id").asOpt[String]
+                                    .orElse((json \ "uuid").asOpt[String])
+                                    .getOrElse(UUID.randomUUID().toString)
+              val name = (json \ "name").asOpt[String]
+                                        .getOrElse("Not found.")
+              val description = (json \ "description").asOpt[String]
+                                                      .orElse((json \ "message").asOpt[String])
+                                                      .getOrElse(r.body)
+              val lastModified = (json \ "last_modified").asOpt[String]
+                                                         .getOrElse(new java.sql.Timestamp(System.currentTimeMillis).toString)
 
-              case r if r.status == 409 =>
-                val json = Json.parse(r.body)
-                val message = (json \ "message").asOpt[String]
-                                                .getOrElse("Not found, probably Optimizely api has changed.")
-                self.notification(message)
-
-              case r => self.notification(s"Unable to upload targeting list: [${r.body}].")
+              // log results
+              self.manifestation(id, name, status, description, lastModified)
+              if (status == 201) {
+                self.notification(s"Successfully uploaded targeting lists with name [$name].")
+              } else {
+                self.notification(s"Unable to upload targeting list: [${r.body}].")
+              }
             }
   }
 }

@@ -13,14 +13,14 @@
 package com.snowplowanalytics.sauna
 
 import java.io.{InputStream, File}
-import com.snowplowanalytics.sauna.loggers.HipchatLogger
-
 import scala.io.Source.fromInputStream
 
+import awscala.dynamodbv2.DynamoDB
 import awscala.{Region, Credentials}
 import awscala.s3.S3
 import awscala.sqs.SQS
 
+import com.snowplowanalytics.sauna.loggers._
 import com.snowplowanalytics.sauna.responders.optimizely._
 import com.snowplowanalytics.sauna.observers._
 
@@ -35,18 +35,30 @@ object Sauna extends App {
 
   val saunaConfig = SaunaConfig(new File(args(0)))
 
+  // configuration
   implicit val region = Region.US_WEST_2
   implicit val credentials = new Credentials(saunaConfig.accessKeyId, saunaConfig.secretAccessKey)
+
+  // S3
   val s3 = S3(credentials)
+
+  // DynamoDB
+  val ddb = DynamoDB(credentials)
+  val ddbTable = ddb.table("sauna_file_history")
+                    .getOrElse(throw new Exception("No queue with that name found"))
+
+  // SQS
   val sqs = SQS(credentials)
   val queue = sqs.queue(saunaConfig.queueName)
                  .getOrElse(throw new Exception("No queue with that name found"))
 
-  val optimizely = new OptimizelyApi with HipchatLogger
-  val s3Observer = new S3Observer(s3, sqs, queue) with HipchatLogger
-  val localObserver = new LocalObserver(saunaConfig.saunaRoot) with HipchatLogger
+  // responders
+  val optimizely = new OptimizelyApi with HipchatLogger with DDBLogger
 
-  val watchers = Seq(s3Observer, localObserver)
+  // observers
+  val s3Observer = new S3Observer(s3, sqs, queue) with HipchatLogger with DDBLogger
+  val localObserver = new LocalObserver(saunaConfig.saunaRoot) with HipchatLogger with DDBLogger
+  val observers = Seq(s3Observer, localObserver)
 
   def process(is: InputStream): Unit =
     fromInputStream(is).getLines()
@@ -55,5 +67,5 @@ object Sauna extends App {
                        .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
                        .foreach { case (_, tls) => optimizely.targetingLists(tls) }
 
-  watchers.foreach(_.observe(process))
+  observers.foreach(_.observe(process))
 }
