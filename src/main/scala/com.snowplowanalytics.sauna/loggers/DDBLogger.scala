@@ -26,14 +26,14 @@ trait DDBLogger extends Logger {
     * @param name Message header (for example, Optimizely list name).
     * @param status HTTP code for operation result.
     * @param description What happened.
-    * @param timestamp When happened.
+    * @param lastModified Last modification time, if exists. Else, when message was processed.
     */
-  override def manifestation(uid: String, name: String, status: Int, description: String, timestamp: String): Unit = {
+  override def manifestation(uid: String, name: String, status: Int, description: String, lastModified: String): Unit = {
     implicit val ddb = Sauna.ddb
     val ddbTable = Sauna.ddbTable
 
     val _ = Future { // make non-blocking call
-      ddbTable.put(uid, name, "status" -> status, "description" -> description, "timestamp" -> timestamp)
+      ddbTable.put(uid, name, "status" -> status, "description" -> description, "lastModified" -> lastModified)
     }
   }
 }
