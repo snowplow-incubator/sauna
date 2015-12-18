@@ -13,10 +13,10 @@
 package com.snowplowanalytics.sauna.responders.optimizely
 
 import java.util.UUID
-
 import scala.concurrent.ExecutionContext.Implicits.global
 
 import play.api.libs.json.Json
+import com.fasterxml.jackson.core.JsonParseException
 
 import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
 import com.snowplowanalytics.sauna.loggers.Logger
@@ -41,25 +41,37 @@ class OptimizelyApi extends HasWSClient { self: Logger =>
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
             .post(TargetingList.merge(tls))
             .foreach { case r =>
-              val json = Json.parse(r.body)
+              // those are lazy to emphasize their pattern of use, probably simple `val` would be a bit more efficient
+              lazy val defaultId = UUID.randomUUID().toString
+              lazy val defaultName = "Not found."
+              lazy val defaultDescription = r.body
+              lazy val defaultLastModified = new java.sql.Timestamp(System.currentTimeMillis).toString
               val status = r.status
-              val id = (json \ "id").asOpt[String]
-                                    .orElse((json \ "uuid").asOpt[String])
-                                    .getOrElse(UUID.randomUUID().toString)
-              val name = (json \ "name").asOpt[String]
-                                        .getOrElse("Not found.")
-              val description = (json \ "description").asOpt[String]
-                                                      .orElse((json \ "message").asOpt[String])
-                                                      .getOrElse(r.body)
-              val lastModified = (json \ "last_modified").asOpt[String]
-                                                         .getOrElse(new java.sql.Timestamp(System.currentTimeMillis).toString)
 
-              // log results
-              self.manifestation(id, name, status, description, lastModified)
-              if (status == 201) {
-                self.notification(s"Successfully uploaded targeting lists with name [$name].")
-              } else {
-                self.notification(s"Unable to upload targeting list: [${r.body}].")
+              try { // r.body is valid json
+                val json = Json.parse(r.body)
+                val id = (json \ "id").asOpt[String]
+                                      .orElse((json \ "uuid").asOpt[String])
+                                      .getOrElse(defaultId)
+                val name = (json \ "name").asOpt[String]
+                                          .getOrElse(defaultName)
+                val description = (json \ "description").asOpt[String]
+                                                        .orElse((json \ "message").asOpt[String])
+                                                        .getOrElse(defaultDescription)
+                val lastModified = (json \ "last_modified").asOpt[String]
+                                                           .getOrElse(defaultLastModified)
+
+                // log results
+                self.manifestation(id, name, status, description, lastModified)
+                if (status == 201) {
+                  self.notification(s"Successfully uploaded targeting lists with name [$name].")
+                } else {
+                  self.notification(s"Unable to upload targeting list with name [$name] : [${r.body}].")
+                }
+
+              } catch { case e: JsonParseException =>
+                self.manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
+                self.notification(s"Something went completely wrong. See [${r.body}]")
               }
             }
   }
