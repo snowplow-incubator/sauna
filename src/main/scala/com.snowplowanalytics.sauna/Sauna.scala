@@ -44,7 +44,7 @@ object Sauna extends App {
 
   // DynamoDB
   val ddb = DynamoDB(credentials)
-  val ddbTable = ddb.table("sauna_file_history")
+  val ddbTable = ddb.table(saunaConfig.ddbTableName)
                     .getOrElse(throw new Exception("No queue with that name found"))
 
   // SQS

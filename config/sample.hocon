@@ -1,6 +1,7 @@
 aws {
   access_key_id = _
   secret_access_key = _
+  dynamodb_table_name = _
 }
 optimizely.token = _
 sauna.root = /opt/sauna
