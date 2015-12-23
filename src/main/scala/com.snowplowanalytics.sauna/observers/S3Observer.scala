@@ -40,7 +40,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer { self: Logger
       )
   }
 
-  def observe(process: (InputStream) => Unit): Unit = {
+  def observe(process: (String, InputStream) => Unit): Unit = {
     new Thread {
       override def run(): Unit = {
         while (true) {
@@ -51,7 +51,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer { self: Logger
                                            .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
                self.notification(s"Detected new S3 file $fileName.")
                val is = getInputStream(bucketName, fileName)
-               process(is)
+               process(fileName, is)
                sqs.delete(message)
              }
         }

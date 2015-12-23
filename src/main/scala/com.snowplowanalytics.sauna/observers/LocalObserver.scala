@@ -12,47 +12,33 @@
  */
 package com.snowplowanalytics.sauna.observers
 
-import java.io.{FileInputStream, InputStream, File}
-import java.nio.file.StandardWatchEventKinds.ENTRY_CREATE
-import java.nio.file.FileSystems
-import java.nio.file.Path
-import java.nio.file.Paths
-import java.nio.file.WatchEvent
+import java.io.{IOException, FileInputStream, InputStream}
+import java.nio.file._
 
-import scala.collection.JavaConversions._
-
-import com.snowplowanalytics.sauna.loggers.Logger
+import com.snowplowanalytics.sauna.loggers.{DirectoryWatcher, Logger}
 
 /**
   * Observes files in local filesystem.
   */
 class LocalObserver(observedDir: String) extends Observer { self: Logger =>
-  def observe(process: (InputStream) => Unit): Unit = {
-    val watcher = FileSystems.getDefault.newWatchService()
-    val observedDirWithSeparator = if (observedDir.endsWith(File.separator)) observedDir else observedDir + File.separator
-    val dir = Paths.get(observedDirWithSeparator)
-    dir.register(watcher, ENTRY_CREATE)
+  def observe(process: (String, InputStream) => Unit): Unit = {
 
-    new Thread {
-      override def run(): Unit = {
-        while (true) {
-          val watchKey = watcher.take()
-          watchKey.pollEvents().foreach { case event: WatchEvent[Path] @unchecked =>
-            val file = new File(observedDirWithSeparator + event.context())
-            self.notification(s"Detected new local file ${file.getName}.")
-            val is = new FileInputStream(file)
+    def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
+      if (event == StandardWatchEventKinds.ENTRY_CREATE) {
+        self.notification(s"Detected new local file [$path].")
+        val is = new FileInputStream(path.toFile)
 
-            process(is)
+        process("" + path, is)
 
-            if (!file.delete()) {
-              System.err.println(s"Unable to delete ${file.getAbsolutePath}")
-            }
-          }
-
-          if (!watchKey.reset())
-            throw new Exception(s"'$observedDir' is not accessible anymore")
+        try {
+          Files.delete(path)
+        } catch { case e: IOException =>
+          System.err.println(s"Unable to delete [$path].")
         }
       }
-    }.start()
+    }
+
+    val watcher = new DirectoryWatcher(Paths.get(observedDir), processEvent)
+    new Thread(watcher).start()
   }
 }

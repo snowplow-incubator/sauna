@@ -23,7 +23,12 @@ trait Observer {
   /**
     * Main method, that describes "how to start watching for some area".
     *
+    * File can be outside of local fs, e.g. on AWS S3, and
+    * some important parameters might be  encoded as part of 'filePath',
+    * therefore this method has both 'filePath: String' and 'InputStream'
+    *
     * @param process A function what is supposed to be called on new files.
+    *                First arg is a full file path, second is a InputStream from it.
     */
-  def observe(process: (InputStream) => Unit): Unit
+  def observe(process: (String, InputStream) => Unit): Unit
 }

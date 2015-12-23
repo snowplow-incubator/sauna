@@ -13,7 +13,6 @@
 package com.snowplowanalytics.sauna
 
 import java.io.{InputStream, File}
-import scala.io.Source.fromInputStream
 
 import awscala.dynamodbv2.DynamoDB
 import awscala.{Region, Credentials}
@@ -60,12 +59,16 @@ object Sauna extends App {
   val localObserver = new LocalObserver(saunaConfig.saunaRoot) with HipchatLogger with DDBLogger
   val observers = Seq(s3Observer, localObserver)
 
-  def process(is: InputStream): Unit =
-    fromInputStream(is).getLines()
-                       .toSeq
-                       .collect(TargetingList)
-                       .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-                       .foreach { case (_, tls) => optimizely.targetingLists(tls) }
+  // processes
+  def combinedProcess(filePath: String, is: InputStream) = {
+    val dummyProcess: PartialFunction[(String, InputStream), Unit] = {
+      case _ => println("Looks like Sauna doesn't know how to process this file.")
+    }
 
-  observers.foreach(_.observe(process))
+    Seq(TargetingList.process(filePath, is)).reduceLeft(_ orElse _) // merge all processes
+                                            .applyOrElse((filePath, is), dummyProcess) // fallback to dummyProcess
+  }
+
+  // run observers
+  observers.foreach(_.observe(combinedProcess))
 }

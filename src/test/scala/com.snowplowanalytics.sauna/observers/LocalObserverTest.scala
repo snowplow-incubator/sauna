@@ -28,7 +28,7 @@ class LocalObserverTest extends FunSuite {
     val line1 = "aaaaaa"
     val line2 = "bbbbbb"
     var expectedLines: Seq[String] = null
-    def process(is: InputStream): Unit = expectedLines = fromInputStream(is).getLines().toSeq
+    def process(s: String, is: InputStream): Unit = expectedLines = fromInputStream(is).getLines().toSeq
 
     (new LocalObserver(path) with MutedLogger).observe(process)
 

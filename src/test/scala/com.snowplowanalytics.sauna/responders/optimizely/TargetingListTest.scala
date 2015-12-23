@@ -33,44 +33,6 @@ class TargetingListTest extends FunSuite {
     assert(TargetingList.unapply(s) === Some(TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, None, "38071d80-1f03-4c50-ba94-f3daafd5a8c0")))
   }
 
-  test("isDefinedAt invalid input") {
-    val s = "qwerty"
-
-    assert(TargetingList.isDefinedAt(s) === false)
-  }
-
-  test("isDefinedAt valid input") {
-    val s = "4034532101\tdec_ab_group\tDecember 2015 A/B group\t1\tlogin,signup\t38071d80-1f03-4c50-ba94-f3daafd5a8c0"
-
-    assert(TargetingList.isDefinedAt(s) === true)
-  }
-
-  test("isDefinedAt empty keyFields") {
-    val s = "4034532101\tdec_ab_group\tDecember 2015 A/B group\t1\t\t38071d80-1f03-4c50-ba94-f3daafd5a8c0"
-
-    assert(TargetingList.isDefinedAt(s) === true)
-  }
-
-  test("apply invalid input") {
-    val s = "qwerty"
-
-    val _ = intercept[NoSuchElementException] {
-      val _ = TargetingList.apply(s)
-    }
-  }
-
-  test("apply valid input") {
-    val s = "4034532101\tdec_ab_group\tDecember 2015 A/B group\t1\tlogin,signup\t38071d80-1f03-4c50-ba94-f3daafd5a8c0"
-
-    assert(TargetingList.apply(s) === TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0"))
-  }
-
-  test("apply empty keyFields") {
-    val s = "4034532101\tdec_ab_group\tDecember 2015 A/B group\t1\t\t38071d80-1f03-4c50-ba94-f3daafd5a8c0"
-
-    assert(TargetingList.apply(s) === TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, None, "38071d80-1f03-4c50-ba94-f3daafd5a8c0"))
-  }
-
   test("merge empty") {
     val tls = Seq()
 

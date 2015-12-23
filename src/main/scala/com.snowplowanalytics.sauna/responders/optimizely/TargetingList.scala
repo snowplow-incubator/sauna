@@ -12,18 +12,22 @@
  */
 package com.snowplowanalytics.sauna.responders.optimizely
 
+import java.io.InputStream
+import scala.io.Source.fromInputStream
+
+import com.snowplowanalytics.sauna.Sauna
+
 /**
   * Represents input data format + helper methods.
   */
-// todo use macros to generate this class
 case class TargetingList(projectId: String, listName: String, listDescription: String, listType: Short, keyFields: Option[String], value: String)
 
-object TargetingList extends PartialFunction[String, TargetingList] {
-  // todo use something faster than regexp (can be done in single pass)
-  val r = """(.+?)\t(.+?)\t(.+?)\t([0-9]+?)\t(.*?)\t(.+?)""".r
+object TargetingList {
+  val pathPattern = """.*com\.optimizely\/targeting_lists\/v1\/tsv:\*\/.*$"""
+  val validLineRegexp = """(.+?)\t(.+?)\t(.+?)\t([0-9]+?)\t(.*?)\t(.+?)""".r
 
   def unapply(line: String): Option[TargetingList] = line match {
-    case r(projectId, listName, listDescription, _listType, _keyFields, value) =>
+    case validLineRegexp(projectId, listName, listDescription, _listType, _keyFields, value) =>
       val listType = _listType.toShort
       val keyFields = if (_keyFields.isEmpty) None else Some(_keyFields)
 
@@ -32,9 +36,20 @@ object TargetingList extends PartialFunction[String, TargetingList] {
     case _ => None
   }
 
-  override def isDefinedAt(s: String): Boolean = unapply(s).isDefined // todo remove double work here (memoization?)
+  def process(filePath: String, is: InputStream): PartialFunction[(String, InputStream), Unit] = {
+    val matches = filePath.matches(pathPattern)
 
-  override def apply(s: String): TargetingList = unapply(s).get       // and here
+    new PartialFunction[(String, InputStream), Unit] {
+      override def isDefinedAt(x: (String, InputStream)): Boolean = matches
+
+      override def apply(v1: (String, InputStream)): Unit =
+        fromInputStream(is).getLines()
+                           .toSeq
+                           .flatMap(s => TargetingList.unapply(s))
+                           .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
+                           .foreach { case (_, tls) => Sauna.optimizely.targetingLists(tls) }
+    }
+  }
 
   /**
     * Helper method, that converts several TargetingLists in Optimizely-friendly format.
@@ -42,7 +57,6 @@ object TargetingList extends PartialFunction[String, TargetingList] {
     * @param tls list of TargetingLists.
     * @return a String in Optimizely-friendly format.
     */
-  // todo should be generated too
   def merge(tls: Seq[TargetingList]): String = {
     val head = tls.head
     val name = s""""${head.listName}""""
