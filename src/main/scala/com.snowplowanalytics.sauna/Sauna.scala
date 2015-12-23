@@ -12,16 +12,17 @@
  */
 package com.snowplowanalytics.sauna
 
-import java.io.{InputStream, File}
+import java.io.File
 
 import awscala.dynamodbv2.DynamoDB
-import awscala.{Region, Credentials}
 import awscala.s3.S3
 import awscala.sqs.SQS
+import awscala.{Credentials, Region}
 
 import com.snowplowanalytics.sauna.loggers._
-import com.snowplowanalytics.sauna.responders.optimizely._
 import com.snowplowanalytics.sauna.observers._
+import com.snowplowanalytics.sauna.processors._
+import com.snowplowanalytics.sauna.responders._
 
 /**
   * Main class, starts the Sauna program.
@@ -52,23 +53,14 @@ object Sauna extends App {
                  .getOrElse(throw new Exception("No queue with that name found"))
 
   // responders
-  val optimizely = new OptimizelyApi with HipchatLogger with DDBLogger
+  val optimizely = new Optimizely with HipchatLogger with DDBLogger
 
-  // observers
-  val s3Observer = new S3Observer(s3, sqs, queue) with HipchatLogger with DDBLogger
-  val localObserver = new LocalObserver(saunaConfig.saunaRoot) with HipchatLogger with DDBLogger
-  val observers = Seq(s3Observer, localObserver)
+  // processors
+  val processors = Seq(TargetingList)
 
-  // processes
-  def combinedProcess(filePath: String, is: InputStream) = {
-    val dummyProcess: PartialFunction[(String, InputStream), Unit] = {
-      case _ => println("Looks like Sauna doesn't know how to process this file.")
-    }
-
-    Seq(TargetingList.process(filePath, is)).reduceLeft(_ orElse _) // merge all processes
-                                            .applyOrElse((filePath, is), dummyProcess) // fallback to dummyProcess
-  }
-
-  // run observers
-  observers.foreach(_.observe(combinedProcess))
+  // define and run observers
+  val observers = Seq(
+    new LocalObserver(saunaConfig.saunaRoot, processors) with HipchatLogger with DDBLogger,
+    new S3Observer(s3, sqs, queue, processors) with HipchatLogger with DDBLogger
+  ).foreach(o => new Thread(o).start())
 }

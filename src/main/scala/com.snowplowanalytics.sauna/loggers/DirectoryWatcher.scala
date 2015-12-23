@@ -15,8 +15,9 @@ package com.snowplowanalytics.sauna.loggers
 import java.io.IOException
 import java.nio.file._
 import java.nio.file.attribute._
-import scala.collection.mutable
+
 import scala.collection.JavaConversions._
+import scala.collection.mutable
 
 /**
   * Utility class, watches for all files in given directory, recursively.
@@ -28,7 +29,7 @@ import scala.collection.JavaConversions._
   */
 class DirectoryWatcher(path: Path,
                        processEvent: (WatchEvent.Kind[Path], Path) => Unit,
-                       recursive: Boolean = true) extends Runnable {
+                       recursive: Boolean = true) {
   private val watchService = FileSystems.getDefault
                                    .newWatchService()
   private val keys = new mutable.HashMap[WatchKey, Path]
@@ -49,7 +50,7 @@ class DirectoryWatcher(path: Path,
     * WatchService.
     */
   private def registerAll(start: Path): Unit = {
-    Files.walkFileTree(start, new SimpleFileVisitor[Path]() {
+    val _ = Files.walkFileTree(start, new SimpleFileVisitor[Path]() {
       override def preVisitDirectory(path: Path, attrs: BasicFileAttributes) = {
         registerSingle(path)
         FileVisitResult.CONTINUE
@@ -57,7 +58,10 @@ class DirectoryWatcher(path: Path,
     })
   }
 
-  override def run(): Unit = {
+  /**
+    * Start watching.
+    */
+  def start(): Unit = {
     while(true) {
       val key = watchService.take()
       val dir = keys.getOrElse(key,

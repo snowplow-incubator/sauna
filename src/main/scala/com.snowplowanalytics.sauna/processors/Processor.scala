@@ -10,9 +10,24 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.observers
+package com.snowplowanalytics.sauna.processors
+
+import java.io.InputStream
 
 /**
-  * Observer should keep an eye on some place where new files mat appear.
+  * After new file appeared, Sauna should process it somehow.
+  * That's what a Processor does.
   */
-trait Observer extends Runnable
+trait Processor {
+  /**
+    * Method that describes "how to process new files".
+    *
+    * File can be outside of local fs, e.g. on AWS S3, and
+    * some important parameters might be encoded as part of 'filePath',
+    * therefore this method has both 'filePath: String' and 'InputStream'
+    *
+    * @param fileName Full name of file.
+    * @param is InputStream from it.
+    */
+  def process(fileName: String, is: InputStream): Unit
+}

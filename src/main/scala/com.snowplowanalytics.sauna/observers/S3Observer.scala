@@ -17,14 +17,15 @@ import java.net.URLDecoder._
 
 import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
-import play.api.libs.json.Json
-
 import com.snowplowanalytics.sauna.loggers.Logger
+import com.snowplowanalytics.sauna.processors.Processor
+import play.api.libs.json.Json
 
 /**
   * Observes some AWS S3 bucket.
   */
-class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer { self: Logger =>
+class S3Observer(s3: S3, sqs: SQS, queue: Queue,
+                 responders: Seq[Processor]) extends Observer { self: Logger =>
   import S3Observer._
 
   /**
@@ -40,23 +41,20 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue) extends Observer { self: Logger
       )
   }
 
-  def observe(process: (String, InputStream) => Unit): Unit = {
-    new Thread {
-      override def run(): Unit = {
-        while (true) {
-          Thread.sleep(1000)
-          sqs.receiveMessage(queue, count = 10) // blocking, so no overlapping happens
-             .foreach { case message =>
-               val (bucketName, fileName) = getBucketAndFile(message.body)
-                                           .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
-               self.notification(s"Detected new S3 file $fileName.")
-               val is = getInputStream(bucketName, fileName)
-               process(fileName, is)
-               sqs.delete(message)
-             }
-        }
-      }
-    }.start()
+  override def run(): Unit = {
+    while (true) {
+      Thread.sleep(1000)
+      sqs.receiveMessage(queue, count = 10) // blocking, so no overlapping happens
+         .foreach { case message =>
+           val (bucketName, fileName) = getBucketAndFile(message.body)
+                                       .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
+           val decodedFileName = decode(fileName, "UTF-8")
+           self.notification(s"Detected new S3 file $decodedFileName.")
+           val is = getInputStream(bucketName, decodedFileName)
+           responders.foreach(_.process(decodedFileName, is))
+           sqs.delete(message)
+         }
+    }
   }
 }
 

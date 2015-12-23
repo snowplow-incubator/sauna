@@ -10,19 +10,20 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.responders.optimizely
+package com.snowplowanalytics.sauna.processors
 
 import java.io.InputStream
-import scala.io.Source.fromInputStream
 
 import com.snowplowanalytics.sauna.Sauna
+
+import scala.io.Source.fromInputStream
 
 /**
   * Represents input data format + helper methods.
   */
 case class TargetingList(projectId: String, listName: String, listDescription: String, listType: Short, keyFields: Option[String], value: String)
 
-object TargetingList {
+object TargetingList extends Processor {
   val pathPattern = """.*com\.optimizely\/targeting_lists\/v1\/tsv:\*\/.*$"""
   val validLineRegexp = """(.+?)\t(.+?)\t(.+?)\t([0-9]+?)\t(.*?)\t(.+?)""".r
 
@@ -36,20 +37,14 @@ object TargetingList {
     case _ => None
   }
 
-  def process(filePath: String, is: InputStream): PartialFunction[(String, InputStream), Unit] = {
-    val matches = filePath.matches(pathPattern)
-
-    new PartialFunction[(String, InputStream), Unit] {
-      override def isDefinedAt(x: (String, InputStream)): Boolean = matches
-
-      override def apply(v1: (String, InputStream)): Unit =
-        fromInputStream(is).getLines()
-                           .toSeq
-                           .flatMap(s => TargetingList.unapply(s))
-                           .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-                           .foreach { case (_, tls) => Sauna.optimizely.targetingLists(tls) }
+  override def process(filePath: String, is: InputStream): Unit =
+    if (filePath.matches(pathPattern)) {
+      fromInputStream(is).getLines()
+                         .toSeq
+                         .flatMap(s => TargetingList.unapply(s))
+                         .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
+                         .foreach { case (_, tls) => Sauna.optimizely.targetingLists(tls) }
     }
-  }
 
   /**
     * Helper method, that converts several TargetingLists in Optimizely-friendly format.

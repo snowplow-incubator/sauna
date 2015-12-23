@@ -10,22 +10,23 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.responders.optimizely
+package com.snowplowanalytics.sauna.responders
 
 import java.util.UUID
-import scala.concurrent.ExecutionContext.Implicits.global
 
-import play.api.libs.json.Json
 import com.fasterxml.jackson.core.JsonParseException
-
-import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
 import com.snowplowanalytics.sauna.loggers.Logger
+import com.snowplowanalytics.sauna.processors.TargetingList
+import com.snowplowanalytics.sauna.{HasWSClient, Sauna}
+import play.api.libs.json.Json
+
+import scala.concurrent.ExecutionContext.Implicits.global
 
 /**
   * Encapsulates any action with Optimizely.
   */
-class OptimizelyApi extends HasWSClient { self: Logger =>
-  import OptimizelyApi._
+class Optimizely extends HasWSClient { self: Logger =>
+  import Optimizely._
 
   /**
     * Uploads data to Optimizely.
@@ -77,6 +78,6 @@ class OptimizelyApi extends HasWSClient { self: Logger =>
   }
 }
 
-object OptimizelyApi {
+object Optimizely {
   val urlPrefix = "https://www.optimizelyapis.com/experiment/v1/projects/"
 }

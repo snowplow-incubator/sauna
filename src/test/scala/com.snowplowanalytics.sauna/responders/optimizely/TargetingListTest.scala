@@ -12,6 +12,7 @@
  */
 package com.snowplowanalytics.sauna.responders.optimizely
 
+import com.snowplowanalytics.sauna.processors.TargetingList
 import org.scalatest._
 
 class TargetingListTest extends FunSuite {
