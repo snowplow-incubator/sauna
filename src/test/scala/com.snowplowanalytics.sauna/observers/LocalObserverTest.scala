@@ -12,15 +12,14 @@
  */
 package com.snowplowanalytics.sauna.observers
 
-import java.io.{InputStream, PrintWriter, File}
+import java.io.{File, InputStream, PrintWriter}
 import java.util.UUID
-import com.snowplowanalytics.sauna.processors.Processor
-
-import scala.io.Source.fromInputStream
-
-import org.scalatest._
 
 import com.snowplowanalytics.sauna.loggers.MutedLogger
+import com.snowplowanalytics.sauna.processors.Processor
+import org.scalatest._
+
+import scala.io.Source.fromInputStream
 
 class LocalObserverTest extends FunSuite {
   test("integration") {
@@ -32,7 +31,8 @@ class LocalObserverTest extends FunSuite {
     var expectedLines: Seq[String] = null
     val processors = Seq(
       new Processor {
-        override def process(fileName: String, is: InputStream): Unit = expectedLines = fromInputStream(is).getLines().toSeq
+        override def process(fileName: String, is: InputStream): Unit =
+          expectedLines = fromInputStream(is).getLines().toSeq
       }
     )
     val lo = new LocalObserver(path, processors) with MutedLogger

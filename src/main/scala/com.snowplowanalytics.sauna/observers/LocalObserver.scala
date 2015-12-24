@@ -28,7 +28,7 @@ import scala.collection.mutable
 class LocalObserver(observedDir: String,
                     responders: Seq[Processor]) extends Observer { self: Logger =>
 
-  def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
+  private def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
     if (event == StandardWatchEventKinds.ENTRY_CREATE) {
       self.notification(s"Detected new local file [$path].")
       val is = new FileInputStream(path.toFile)
@@ -61,7 +61,7 @@ class DirectoryWatcher(path: Path,
                        processEvent: (WatchEvent.Kind[Path], Path) => Unit,
                        recursive: Boolean = true) {
   private val watchService = FileSystems.getDefault
-    .newWatchService()
+                                        .newWatchService()
   private val keys = new mutable.HashMap[WatchKey, Path]
 
   if (recursive) registerAll(path)
@@ -80,7 +80,7 @@ class DirectoryWatcher(path: Path,
     * WatchService.
     */
   private def registerAll(start: Path): Unit = {
-    Files.walkFileTree(start, new SimpleFileVisitor[Path]() {
+    val _ = Files.walkFileTree(start, new SimpleFileVisitor[Path]() {
       override def preVisitDirectory(path: Path, attrs: BasicFileAttributes) = {
         registerSingle(path)
         FileVisitResult.CONTINUE

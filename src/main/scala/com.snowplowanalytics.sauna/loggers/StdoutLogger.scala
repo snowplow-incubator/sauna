@@ -10,9 +10,17 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.observers
+package com.snowplowanalytics.sauna.loggers
 
 /**
-  * Observer should keep an eye on some place where new files may appear.
+  * Writes messages to standard output.
   */
-trait Observer extends Runnable
+trait StdoutLogger extends Logger {
+  override def notification(message: String): Unit = {
+    println(s"NOTIFICATION: got message = [$message].")
+  }
+
+  override def manifestation(uid: String, name: String, status: Int, description: String, lastModified: String): Unit = {
+    println(s"MANIFESTATION: got uid = [$uid], name = [$name], status = [$status], description = [$description], lastModified = [$lastModified]")
+  }
+}
