@@ -10,9 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.responders.optimizely
+package com.snowplowanalytics.sauna.processors
 
-import com.snowplowanalytics.sauna.processors.TargetingList
 import org.scalatest._
 
 class TargetingListTest extends FunSuite {
@@ -25,13 +24,13 @@ class TargetingListTest extends FunSuite {
   test("unapply valid input") {
     val s = "4034532101\tdec_ab_group\tDecember 2015 A/B group\t1\tlogin,signup\t38071d80-1f03-4c50-ba94-f3daafd5a8c0"
 
-    assert(TargetingList.unapply(s) === Some(TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0")))
+    assert(TargetingList.unapply(s) === Some(TargetingList.Data("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0")))
   }
 
   test("unapply empty keyFields") {
     val s = "4034532101\tdec_ab_group\tDecember 2015 A/B group\t1\t\t38071d80-1f03-4c50-ba94-f3daafd5a8c0"
 
-    assert(TargetingList.unapply(s) === Some(TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, None, "38071d80-1f03-4c50-ba94-f3daafd5a8c0")))
+    assert(TargetingList.unapply(s) === Some(TargetingList.Data("4034532101", "dec_ab_group", "December 2015 A/B group", 1, None, "38071d80-1f03-4c50-ba94-f3daafd5a8c0")))
   }
 
   test("merge empty") {
@@ -43,20 +42,20 @@ class TargetingListTest extends FunSuite {
   }
 
   test("merge one valid") {
-    val tl = TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0")
+    val tl = TargetingList.Data("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0")
 
     assert(TargetingList.merge(Seq(tl)) === "{\"name\":\"dec_ab_group\", \"description\":\"December 2015 A/B group\", \"list_type\":1, \"key_fields\":\"login,signup\", \"list_content\":\"38071d80-1f03-4c50-ba94-f3daafd5a8c0\",\"format\":\"tsv\"}")
   }
 
   test("merge one empty keyFields") {
-    val tl = TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, None, "38071d80-1f03-4c50-ba94-f3daafd5a8c0")
+    val tl = TargetingList.Data("4034532101", "dec_ab_group", "December 2015 A/B group", 1, None, "38071d80-1f03-4c50-ba94-f3daafd5a8c0")
 
     assert(TargetingList.merge(Seq(tl)) === "{\"name\":\"dec_ab_group\", \"description\":\"December 2015 A/B group\", \"list_type\":1, \"key_fields\":null, \"list_content\":\"38071d80-1f03-4c50-ba94-f3daafd5a8c0\",\"format\":\"tsv\"}")
   }
 
   test("merge several") {
-    val tl1 = TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0")
-    val tl2 = TargetingList("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "76545674-1f03-4c50-ba94-f3daafd5a8c0")
+    val tl1 = TargetingList.Data("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "38071d80-1f03-4c50-ba94-f3daafd5a8c0")
+    val tl2 = TargetingList.Data("4034532101", "dec_ab_group", "December 2015 A/B group", 1, Some("login,signup"), "76545674-1f03-4c50-ba94-f3daafd5a8c0")
 
     assert(TargetingList.merge(Seq(tl1, tl2)) === "{\"name\":\"dec_ab_group\", \"description\":\"December 2015 A/B group\", \"list_type\":1, \"key_fields\":\"login,signup\", \"list_content\":\"38071d80-1f03-4c50-ba94-f3daafd5a8c0,76545674-1f03-4c50-ba94-f3daafd5a8c0\",\"format\":\"tsv\"}")
   }

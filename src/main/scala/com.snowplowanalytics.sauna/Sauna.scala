@@ -22,7 +22,7 @@ import awscala.{Credentials, Region}
 import com.snowplowanalytics.sauna.loggers._
 import com.snowplowanalytics.sauna.observers._
 import com.snowplowanalytics.sauna.processors._
-import com.snowplowanalytics.sauna.responders._
+import com.snowplowanalytics.sauna.apis._
 
 /**
   * Main class, starts the Sauna program.
@@ -56,7 +56,10 @@ object Sauna extends App {
   val optimizely = new Optimizely with HipchatLogger with DDBLogger
 
   // processors
-  val processors = Seq(TargetingList)
+  val processors = Seq(
+    new TargetingList with HipchatLogger with DDBLogger,
+    new DCPDatasource with HipchatLogger with DDBLogger
+  )
 
   // define and run observers
   val observers = Seq(

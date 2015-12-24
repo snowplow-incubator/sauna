@@ -10,7 +10,7 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.responders
+package com.snowplowanalytics.sauna.apis
 
 import java.util.UUID
 
@@ -31,16 +31,18 @@ class Optimizely extends HasWSClient { self: Logger =>
   /**
     * Uploads data to Optimizely.
     *
-    * @param tls Data to be uploaded.
+    * @param tlData Data to be uploaded.
     * @param token Optimizely token.
     */
-  def targetingLists(tls: Seq[TargetingList],
+  def targetingLists(tlData: Seq[TargetingList.Data],
                      token: String = Sauna.saunaConfig.optimizelyToken): Unit = {
-    val projectId = tls.head.projectId // all tls have one projectId
+    val projectId = tlData.head.projectId // all tls have one projectId
+
+    println(s"tlData = $tlData")
 
     wsClient.url(urlPrefix + s"$projectId/targeting_lists/")
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
-            .post(TargetingList.merge(tls))
+            .post(TargetingList.merge(tlData))
             .foreach { case r =>
               // those are lazy to emphasize their pattern of use, probably simple `val` would be a bit more efficient
               lazy val defaultId = UUID.randomUUID().toString

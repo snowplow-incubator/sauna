@@ -25,7 +25,7 @@ import play.api.libs.json.Json
   * Observes some AWS S3 bucket.
   */
 class S3Observer(s3: S3, sqs: SQS, queue: Queue,
-                 responders: Seq[Processor]) extends Observer { self: Logger =>
+                 processors: Seq[Processor]) extends Observer { self: Logger =>
   import S3Observer._
 
   /**
@@ -51,7 +51,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue,
            val decodedFileName = decode(fileName, "UTF-8")
            self.notification(s"Detected new S3 file $decodedFileName.")
            val is = getInputStream(bucketName, decodedFileName)
-           responders.foreach(_.process(decodedFileName, is))
+           processors.foreach(_.process(decodedFileName, is))
            sqs.delete(message)
          }
     }

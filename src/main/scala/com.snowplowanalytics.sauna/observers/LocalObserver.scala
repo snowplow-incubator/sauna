@@ -26,14 +26,14 @@ import scala.collection.mutable
   * Observes files in local filesystem.
   */
 class LocalObserver(observedDir: String,
-                    responders: Seq[Processor]) extends Observer { self: Logger =>
+                    processors: Seq[Processor]) extends Observer { self: Logger =>
 
   private def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
     if (event == StandardWatchEventKinds.ENTRY_CREATE) {
       self.notification(s"Detected new local file [$path].")
       val is = new FileInputStream(path.toFile)
 
-      responders.foreach(_.process("" + path, is))
+      processors.foreach(_.process("" + path, is))
 
       try {
         Files.delete(path)
