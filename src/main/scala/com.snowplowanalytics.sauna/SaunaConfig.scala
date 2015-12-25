@@ -7,8 +7,8 @@ import java.io.File
 import com.typesafe.config.ConfigFactory
 
 /**
-  * Represents project configuration.
-  */
+ * Represents project configuration.
+ */
 case class SaunaConfig(queueName: String, accessKeyId: String,
                        secretAccessKey: String, ddbTableName: String, optimizelyToken: String,
                        saunaRoot: String, hipchatRoomId: String, hipchatToken: String)

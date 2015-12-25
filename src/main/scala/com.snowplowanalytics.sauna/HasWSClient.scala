@@ -16,6 +16,9 @@ package com.snowplowanalytics.sauna
 import play.api.libs.ws.WSClient
 import play.api.libs.ws.ning.NingWSClient
 
+/**
+ * Shares a single WSClient instance.
+ */
 trait HasWSClient {
   val wsClient: WSClient = NingWSClient()
 }

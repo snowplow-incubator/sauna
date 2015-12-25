@@ -28,8 +28,8 @@ import com.snowplowanalytics.sauna.processors._
 import com.snowplowanalytics.sauna.apis._
 
 /**
-  * Main class, starts the Sauna program.
-  */
+ * Main class, starts the Sauna program.
+ */
 object Sauna extends App {
   if (args.length != 1) {
     println("""Usage: 'sbt "run <path_to_file_with_credentials>"' """)

@@ -28,15 +28,15 @@ import com.snowplowanalytics.sauna.loggers.Logger
 import com.snowplowanalytics.sauna.processors.Processor
 
 /**
-  * Observes some AWS S3 bucket.
-  */
+ * Observes some AWS S3 bucket.
+ */
 class S3Observer(s3: S3, sqs: SQS, queue: Queue,
                  processors: Seq[Processor]) extends Observer { self: Logger =>
   import S3Observer._
 
   /**
-    * Gets file content from S3 bucket.
-    */
+   * Gets file content from S3 bucket.
+   */
   def getInputStream(bucketName: String, fileName: String): InputStream = {
     s3.get(Bucket(bucketName), fileName)
       .map(_.content)
@@ -67,8 +67,8 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue,
 object S3Observer {
 
   /**
-    * Gets bucket and file names from given json.
-    */
+   * Gets bucket and file names from given json.
+   */
   def getBucketAndFile(messageJson: String): Option[(String, String)] = {
     val parsed = Json.parse(messageJson)
     val s3opt = (parsed \ "Records" \\ "s3").headOption

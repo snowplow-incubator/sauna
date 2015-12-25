@@ -31,17 +31,17 @@ import com.snowplowanalytics.sauna.processors.TargetingList
 import com.snowplowanalytics.sauna.{HasWSClient, Sauna}
 
 /**
-  * Encapsulates any action with Optimizely.
-  */
+ * Encapsulates any action with Optimizely.
+ */
 class Optimizely extends HasWSClient { self: Logger =>
   import Optimizely._
 
   /**
-    * Uploads data to Optimizely.
-    *
-    * @param tlData Data to be uploaded.
-    * @param token Optimizely token.
-    */
+   * Uploads data to Optimizely.
+   *
+   * @param tlData Data to be uploaded.
+   * @param token Optimizely token.
+   */
   def targetingLists(tlData: Seq[TargetingList.Data],
                      token: String = Sauna.saunaConfig.optimizelyToken): Unit = {
     val projectId = tlData.head.projectId // all tls have one projectId
@@ -88,12 +88,12 @@ class Optimizely extends HasWSClient { self: Logger =>
   }
 
   /**
-    * Tries to get credentials for S3 bucket "optimizely-import".
-    *
-    * @param dcpDatasourceId Your Dynamic Customer Profile datasource id.
-    * @param token Optimizely secret token.
-    * @return Future Option (awsAccessKey, awsSecretKey) for S3 bucket "optimizely-import"
-    */
+   * Tries to get credentials for S3 bucket "optimizely-import".
+   *
+   * @param dcpDatasourceId Your Dynamic Customer Profile datasource id.
+   * @param token Optimizely secret token.
+   * @return Future Option (awsAccessKey, awsSecretKey) for S3 bucket "optimizely-import"
+   */
   def getOptimizelyS3Credentials(dcpDatasourceId: String,
                                  token: String = Sauna.saunaConfig.optimizelyToken): Future[Option[(String, String)]] = {
     wsClient.url(urlPrefix + s"dcp_datasources/$dcpDatasourceId")

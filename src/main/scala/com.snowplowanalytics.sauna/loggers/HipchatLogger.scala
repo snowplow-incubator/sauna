@@ -19,10 +19,10 @@ trait HipchatLogger extends HasWSClient with Logger {
   import HipchatLogger._
 
   /**
-    * Makes notification to some HipChat room.
-    *
-    * @param message Text of notification.
-    */
+   * Makes notification to some HipChat room.
+   *
+   * @param message Text of notification.
+   */
   override def notification(message: String): Unit = {
     val roomId = Sauna.saunaConfig.hipchatRoomId
     val token = Sauna.saunaConfig.hipchatToken

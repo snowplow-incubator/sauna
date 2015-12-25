@@ -26,8 +26,8 @@ import com.snowplowanalytics.sauna.loggers.Logger
 import com.snowplowanalytics.sauna.processors.Processor
 
 /**
-  * Observes files in local filesystem.
-  */
+ * Observes files in local filesystem.
+ */
 class LocalObserver(observedDir: String,
                     processors: Seq[Processor]) extends Observer { self: Logger =>
 
@@ -53,13 +53,13 @@ class LocalObserver(observedDir: String,
 }
 
 /**
-  * Utility class, watches for all files in given directory, recursively.
-  * @see http://download.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
-  *
-  * @param path A path to be watched.
-  * @param processEvent How an event should be processed.
-  * @param recursive Should watch for subdirectories or no.
-  */
+ * Utility class, watches for all files in given directory, recursively.
+ * @see http://download.oracle.com/javase/tutorial/essential/io/examples/WatchDir.java
+ *
+ * @param path A path to be watched.
+ * @param processEvent How an event should be processed.
+ * @param recursive Should watch for subdirectories or no.
+ */
 class DirectoryWatcher(path: Path,
                        processEvent: (WatchEvent.Kind[Path], Path) => Unit,
                        recursive: Boolean = true) {
@@ -70,8 +70,8 @@ class DirectoryWatcher(path: Path,
   if (recursive) registerAll(path)
 
   /**
-    * Register the given directory without subdirectories with the WatchService.
-    */
+   * Register the given directory without subdirectories with the WatchService.
+   */
   private def registerSingle(path: Path): Unit = {
     val key = path.register(watchService, StandardWatchEventKinds.ENTRY_CREATE)
 
@@ -79,9 +79,9 @@ class DirectoryWatcher(path: Path,
   }
 
   /**
-    * Register the given directory, and all its sub-directories, with the
-    * WatchService.
-    */
+   * Register the given directory, and all its sub-directories, with the
+   * WatchService.
+   */
   private def registerAll(start: Path): Unit = {
     val _ = Files.walkFileTree(start, new SimpleFileVisitor[Path]() {
       override def preVisitDirectory(path: Path, attrs: BasicFileAttributes) = {
@@ -93,9 +93,9 @@ class DirectoryWatcher(path: Path,
     })
   }
 
-  /**
-    * Start watching.
-    */
+ /**
+  * Start watching.
+  */
   def start(): Unit = {
     while(true) {
       val key = watchService.take()

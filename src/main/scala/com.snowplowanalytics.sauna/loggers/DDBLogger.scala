@@ -22,14 +22,14 @@ import com.snowplowanalytics.sauna.Sauna
 trait DDBLogger extends Logger {
 
   /**
-    * Writes the message to DynamoDb table.
-    *
-    * @param uid Unique identifier for message.
-    * @param name Message header (for example, Optimizely list name).
-    * @param status HTTP code for operation result.
-    * @param description What happened.
-    * @param lastModified Last modification time, if exists. Else, when message was processed.
-    */
+   * Writes the message to DynamoDb table.
+   *
+   * @param uid Unique identifier for message.
+   * @param name Message header (for example, Optimizely list name).
+   * @param status HTTP code for operation result.
+   * @param description What happened.
+   * @param lastModified Last modification time, if exists. Else, when message was processed.
+   */
   override def manifestation(uid: String, name: String, status: Int, description: String, lastModified: String): Unit = {
     implicit val ddb = Sauna.ddb
     val ddbTable = Sauna.ddbTable

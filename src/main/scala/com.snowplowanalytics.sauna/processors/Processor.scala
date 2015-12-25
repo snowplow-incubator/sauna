@@ -16,19 +16,19 @@ package com.snowplowanalytics.sauna.processors
 import java.io.InputStream
 
 /**
-  * After new file appeared, Sauna should process it somehow.
-  * That's what a Processor does.
-  */
+ * After new file appeared, Sauna should process it somehow.
+ * That's what a Processor does.
+ */
 trait Processor {
   /**
-    * Method that describes "how to process new files".
-    *
-    * File can be outside of local fs, e.g. on AWS S3, and
-    * some important parameters might be encoded as part of 'filePath',
-    * therefore this method has both 'filePath: String' and 'InputStream'
-    *
-    * @param fileName Full name of file.
-    * @param is InputStream from it.
-    */
+   * Method that describes "how to process new files".
+   *
+   * File can be outside of local fs, e.g. on AWS S3, and
+   * some important parameters might be encoded as part of 'filePath',
+   * therefore this method has both 'filePath: String' and 'InputStream'
+   *
+   * @param fileName Full name of file.
+   * @param is InputStream from it.
+   */
   def process(fileName: String, is: InputStream): Unit
 }

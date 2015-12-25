@@ -13,6 +13,6 @@
 package com.snowplowanalytics.sauna.observers
 
 /**
-  * Observer should keep an eye on some place where new files may appear.
-  */
+ * Observer should keep an eye on some place where new files may appear.
+ */
 trait Observer extends Runnable

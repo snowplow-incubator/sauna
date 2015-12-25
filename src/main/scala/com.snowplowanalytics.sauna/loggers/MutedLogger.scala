@@ -13,8 +13,8 @@
 package com.snowplowanalytics.sauna.loggers
 
 /**
-  * Mutes all logging methods.
-  */
+ * Mutes all logging methods.
+ */
 trait MutedLogger extends Logger {
   override def notification(message: String): Unit = {}
 

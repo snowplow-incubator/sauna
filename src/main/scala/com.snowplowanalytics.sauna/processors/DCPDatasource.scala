@@ -30,8 +30,8 @@ import com.snowplowanalytics.sauna.apis.Optimizely
 import com.snowplowanalytics.sauna.loggers.Logger
 
 /**
-  * Does stuff for Optimizely Dynamic Customer Profiles feature.
-  */
+ * Does stuff for Optimizely Dynamic Customer Profiles feature.
+ */
 class DCPDatasource(optimizely: Optimizely,
                     saunaRoot: String) extends Processor { self: Logger =>
   import DCPDatasource._
@@ -81,13 +81,13 @@ class DCPDatasource(optimizely: Optimizely,
   }
 
   /**
-    * Converts underlying source into Optimizely-friendly format.
-    *
-    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
-    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
-    * @param is An InputStream for some source.
-    * @return Some(Corrected file) or None, if something (e.g. wrong date format) went wrong.
-    */
+   * Converts underlying source into Optimizely-friendly format.
+   *
+   * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
+   * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
+   * @param is An InputStream for some source.
+   * @return Some(Corrected file) or None, if something (e.g. wrong date format) went wrong.
+   */
   def correct(is: InputStream, header: String): Option[File] = {
     val sb = new StringBuilder(header + "\n")
     fromInputStream(is).getLines()
@@ -111,13 +111,13 @@ class DCPDatasource(optimizely: Optimizely,
   }
 
   /**
-    * Converts the line into Optimizely-friendly format.
-    *
-    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
-    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
-    * @param _line A string to be corrected.
-    * @return Some(Corrected string) or None, if something (e.g. wrong date format) went wrong.
-    */
+   * Converts the line into Optimizely-friendly format.
+   *
+   * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
+   * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
+   * @param _line A string to be corrected.
+   * @return Some(Corrected string) or None, if something (e.g. wrong date format) went wrong.
+   */
   def correct(_line: String): Option[String] = {
     val line = _line.replaceAll("[ ]{2,}", "\t") // handle cases when \t got converted to spaces
     val sb = new StringBuilder

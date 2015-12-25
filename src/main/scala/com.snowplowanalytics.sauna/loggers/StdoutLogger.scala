@@ -13,8 +13,8 @@
 package com.snowplowanalytics.sauna.loggers
 
 /**
-  * Writes messages to standard output.
-  */
+ * Writes messages to standard output.
+ */
 trait StdoutLogger extends Logger {
   override def notification(message: String): Unit = {
     println(s"NOTIFICATION: got message = [$message].")

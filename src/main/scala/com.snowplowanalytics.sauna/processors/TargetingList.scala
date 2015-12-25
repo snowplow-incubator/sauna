@@ -23,9 +23,9 @@ import com.snowplowanalytics.sauna.apis.Optimizely
 import com.snowplowanalytics.sauna.loggers.Logger
 
 /**
-  * Does stuff for Optimizely Targeting List feature.
-  * Represents input data format + helper methods.
-  */
+ * Does stuff for Optimizely Targeting List feature.
+ * Represents input data format + helper methods.
+ */
 class TargetingList(optimizely: Optimizely) extends Processor { self: Logger =>
   import TargetingList._
 
@@ -52,8 +52,8 @@ object TargetingList {
   val validLineRegexp = """(.+?)\t(.+?)\t(.+?)\t([0-9]+?)\t(.*?)\t(.+?)""".r
 
   /**
-    * Represents valid line format.
-    */
+   * Represents valid line format.
+   */
   case class Data(projectId: String, listName: String, listDescription: String,
                   listType: Short, keyFields: Option[String], value: String)
 
@@ -68,11 +68,11 @@ object TargetingList {
   }
 
   /**
-    * Helper method, that converts several TargetingLists in Optimizely-friendly format.
-    *
-    * @param tlData list of TargetingLists.Data.
-    * @return a String in Optimizely-friendly format.
-    */
+   * Helper method, that converts several TargetingLists in Optimizely-friendly format.
+   *
+   * @param tlData list of TargetingLists.Data.
+   * @return a String in Optimizely-friendly format.
+   */
   def merge(tlData: Seq[Data]): String = {
     val head = tlData.head
     val name = s""""${head.listName}""""
