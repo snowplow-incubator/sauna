@@ -12,12 +12,15 @@
  */
 package com.snowplowanalytics.sauna.processors
 
+// java
 import java.io.InputStream
 
+// scala
+import scala.io.Source.fromInputStream
+
+// sauna
 import com.snowplowanalytics.sauna.apis.Optimizely
 import com.snowplowanalytics.sauna.loggers.Logger
-
-import scala.io.Source.fromInputStream
 
 /**
   * Does stuff for Optimizely Targeting List feature.

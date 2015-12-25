@@ -12,14 +12,20 @@
  */
 package com.snowplowanalytics.sauna.observers
 
+//java
 import java.io.InputStream
 import java.net.URLDecoder._
 
+// play
+import play.api.libs.json.Json
+
+// awscala
 import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
+
+// sauna
 import com.snowplowanalytics.sauna.loggers.Logger
 import com.snowplowanalytics.sauna.processors.Processor
-import play.api.libs.json.Json
 
 /**
   * Observes some AWS S3 bucket.

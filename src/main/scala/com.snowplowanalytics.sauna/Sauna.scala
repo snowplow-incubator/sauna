@@ -12,13 +12,16 @@
  */
 package com.snowplowanalytics.sauna
 
+// java
 import java.io.File
 
+// awscala
 import awscala.dynamodbv2.DynamoDB
 import awscala.s3.S3
 import awscala.sqs.SQS
 import awscala.{Credentials, Region}
 
+// sauna
 import com.snowplowanalytics.sauna.loggers._
 import com.snowplowanalytics.sauna.observers._
 import com.snowplowanalytics.sauna.processors._

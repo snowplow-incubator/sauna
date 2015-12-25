@@ -12,10 +12,12 @@
  */
 package com.snowplowanalytics.sauna.loggers
 
-import com.snowplowanalytics.sauna.Sauna
-
+// scala
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
+
+// sauna
+import com.snowplowanalytics.sauna.Sauna
 
 trait DDBLogger extends Logger {
 

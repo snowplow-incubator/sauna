@@ -12,6 +12,7 @@
  */
 package com.snowplowanalytics.sauna.loggers
 
+// sauna
 import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
 
 trait HipchatLogger extends HasWSClient with Logger {

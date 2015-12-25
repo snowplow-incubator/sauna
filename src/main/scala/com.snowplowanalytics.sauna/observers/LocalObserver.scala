@@ -12,15 +12,18 @@
  */
 package com.snowplowanalytics.sauna.observers
 
+// java
 import java.io.{FileInputStream, IOException}
 import java.nio.file._
 import java.nio.file.attribute._
 
-import com.snowplowanalytics.sauna.loggers.Logger
-import com.snowplowanalytics.sauna.processors.Processor
-
+// scala
 import scala.collection.JavaConversions._
 import scala.collection.mutable
+
+// sauna
+import com.snowplowanalytics.sauna.loggers.Logger
+import com.snowplowanalytics.sauna.processors.Processor
 
 /**
   * Observes files in local filesystem.

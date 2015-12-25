@@ -12,6 +12,7 @@
  */
 package com.snowplowanalytics.sauna
 
+// play
 import play.api.libs.ws.WSClient
 import play.api.libs.ws.ning.NingWSClient
 

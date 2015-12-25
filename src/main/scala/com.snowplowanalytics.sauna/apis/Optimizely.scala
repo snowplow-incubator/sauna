@@ -12,16 +12,23 @@
  */
 package com.snowplowanalytics.sauna.apis
 
+// java
 import java.util.UUID
 
+// scala
+import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
+
+// play
+import play.api.libs.json.Json
+
+// jackson
 import com.fasterxml.jackson.core.JsonParseException
+
+// sauna
 import com.snowplowanalytics.sauna.loggers.Logger
 import com.snowplowanalytics.sauna.processors.TargetingList
 import com.snowplowanalytics.sauna.{HasWSClient, Sauna}
-import play.api.libs.json.Json
-
-import scala.concurrent.ExecutionContext.Implicits.global
-import scala.concurrent.Future
 
 /**
   * Encapsulates any action with Optimizely.

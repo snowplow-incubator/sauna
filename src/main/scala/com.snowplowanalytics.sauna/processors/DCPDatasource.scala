@@ -12,17 +12,22 @@
  */
 package com.snowplowanalytics.sauna.processors
 
+// java
 import java.io.{File, InputStream, PrintWriter}
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.UUID
 
-import awscala.Region
-import awscala.s3.S3
-import com.snowplowanalytics.sauna.apis.Optimizely
-import com.snowplowanalytics.sauna.loggers.Logger
-
+// scala
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
+
+// awscala
+import awscala.Region
+import awscala.s3.S3
+
+// sauna
+import com.snowplowanalytics.sauna.apis.Optimizely
+import com.snowplowanalytics.sauna.loggers.Logger
 
 /**
   * Does stuff for Optimizely Dynamic Customer Profiles feature.

@@ -1,7 +1,9 @@
 package com.snowplowanalytics.sauna
 
+// java
 import java.io.File
 
+// typesafe.config
 import com.typesafe.config.ConfigFactory
 
 /**
