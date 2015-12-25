@@ -22,10 +22,10 @@ import awscala.sqs.SQS
 import awscala.{Credentials, Region}
 
 // sauna
-import com.snowplowanalytics.sauna.loggers._
-import com.snowplowanalytics.sauna.observers._
-import com.snowplowanalytics.sauna.processors._
-import com.snowplowanalytics.sauna.apis._
+import loggers._
+import observers._
+import processors._
+import apis._
 
 /**
  * Main class, starts the Sauna program.

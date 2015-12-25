@@ -10,10 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.loggers
-
-// sauna
-import com.snowplowanalytics.sauna.{Sauna, HasWSClient}
+package com.snowplowanalytics.sauna
+package loggers
 
 trait HipchatLogger extends HasWSClient with Logger {
   import HipchatLogger._

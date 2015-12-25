@@ -10,7 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.apis
+package com.snowplowanalytics.sauna
+package apis
 
 // java
 import java.util.UUID
@@ -26,9 +27,8 @@ import play.api.libs.json.Json
 import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
-import com.snowplowanalytics.sauna.loggers.Logger
-import com.snowplowanalytics.sauna.processors.TargetingList
-import com.snowplowanalytics.sauna.{HasWSClient, Sauna}
+import loggers.Logger
+import processors.TargetingList
 
 /**
  * Encapsulates any action with Optimizely.

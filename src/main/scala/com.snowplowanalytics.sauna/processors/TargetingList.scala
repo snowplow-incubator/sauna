@@ -10,7 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.processors
+package com.snowplowanalytics.sauna
+package processors
 
 // java
 import java.io.InputStream
@@ -19,8 +20,8 @@ import java.io.InputStream
 import scala.io.Source.fromInputStream
 
 // sauna
-import com.snowplowanalytics.sauna.apis.Optimizely
-import com.snowplowanalytics.sauna.loggers.Logger
+import apis.Optimizely
+import loggers.Logger
 
 /**
  * Does stuff for Optimizely Targeting List feature.

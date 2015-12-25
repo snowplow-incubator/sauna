@@ -10,7 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.observers
+package com.snowplowanalytics.sauna
+package observers
 
 // java
 import java.io.{FileInputStream, IOException}
@@ -22,8 +23,8 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 // sauna
-import com.snowplowanalytics.sauna.loggers.Logger
-import com.snowplowanalytics.sauna.processors.Processor
+import loggers.Logger
+import processors.Processor
 
 /**
  * Observes files in local filesystem.

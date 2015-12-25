@@ -10,7 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.observers
+package com.snowplowanalytics.sauna
+package observers
 
 // java
 import java.io.{File, InputStream, PrintWriter}
@@ -23,8 +24,8 @@ import scala.io.Source.fromInputStream
 import org.scalatest._
 
 // sauna
-import com.snowplowanalytics.sauna.loggers.MutedLogger
-import com.snowplowanalytics.sauna.processors.Processor
+import loggers.MutedLogger
+import processors.Processor
 
 
 class LocalObserverTest extends FunSuite {
