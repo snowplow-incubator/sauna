@@ -12,6 +12,3 @@ project/plugins/project/
 # Vagrant
 .vagrant
 VERSION
-
-# Intellij
-.idea
