@@ -14,7 +14,7 @@ package com.snowplowanalytics.sauna.processors
 
 import java.io.InputStream
 
-import com.snowplowanalytics.sauna.Sauna
+import com.snowplowanalytics.sauna.apis.Optimizely
 import com.snowplowanalytics.sauna.loggers.Logger
 
 import scala.io.Source.fromInputStream
@@ -23,7 +23,7 @@ import scala.io.Source.fromInputStream
   * Does stuff for Optimizely Targeting List feature.
   * Represents input data format + helper methods.
   */
-class TargetingList extends Processor { self: Logger =>
+class TargetingList(optimizely: Optimizely) extends Processor { self: Logger =>
   import TargetingList._
 
   override def process(filePath: String, is: InputStream): Unit =
@@ -32,7 +32,7 @@ class TargetingList extends Processor { self: Logger =>
                          .toSeq
                          .flatMap(s => TargetingList.unapply(s))
                          .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-                         .foreach { case (_, tls) => Sauna.optimizely.targetingLists(tls) }
+                         .foreach { case (_, tls) => optimizely.targetingLists(tls) }
     }
 }
 

@@ -82,7 +82,9 @@ class DirectoryWatcher(path: Path,
   private def registerAll(start: Path): Unit = {
     val _ = Files.walkFileTree(start, new SimpleFileVisitor[Path]() {
       override def preVisitDirectory(path: Path, attrs: BasicFileAttributes) = {
-        registerSingle(path)
+        if (!path.startsWith(start + "/tmp")) // do not track files in tmp/
+          registerSingle(path)
+
         FileVisitResult.CONTINUE
       }
     })
@@ -98,24 +100,24 @@ class DirectoryWatcher(path: Path,
         throw new IOException("Not found a WatchKey. Something strange happened while watching local filesystem."))
 
       key.pollEvents()
-        .foreach { case event: WatchEvent[Path] @unchecked if event.kind() != StandardWatchEventKinds.OVERFLOW =>
-          val kind = event.kind()
-          val path = event.context()
-          val child = dir.resolve(path)
+         .foreach { case event: WatchEvent[Path] @unchecked if event.kind() != StandardWatchEventKinds.OVERFLOW =>
+           val kind = event.kind()
+           val path = event.context()
+           val child = dir.resolve(path)
 
-          if (recursive && kind == StandardWatchEventKinds.ENTRY_CREATE) {
-            if (Files.isDirectory(child)) {
-              registerAll(child)
-            }
-            else if (Files.isRegularFile(child)) {
-              processEvent(kind, child)
-            }
-          }
+           if (recursive && kind == StandardWatchEventKinds.ENTRY_CREATE) {
+             if (Files.isDirectory(child)) {
+               registerAll(child)
+             }
+             else if (Files.isRegularFile(child)) {
+               processEvent(kind, child)
+             }
+           }
 
-          if (!key.reset()) {
-            keys.remove(key) // invalid key
-          }
-        }
+           if (!key.reset()) {
+             keys.remove(key) // invalid key
+           }
+         }
     }
   }
 }

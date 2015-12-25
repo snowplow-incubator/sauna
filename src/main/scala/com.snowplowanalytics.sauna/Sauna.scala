@@ -33,9 +33,8 @@ object Sauna extends App {
     System.exit(1)
   }
 
-  val saunaConfig = SaunaConfig(new File(args(0)))
-
   // configuration
+  val saunaConfig = SaunaConfig(new File(args(0)))
   implicit val region = Region.US_WEST_2
   implicit val credentials = new Credentials(saunaConfig.accessKeyId, saunaConfig.secretAccessKey)
 
@@ -53,17 +52,22 @@ object Sauna extends App {
                  .getOrElse(throw new Exception("No queue with that name found"))
 
   // responders
-  val optimizely = new Optimizely with HipchatLogger with DDBLogger
+  val optimizely = new Optimizely with StdoutLogger
+//  val optimizely = new Optimizely with HipchatLogger with DDBLogger
 
   // processors
   val processors = Seq(
-    new TargetingList with HipchatLogger with DDBLogger,
-    new DCPDatasource with HipchatLogger with DDBLogger
+    new TargetingList(optimizely) with StdoutLogger,
+    new DCPDatasource(optimizely, saunaConfig.saunaRoot) with StdoutLogger
+//    new TargetingList(optimizely) with HipchatLogger with DDBLogger,
+//    new DCPDatasource(optimizely, saunaConfig.saunaRoot) with HipchatLogger with DDBLogger
   )
 
   // define and run observers
   val observers = Seq(
-    new LocalObserver(saunaConfig.saunaRoot, processors) with HipchatLogger with DDBLogger,
-    new S3Observer(s3, sqs, queue, processors) with HipchatLogger with DDBLogger
+    new LocalObserver(saunaConfig.saunaRoot, processors) with StdoutLogger,
+    new S3Observer(s3, sqs, queue, processors) with StdoutLogger
+//    new LocalObserver(saunaConfig.saunaRoot, processors) with HipchatLogger with DDBLogger,
+//    new S3Observer(s3, sqs, queue, processors) with HipchatLogger with DDBLogger
   ).foreach(o => new Thread(o).start())
 }

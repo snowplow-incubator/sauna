@@ -21,6 +21,7 @@ import com.snowplowanalytics.sauna.{HasWSClient, Sauna}
 import play.api.libs.json.Json
 
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.Future
 
 /**
   * Encapsulates any action with Optimizely.
@@ -40,19 +41,19 @@ class Optimizely extends HasWSClient { self: Logger =>
 
     println(s"tlData = $tlData")
 
-    wsClient.url(urlPrefix + s"$projectId/targeting_lists/")
+    wsClient.url(urlPrefix + s"projects/$projectId/targeting_lists/")
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
             .post(TargetingList.merge(tlData))
-            .foreach { case r =>
+            .foreach { case response =>
               // those are lazy to emphasize their pattern of use, probably simple `val` would be a bit more efficient
               lazy val defaultId = UUID.randomUUID().toString
               lazy val defaultName = "Not found."
-              lazy val defaultDescription = r.body
+              lazy val defaultDescription = response.body
               lazy val defaultLastModified = new java.sql.Timestamp(System.currentTimeMillis).toString
-              val status = r.status
+              val status = response.status
 
-              try { // r.body is valid json
-                val json = Json.parse(r.body)
+              try { // response.body is valid json
+                val json = Json.parse(response.body)
                 val id = (json \ "id").asOpt[String]
                                       .orElse((json \ "uuid").asOpt[String])
                                       .getOrElse(defaultId)
@@ -69,17 +70,45 @@ class Optimizely extends HasWSClient { self: Logger =>
                 if (status == 201) {
                   self.notification(s"Successfully uploaded targeting lists with name [$name].")
                 } else {
-                  self.notification(s"Unable to upload targeting list with name [$name] : [${r.body}].")
+                  self.notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
                 }
 
               } catch { case e: JsonParseException =>
                 self.manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
-                self.notification(s"Something went completely wrong. See [${r.body}]")
+                self.notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+              }
+            }
+  }
+
+  /**
+    * Tries to get credentials for S3 bucket "optimizely-import".
+    *
+    * @param dcpDatasourceId Your Dynamic Customer Profile datasource id.
+    * @param token Optimizely secret token.
+    * @return Future Option (awsAccessKey, awsSecretKey) for S3 bucket "optimizely-import"
+    */
+  def getOptimizelyS3Credentials(dcpDatasourceId: String,
+                                 token: String = Sauna.saunaConfig.optimizelyToken): Future[Option[(String, String)]] = {
+    wsClient.url(urlPrefix + s"dcp_datasources/$dcpDatasourceId")
+            .withHeaders("Token" -> token)
+            .get()
+            .map { case response =>
+              try { // response.body is valid json
+                val json = Json.parse(response.body)
+
+                for (
+                  accessKey <- (json \ "aws_access_key").asOpt[String];
+                  secretKey <- (json \ "aws_access_key").asOpt[String]
+                ) yield (accessKey, secretKey)
+
+              } catch { case e: JsonParseException =>
+                self.notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+                None
               }
             }
   }
 }
 
 object Optimizely {
-  val urlPrefix = "https://www.optimizelyapis.com/experiment/v1/projects/"
+  val urlPrefix = "https://www.optimizelyapis.com/experiment/v1/"
 }
