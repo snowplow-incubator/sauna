@@ -1,7 +1,9 @@
 package com.snowplowanalytics.sauna
 
+// java
 import java.io.File
 
+// scalatest
 import org.scalatest._
 
 class SaunaConfigTest extends FunSuite {

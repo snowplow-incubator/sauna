@@ -12,6 +12,7 @@
  */
 package com.snowplowanalytics.sauna.observers
 
+// scalatest
 import org.scalatest._
 
 class S3ObserverTest extends FunSuite {

@@ -12,6 +12,7 @@
  */
 package com.snowplowanalytics.sauna.processors
 
+// scalatest
 import org.scalatest._
 
 class TargetingListTest extends FunSuite {

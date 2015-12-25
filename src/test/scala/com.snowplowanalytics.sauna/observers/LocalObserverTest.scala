@@ -12,14 +12,20 @@
  */
 package com.snowplowanalytics.sauna.observers
 
+// java
 import java.io.{File, InputStream, PrintWriter}
 import java.util.UUID
 
-import com.snowplowanalytics.sauna.loggers.MutedLogger
-import com.snowplowanalytics.sauna.processors.Processor
+// scala
+import scala.io.Source.fromInputStream
+
+// scalatest
 import org.scalatest._
 
-import scala.io.Source.fromInputStream
+// sauna
+import com.snowplowanalytics.sauna.loggers.MutedLogger
+import com.snowplowanalytics.sauna.processors.Processor
+
 
 class LocalObserverTest extends FunSuite {
   test("integration") {
