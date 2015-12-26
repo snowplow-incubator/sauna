@@ -71,6 +71,7 @@ class DCPDatasource(optimizely: Optimizely,
                     try {
                       Bucket("optimizely-import").put(s3path, correctedFile)
                       self.notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
+                      if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
                     } catch { case e: Exception =>
                       self.notification(e.getMessage)
