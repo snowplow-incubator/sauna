@@ -43,7 +43,7 @@ class Optimizely extends HasWSClient { self: Logger =>
    * @param token Optimizely token.
    */
   def targetingLists(tlData: Seq[TargetingList.Data],
-                     token: String = Sauna.saunaConfig.optimizelyToken): Unit = {
+                     token: String = Sauna.config.optimizelyToken): Unit = {
     val projectId = tlData.head.projectId // all tls have one projectId
 
     println(s"tlData = $tlData")
@@ -95,7 +95,7 @@ class Optimizely extends HasWSClient { self: Logger =>
    * @return Future Option (awsAccessKey, awsSecretKey) for S3 bucket "optimizely-import"
    */
   def getOptimizelyS3Credentials(dcpDatasourceId: String,
-                                 token: String = Sauna.saunaConfig.optimizelyToken): Future[Option[(String, String)]] = {
+                                 token: String = Sauna.config.optimizelyToken): Future[Option[(String, String)]] = {
     wsClient.url(urlPrefix + s"dcp_datasources/$dcpDatasourceId")
             .withHeaders("Token" -> token)
             .get()
@@ -105,7 +105,7 @@ class Optimizely extends HasWSClient { self: Logger =>
 
                 for (
                   accessKey <- (json \ "aws_access_key").asOpt[String];
-                  secretKey <- (json \ "aws_access_key").asOpt[String]
+                  secretKey <- (json \ "aws_secret_key").asOpt[String]
                 ) yield (accessKey, secretKey)
 
               } catch { case e: JsonParseException =>

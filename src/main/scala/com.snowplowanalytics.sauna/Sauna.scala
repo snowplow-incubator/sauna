@@ -37,21 +37,21 @@ object Sauna extends App {
   }
 
   // configuration
-  val saunaConfig = SaunaConfig(new File(args(0)))
+  val config = SaunaConfig(new File(args(0)))
   implicit val region = Region.US_WEST_2
-  implicit val credentials = new Credentials(saunaConfig.accessKeyId, saunaConfig.secretAccessKey)
+  implicit val credentials = new Credentials(config.accessKeyId, config.secretAccessKey)
 
   // S3
   val s3 = S3(credentials)
 
   // DynamoDB
   val ddb = DynamoDB(credentials)
-  val ddbTable = ddb.table(saunaConfig.ddbTableName)
+  val ddbTable = ddb.table(config.ddbTableName)
                     .getOrElse(throw new Exception("No queue with that name found"))
 
   // SQS
   val sqs = SQS(credentials)
-  val queue = sqs.queue(saunaConfig.queueName)
+  val queue = sqs.queue(config.queueName)
                  .getOrElse(throw new Exception("No queue with that name found"))
 
   // responders
@@ -61,16 +61,18 @@ object Sauna extends App {
   // processors
   val processors = Seq(
     new TargetingList(optimizely) with StdoutLogger,
-    new DCPDatasource(optimizely, saunaConfig.saunaRoot) with StdoutLogger
+    new DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion) with StdoutLogger
 //    new TargetingList(optimizely) with HipchatLogger with DDBLogger,
 //    new DCPDatasource(optimizely, saunaConfig.saunaRoot) with HipchatLogger with DDBLogger
   )
 
   // define and run observers
   val observers = Seq(
-    new LocalObserver(saunaConfig.saunaRoot, processors) with StdoutLogger,
+    new LocalObserver(config.saunaRoot, processors) with StdoutLogger,
     new S3Observer(s3, sqs, queue, processors) with StdoutLogger
 //    new LocalObserver(saunaConfig.saunaRoot, processors) with HipchatLogger with DDBLogger,
 //    new S3Observer(s3, sqs, queue, processors) with HipchatLogger with DDBLogger
   ).foreach(o => new Thread(o).start())
+
+  println("Application started. \n")
 }

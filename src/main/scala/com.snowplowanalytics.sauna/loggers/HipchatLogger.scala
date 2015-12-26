@@ -22,8 +22,8 @@ trait HipchatLogger extends HasWSClient with Logger {
    * @param message Text of notification.
    */
   override def notification(message: String): Unit = {
-    val roomId = Sauna.saunaConfig.hipchatRoomId
-    val token = Sauna.saunaConfig.hipchatToken
+    val roomId = Sauna.config.hipchatRoomId
+    val token = Sauna.config.hipchatToken
     val content = s"""{"color":"green","message":"$message","notify":false,"message_format":"text"}"""
 
     val _ = wsClient.url(urlPrefix + s"room/$roomId/notification")

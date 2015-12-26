@@ -54,7 +54,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue,
       sqs.receiveMessage(queue, count = 10) // blocking, so no overlapping happens
          .foreach { case message =>
            val (bucketName, fileName) = getBucketAndFile(message.body)
-                                       .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
+                                         .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
            val decodedFileName = decode(fileName, "UTF-8")
            self.notification(s"Detected new S3 file $decodedFileName.")
            val is = getInputStream(bucketName, decodedFileName)

@@ -3,7 +3,10 @@ aws {
   secret_access_key = _
   dynamodb_table_name = _
 }
-optimizely.token = _
+optimizely {
+  token = _
+  import_region = "us-east-1"
+}
 sauna.root = /opt/sauna
 queue.name = snowplow-sauna-sandbox
 logging {

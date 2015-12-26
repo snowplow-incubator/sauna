@@ -24,7 +24,7 @@ import scala.io.Source.fromInputStream
 
 // awscala
 import awscala.Region
-import awscala.s3.S3
+import awscala.s3.{Bucket, S3}
 
 // sauna
 import apis.Optimizely
@@ -34,12 +34,13 @@ import loggers.Logger
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
  */
 class DCPDatasource(optimizely: Optimizely,
-                    saunaRoot: String) extends Processor { self: Logger =>
+                    saunaRoot: String,
+                    optimizelyImportRegion: String) extends Processor { self: Logger =>
   import DCPDatasource._
 
   // todo tests everywhere after akka
 
-  override def process(fileName: String, is: InputStream): Unit = fileName match {
+  override def process(filePath: String, is: InputStream): Unit = filePath match {
     case pathRegexp(service, datasource, attrs) =>
       if (attrs.isEmpty) {
         self.notification("Should be at least one attribute.")
@@ -62,15 +63,18 @@ class DCPDatasource(optimizely: Optimizely,
                         return
                     }
 
-                    implicit val region = Region.US_WEST_2 // todo make sure
+                    implicit val region = Region.apply(optimizelyImportRegion)
                     implicit val s3 = S3(accessKey, secretKey)
+                    val fileName = filePath.substring(filePath.indexOf(attrs) + attrs.length + 1)
+                    val s3path = s"dcp/$service/$datasource/$fileName"
 
-                    s3.bucket("optimizely-import/") match {
-                      case Some(bucket) =>
-                        bucket.put(s"dcp/$service/$datasource", correctedFile)
-                        self.notification(s"Successfully uploaded file $fileName to S3 bucket 'optimizely-import'.")
-                      case None =>
-                        self.notification("Unable to get access to S3 bucket 'optimizely-import'.")
+                    try {
+                      Bucket("optimizely-import").put(s3path, correctedFile)
+                      self.notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
+
+                    } catch { case e: Exception =>
+                      self.notification(e.getMessage)
+                      self.notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
                     }
 
                   case None =>
