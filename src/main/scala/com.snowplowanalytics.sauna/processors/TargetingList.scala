@@ -21,13 +21,13 @@ import scala.io.Source.fromInputStream
 
 // sauna
 import apis.Optimizely
-import loggers.Logger
 
 /**
  * Does stuff for Optimizely Targeting List feature.
  * Represents input data format + helper methods.
  */
-class TargetingList(optimizely: Optimizely) extends Processor { self: Logger =>
+class TargetingList(optimizely: Optimizely)
+                   (implicit hasLogger: HasLogger) extends Processor {
   import TargetingList._
 
   override def process(filePath: String, is: InputStream): Unit =

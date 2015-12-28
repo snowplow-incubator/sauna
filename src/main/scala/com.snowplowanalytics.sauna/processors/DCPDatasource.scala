@@ -28,27 +28,27 @@ import awscala.s3.{Bucket, S3}
 
 // sauna
 import apis.Optimizely
-import loggers.Logger
+import loggers.Notification
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
  */
-class DCPDatasource(optimizely: Optimizely,
-                    saunaRoot: String,
-                    optimizelyImportRegion: String) extends Processor { self: Logger =>
+class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
+                   (implicit hasLogger: HasLogger) extends Processor {
   import DCPDatasource._
+  import hasLogger.logger
 
   // todo tests everywhere after akka
 
   override def process(filePath: String, is: InputStream): Unit = filePath match {
     case pathRegexp(service, datasource, attrs) =>
       if (attrs.isEmpty) {
-        self.notification("Should be at least one attribute.")
+        logger ! Notification("Should be at least one attribute.")
         return
       }
 
       if (!attrs.contains("customerId")) {
-        self.notification("Attribute 'customerId' must be included.")
+        logger ! Notification("Attribute 'customerId' must be included.")
         return
       }
 
@@ -59,7 +59,7 @@ class DCPDatasource(optimizely: Optimizely,
                       case Some(file) =>
                         file
                       case None =>
-                        self.notification("Invalid file, stopping datasource uploading.")
+                        logger ! Notification("Invalid file, stopping datasource uploading.")
                         return
                     }
 
@@ -70,16 +70,16 @@ class DCPDatasource(optimizely: Optimizely,
 
                     try {
                       Bucket("optimizely-import").put(s3path, correctedFile)
-                      self.notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
+                      logger ! Notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
                       if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
                     } catch { case e: Exception =>
-                      self.notification(e.getMessage)
-                      self.notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
+                      logger ! Notification(e.getMessage)
+                      logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
                     }
 
                   case None =>
-                    self.notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
+                    logger ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
                 }
 
 
@@ -148,7 +148,7 @@ class DCPDatasource(optimizely: Optimizely,
           Some(s"$left$epoch$right")
 
         } catch { case e: ParseException =>
-          self.notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
+          logger ! Notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
           None
         }
 

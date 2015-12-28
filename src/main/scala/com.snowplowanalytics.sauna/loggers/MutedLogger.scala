@@ -17,7 +17,7 @@ package loggers
  * Mutes all logging methods.
  */
 trait MutedLogger extends Logger {
-  override def notification(message: String): Unit = {}
+  override def log(message: Notification): Unit = {}
 
-  override def manifestation(uid: String, name: String, status: Int, description: String, timestamp: String): Unit = {}
+  override def log(message: Manifestation): Unit = {}
 }

@@ -15,6 +15,9 @@ package com.snowplowanalytics.sauna
 // java
 import java.io.File
 
+// akka
+import akka.actor.{Props, ActorSystem}
+
 // awscala
 import awscala.dynamodbv2.DynamoDB
 import awscala.s3.S3
@@ -36,10 +39,16 @@ object Sauna extends App {
     System.exit(1)
   }
 
+  val system = ActorSystem("sauna")
+
   // configuration
   val config = SaunaConfig(new File(args(0)))
   implicit val region = Region.US_WEST_2
   implicit val credentials = new Credentials(config.accessKeyId, config.secretAccessKey)
+
+  // loggers
+  val logger = system.actorOf(Props(new StdoutLogger {}), "logger")
+  implicit val hasLogger = new HasLogger(logger)
 
   // S3
   val s3 = S3(credentials)
@@ -55,23 +64,18 @@ object Sauna extends App {
                  .getOrElse(throw new Exception("No queue with that name found"))
 
   // responders
-  val optimizely = new Optimizely with StdoutLogger
-//  val optimizely = new Optimizely with HipchatLogger with DDBLogger
+  val optimizely = new Optimizely
 
   // processors
   val processors = Seq(
-    new TargetingList(optimizely) with StdoutLogger,
-    new DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion) with StdoutLogger
-//    new TargetingList(optimizely) with HipchatLogger with DDBLogger,
-//    new DCPDatasource(optimizely, saunaConfig.saunaRoot) with HipchatLogger with DDBLogger
+    new TargetingList(optimizely),
+    new DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion)
   )
 
   // define and run observers
   val observers = Seq(
-    new LocalObserver(config.saunaRoot, processors) with StdoutLogger,
-    new S3Observer(s3, sqs, queue, processors) with StdoutLogger
-//    new LocalObserver(saunaConfig.saunaRoot, processors) with HipchatLogger with DDBLogger,
-//    new S3Observer(s3, sqs, queue, processors) with HipchatLogger with DDBLogger
+    new LocalObserver(config.saunaRoot, processors),
+    new S3Observer(s3, sqs, queue, processors)
   ).foreach(o => new Thread(o).start())
 
   println("Application started. \n")

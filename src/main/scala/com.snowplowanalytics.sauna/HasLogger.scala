@@ -11,22 +11,7 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package loggers
 
-/**
- * Writes messages to standard output.
- */
-trait StdoutLogger extends Logger {
+import akka.actor.ActorRef
 
-  override def log(message: Notification): Unit = {
-    import message._
-
-    println(s"NOTIFICATION: got message = [$text].")
-  }
-
-  override def log(message: Manifestation): Unit = {
-    import message._
-
-    println(s"MANIFESTATION: got uid = [$uid], name = [$name], status = [$status], description = [$description], lastModified = [$lastModified].")
-  }
-}
+class HasLogger(val logger: ActorRef)
