@@ -164,8 +164,8 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
 
 object DCPDatasource {
   val pathRegexp =
-    """.*com\.optimizely/
-      |dcp_datasource/
+    """.*com\.optimizely\.dcp/
+      |datasource/
       |v1/
       |(.*?)/
       |(.*?)/
