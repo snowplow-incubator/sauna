@@ -11,25 +11,16 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package loggers
 
-// sauna
-import loggers.Logger._
+// akka
+import akka.actor.{Props, ActorSystem}
+
+import scala.language.implicitConversions
 
 /**
- * Writes messages to standard output.
+ * Some convenient implicit methods to reduce boilerplate code.
  */
-class StdoutLogger extends Logger {
-
-  override def log(message: Notification): Unit = {
-    import message._
-
-    println(s"NOTIFICATION: got message = [$text].")
-  }
-
-  override def log(message: Manifestation): Unit = {
-    import message._
-
-    println(s"MANIFESTATION: got uid = [$uid], name = [$name], status = [$status], description = [$description], lastModified = [$lastModified].")
-  }
+package object loggers {
+  implicit def logger2loggerActor(logger: Logger)(implicit system: ActorSystem): LoggerActor =
+    new LoggerActor(system.actorOf(Props(logger)))
 }

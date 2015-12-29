@@ -27,15 +27,16 @@ import play.api.libs.json.Json
 import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
-import processors.TargetingList
+import loggers.LoggerActor
 import loggers.Logger.{Notification, Manifestation}
+import processors.TargetingList
 
 /**
  * Encapsulates any action with Optimizely.
  */
-class Optimizely(implicit hasLogger: HasLogger) extends HasWSClient {
+class Optimizely(implicit loggerActor: LoggerActor) extends HasWSClient {
   import Optimizely._
-  import hasLogger.logger
+  import loggerActor.loggingActor
 
   /**
    * Uploads data to Optimizely.
@@ -74,16 +75,16 @@ class Optimizely(implicit hasLogger: HasLogger) extends HasWSClient {
                                                            .getOrElse(defaultLastModified)
 
                 // log results
-                logger ! Manifestation(id, name, status, description, lastModified)
+                loggingActor ! Manifestation(id, name, status, description, lastModified)
                 if (status == 201) {
-                  logger ! Notification(s"Successfully uploaded targeting lists with name [$name].")
+                  loggingActor ! Notification(s"Successfully uploaded targeting lists with name [$name].")
                 } else {
-                  logger ! Notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
+                  loggingActor ! Notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
                 }
 
               } catch { case e: JsonParseException =>
-                logger ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
-                logger ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+                loggingActor ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
+                loggingActor ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
               }
             }
   }
@@ -110,7 +111,7 @@ class Optimizely(implicit hasLogger: HasLogger) extends HasWSClient {
                 ) yield (accessKey, secretKey)
 
               } catch { case e: JsonParseException =>
-                logger ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+                loggingActor ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
                 None
               }
             }

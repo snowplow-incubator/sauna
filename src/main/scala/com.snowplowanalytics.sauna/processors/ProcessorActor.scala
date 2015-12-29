@@ -10,8 +10,14 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna
+package com.snowplowanalytics.sauna.processors
 
+// akka
 import akka.actor.ActorRef
 
-class HasLogger(val logger: ActorRef)
+/**
+ * An actor wrapper for Processor.
+ *
+ * @param processingActor An actor that was created from Processor.
+ */
+class ProcessorActor(val processingActor: ActorRef)

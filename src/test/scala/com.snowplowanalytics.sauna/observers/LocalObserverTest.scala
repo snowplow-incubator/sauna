@@ -14,7 +14,7 @@ package com.snowplowanalytics.sauna
 package observers
 
 // java
-import java.io.{File, InputStream, PrintWriter}
+import java.io.{File, PrintWriter}
 import java.util.UUID
 
 // scala
@@ -28,15 +28,16 @@ import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 
 // sauna
-import loggers.MutedLogger
-import processors.Processor
+import loggers.{LoggerActor, MutedLogger}
+import processors._
+import processors.Processor.FileAppeared
 
 
-class LocalObserverTest extends FunSuite with BeforeAndAfter{
-  implicit var as: ActorSystem = _
+class LocalObserverTest extends FunSuite with BeforeAndAfter {
+  implicit var system: ActorSystem = _
 
   before {
-    as = ActorSystem.create()
+    system = ActorSystem.create()
   }
 
   test("integration") {
@@ -46,13 +47,14 @@ class LocalObserverTest extends FunSuite with BeforeAndAfter{
     val line1 = "aaaaaa"
     val line2 = "bbbbbb"
     var expectedLines: Seq[String] = null
+
     val processors = Seq(
-      new Processor {
-        override def process(fileName: String, is: InputStream): Unit =
-          expectedLines = fromInputStream(is).getLines().toSeq
-      }
+      new ProcessorActor(TestActorRef(new Processor {
+        override def process(fileAppeared: FileAppeared): Unit = expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
+      }))
     )
-    val logger = new HasLogger(TestActorRef(new MutedLogger {}))
+
+    val logger = new LoggerActor(TestActorRef(new MutedLogger))
     val lo = new LocalObserver(path, processors)(logger)
     new Thread(lo).start()
 

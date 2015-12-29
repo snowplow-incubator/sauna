@@ -18,6 +18,8 @@ import java.io.{File, InputStream, PrintWriter}
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.UUID
 
+import com.snowplowanalytics.sauna.loggers.LoggerActor
+
 // scala
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
@@ -28,62 +30,66 @@ import awscala.s3.{Bucket, S3}
 
 // sauna
 import apis.Optimizely
-import loggers.Logger._
+import loggers.Logger.Notification
+import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
  */
 class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
-                   (implicit hasLogger: HasLogger) extends Processor {
+                   (implicit loggerActor: LoggerActor) extends Processor {
   import DCPDatasource._
-  import hasLogger.logger
+  import loggerActor.loggingActor
 
   // todo tests everywhere after akka
 
-  override def process(filePath: String, is: InputStream): Unit = filePath match {
-    case pathRegexp(service, datasource, attrs) =>
-      if (attrs.isEmpty) {
-        logger ! Notification("Should be at least one attribute.")
-        return
-      }
+  override def process(fileAppeared: FileAppeared): Unit = {
+    import fileAppeared._
 
-      if (!attrs.contains("customerId")) {
-        logger ! Notification("Attribute 'customerId' must be included.")
-        return
-      }
+    filePath match {
+      case pathRegexp(service, datasource, attrs) =>
+        if (attrs.isEmpty) {
+          loggingActor ! Notification("Should be at least one attribute.")
+          return
+        }
 
-      optimizely.getOptimizelyS3Credentials(datasource)
-                .foreach {
-                  case Some((accessKey, secretKey)) =>
-                    val correctedFile = correct(is, attrs) match {
-                      case Some(file) =>
-                        file
-                      case None =>
-                        logger ! Notification("Invalid file, stopping datasource uploading.")
-                        return
-                    }
+        if (!attrs.contains("customerId")) {
+          loggingActor ! Notification("Attribute 'customerId' must be included.")
+          return
+        }
 
-                    implicit val region = Region.apply(optimizelyImportRegion)
-                    implicit val s3 = S3(accessKey, secretKey)
-                    val fileName = filePath.substring(filePath.indexOf(attrs) + attrs.length + 1)
-                    val s3path = s"dcp/$service/$datasource/$fileName"
+        optimizely.getOptimizelyS3Credentials(datasource)
+                  .foreach {
+                    case Some((accessKey, secretKey)) =>
+                      val correctedFile = correct(is, attrs) match {
+                        case Some(file) =>
+                          file
+                        case None =>
+                          loggingActor ! Notification("Invalid file, stopping datasource uploading.")
+                          return
+                      }
 
-                    try {
-                      Bucket("optimizely-import").put(s3path, correctedFile)
-                      logger ! Notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
-                      if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
+                      implicit val region = Region.apply(optimizelyImportRegion)
+                      implicit val s3 = S3(accessKey, secretKey)
+                      val fileName = filePath.substring(filePath.indexOf(attrs) + attrs.length + 1)
+                      val s3path = s"dcp/$service/$datasource/$fileName"
 
-                    } catch { case e: Exception =>
-                      logger ! Notification(e.getMessage)
-                      logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
-                    }
+                      try {
+                        Bucket("optimizely-import").put(s3path, correctedFile)
+                        loggingActor ! Notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
+                        if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
-                  case None =>
-                    logger ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
-                }
+                      } catch { case e: Exception =>
+                        loggingActor ! Notification(e.getMessage)
+                        loggingActor ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
+                      }
 
+                    case None =>
+                      loggingActor ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
+                  }
 
-    case _ => // do nothing
+      case _ => // do nothing
+    }
   }
 
   /**
@@ -148,7 +154,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
           Some(s"$left$epoch$right")
 
         } catch { case e: ParseException =>
-          logger ! Notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
+          loggingActor ! Notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
           None
         }
 

@@ -19,7 +19,7 @@ import loggers.Logger._
 /**
  * Mutes all logging methods.
  */
-trait MutedLogger extends Logger {
+class MutedLogger extends Logger {
   override def log(message: Notification): Unit = {}
 
   override def log(message: Manifestation): Unit = {}

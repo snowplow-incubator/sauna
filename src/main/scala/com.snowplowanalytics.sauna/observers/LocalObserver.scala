@@ -23,22 +23,24 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 // sauna
-import loggers.Logger._
-import processors.Processor
+import loggers.LoggerActor
+import loggers.Logger.Notification
+import processors.ProcessorActor
+import processors.Processor.FileAppeared
 
 /**
  * Observes files in local filesystem.
  */
-class LocalObserver(observedDir: String, processors: Seq[Processor])
-                   (implicit hasLogger: HasLogger) extends Observer {
-  import hasLogger.logger
+class LocalObserver(observedDir: String, processors: Seq[ProcessorActor])
+                   (implicit loggerActor: LoggerActor) extends Observer {
+  import loggerActor.loggingActor
 
   private def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
     if (event == StandardWatchEventKinds.ENTRY_CREATE) {
-      logger ! Notification(s"Detected new local file [$path].")
+      loggingActor ! Notification(s"Detected new local file [$path].")
       val is = new FileInputStream(path.toFile)
 
-      processors.foreach(_.process("" + path, is))
+      processors.foreach(_.processingActor ! FileAppeared("" + path, is))
 
       try {
         Files.delete(path)

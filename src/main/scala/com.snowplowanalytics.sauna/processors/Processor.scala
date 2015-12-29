@@ -16,20 +16,34 @@ package processors
 // java
 import java.io.InputStream
 
+// akka
+import akka.actor.Actor
+
 /**
  * After new file appeared, Sauna should process it somehow.
  * That's what a Processor does.
  */
-trait Processor {
+trait Processor extends Actor {
+  import Processor._
+
+  override def receive = {
+    case message: FileAppeared => process(message)
+  }
+
   /**
    * Method that describes "how to process new files".
-   *
+   */
+  def process(fileAppeared: FileAppeared): Unit
+}
+
+object Processor {
+  /**
    * File can be outside of local fs, e.g. on AWS S3, and
    * some important parameters might be encoded as part of 'filePath',
    * therefore this method has both 'filePath: String' and 'InputStream'
    *
-   * @param fileName Full name of file.
+   * @param filePath Full path of file.
    * @param is InputStream from it.
    */
-  def process(fileName: String, is: InputStream): Unit
+  case class FileAppeared(filePath: String, is: InputStream)
 }

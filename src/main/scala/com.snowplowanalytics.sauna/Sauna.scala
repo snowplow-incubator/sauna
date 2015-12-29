@@ -16,7 +16,7 @@ package com.snowplowanalytics.sauna
 import java.io.File
 
 // akka
-import akka.actor.{Props, ActorSystem}
+import akka.actor.ActorSystem
 
 // awscala
 import awscala.dynamodbv2.DynamoDB
@@ -39,7 +39,7 @@ object Sauna extends App {
     System.exit(1)
   }
 
-  val system = ActorSystem("sauna")
+  implicit val system = ActorSystem("sauna")
 
   // configuration
   val config = SaunaConfig(new File(args(0)))
@@ -47,8 +47,7 @@ object Sauna extends App {
   implicit val credentials = new Credentials(config.accessKeyId, config.secretAccessKey)
 
   // loggers
-  val logger = system.actorOf(Props(new StdoutLogger {}), "logger")
-  implicit val hasLogger = new HasLogger(logger)
+  implicit val loggerActor: LoggerActor = new StdoutLogger
 
   // S3
   val s3 = S3(credentials)
@@ -67,15 +66,15 @@ object Sauna extends App {
   val optimizely = new Optimizely
 
   // processors
-  val processors = Seq(
+  val processorActors = Seq[ProcessorActor](
     new TargetingList(optimizely),
     new DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion)
   )
 
   // define and run observers
   val observers = Seq(
-    new LocalObserver(config.saunaRoot, processors),
-    new S3Observer(s3, sqs, queue, processors)
+    new LocalObserver(config.saunaRoot, processorActors),
+    new S3Observer(s3, sqs, queue, processorActors)
   ).foreach(o => new Thread(o).start())
 
   println("Application started. \n")

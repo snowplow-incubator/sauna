@@ -25,16 +25,18 @@ import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
 
 // sauna
-import processors.Processor
-import loggers.Logger._
+import loggers.LoggerActor
+import loggers.Logger.Notification
+import processors._
+import processors.Processor.FileAppeared
 
 /**
  * Observes some AWS S3 bucket.
  */
-class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[Processor])
-                (implicit hasLogger: HasLogger) extends Observer {
+class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ProcessorActor])
+                (implicit loggerActor: LoggerActor) extends Observer {
   import S3Observer._
-  import hasLogger.logger
+  import loggerActor.loggingActor
 
   /**
    * Gets file content from S3 bucket.
@@ -57,9 +59,9 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[Processor])
            val (bucketName, fileName) = getBucketAndFile(message.body)
                                          .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
            val decodedFileName = decode(fileName, "UTF-8")
-           logger ! Notification(s"Detected new S3 file $decodedFileName.")
+           loggingActor ! Notification(s"Detected new S3 file $decodedFileName.")
            val is = getInputStream(bucketName, decodedFileName)
-           processors.foreach(_.process(decodedFileName, is))
+           processors.foreach(_.processingActor ! FileAppeared(decodedFileName, is))
            sqs.delete(message)
          }
     }
