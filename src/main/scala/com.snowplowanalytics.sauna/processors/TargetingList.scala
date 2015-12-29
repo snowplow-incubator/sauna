@@ -14,7 +14,7 @@ package com.snowplowanalytics.sauna
 package processors
 
 // scala
-import com.snowplowanalytics.sauna.loggers.LoggerActor
+import com.snowplowanalytics.sauna.loggers.LoggerActorWrapper
 
 import scala.io.Source.fromInputStream
 
@@ -27,7 +27,7 @@ import processors.Processor.FileAppeared
  * Represents input data format + helper methods.
  */
 class TargetingList(optimizely: Optimizely)
-                   (implicit loggerActor: LoggerActor) extends Processor {
+                   (implicit loggerActorWrapper: LoggerActorWrapper) extends Processor {
   import TargetingList._
 
   override def process(fileAppeared: FileAppeared): Unit = {
@@ -61,6 +61,12 @@ object TargetingList {
   case class Data(projectId: String, listName: String, listDescription: String,
                   listType: Short, keyFields: Option[String], value: String)
 
+  /**
+   * Tries to extract an Data from given string.
+   *
+   * @param line A string to be extracting from.
+   * @return Option[Data]
+   */
   def unapply(line: String): Option[Data] = line match {
     case validLineRegexp(projectId, listName, listDescription, _listType, _keyFields, value) =>
       val listType = _listType.toShort

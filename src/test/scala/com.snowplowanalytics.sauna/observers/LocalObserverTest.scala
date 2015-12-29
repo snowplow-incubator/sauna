@@ -28,7 +28,7 @@ import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 
 // sauna
-import loggers.{LoggerActor, MutedLogger}
+import loggers.{LoggerActorWrapper, MutedLogger}
 import processors._
 import processors.Processor.FileAppeared
 
@@ -49,12 +49,12 @@ class LocalObserverTest extends FunSuite with BeforeAndAfter {
     var expectedLines: Seq[String] = null
 
     val processors = Seq(
-      new ProcessorActor(TestActorRef(new Processor {
+      new ProcessorActorWrapper(TestActorRef(new Processor {
         override def process(fileAppeared: FileAppeared): Unit = expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
       }))
     )
 
-    val logger = new LoggerActor(TestActorRef(new MutedLogger))
+    val logger = new LoggerActorWrapper(TestActorRef(new MutedLogger))
     val lo = new LocalObserver(path, processors)(logger)
     new Thread(lo).start()
 

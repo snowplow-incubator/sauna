@@ -18,7 +18,7 @@ import java.io.{File, InputStream, PrintWriter}
 import java.text.{ParseException, SimpleDateFormat}
 import java.util.UUID
 
-import com.snowplowanalytics.sauna.loggers.LoggerActor
+import com.snowplowanalytics.sauna.loggers.LoggerActorWrapper
 
 // scala
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -37,9 +37,9 @@ import processors.Processor.FileAppeared
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
  */
 class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
-                   (implicit loggerActor: LoggerActor) extends Processor {
+                   (implicit loggerActorWrapper: LoggerActorWrapper) extends Processor {
   import DCPDatasource._
-  import loggerActor.loggingActor
+  import loggerActorWrapper.loggingActor
 
   // todo tests everywhere after akka
 

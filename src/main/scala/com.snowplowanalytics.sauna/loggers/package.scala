@@ -21,6 +21,6 @@ import scala.language.implicitConversions
  * Some convenient implicit methods to reduce boilerplate code.
  */
 package object loggers {
-  implicit def logger2loggerActor(logger: Logger)(implicit system: ActorSystem): LoggerActor =
-    new LoggerActor(system.actorOf(Props(logger)))
+  implicit def logger2loggerActorWrapper(logger: Logger)(implicit system: ActorSystem): LoggerActorWrapper =
+    new LoggerActorWrapper(system.actorOf(Props(logger)))
 }

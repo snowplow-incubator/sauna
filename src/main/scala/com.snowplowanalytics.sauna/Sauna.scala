@@ -47,7 +47,7 @@ object Sauna extends App {
   implicit val credentials = new Credentials(config.accessKeyId, config.secretAccessKey)
 
   // loggers
-  implicit val loggerActor: LoggerActor = new StdoutLogger
+  implicit val loggerActorWrapper: LoggerActorWrapper = new StdoutLogger
 
   // S3
   val s3 = S3(credentials)
@@ -66,7 +66,7 @@ object Sauna extends App {
   val optimizely = new Optimizely
 
   // processors
-  val processorActors = Seq[ProcessorActor](
+  val processorActors = Seq[ProcessorActorWrapper](
     new TargetingList(optimizely),
     new DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion)
   )

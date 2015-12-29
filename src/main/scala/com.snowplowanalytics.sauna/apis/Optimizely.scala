@@ -27,16 +27,16 @@ import play.api.libs.json.Json
 import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
-import loggers.LoggerActor
+import loggers.LoggerActorWrapper
 import loggers.Logger.{Notification, Manifestation}
 import processors.TargetingList
 
 /**
  * Encapsulates any action with Optimizely.
  */
-class Optimizely(implicit loggerActor: LoggerActor) extends HasWSClient {
+class Optimizely(implicit loggerActorWrapper: LoggerActorWrapper) extends HasWSClient {
   import Optimizely._
-  import loggerActor.loggingActor
+  import loggerActorWrapper.loggingActor
 
   /**
    * Uploads data to Optimizely.
