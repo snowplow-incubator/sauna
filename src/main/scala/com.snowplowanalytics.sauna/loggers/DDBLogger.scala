@@ -17,6 +17,9 @@ package loggers
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+// sauna
+import loggers.Logger._
+
 trait DDBLogger extends Logger {
 
   /**

@@ -13,6 +13,9 @@
 package com.snowplowanalytics.sauna
 package loggers
 
+// sauna
+import loggers.Logger._
+
 /**
  * Mutes all logging methods.
  */

@@ -27,8 +27,8 @@ import play.api.libs.json.Json
 import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
-import loggers.{Notification, Manifestation}
 import processors.TargetingList
+import loggers.Logger.{Notification, Manifestation}
 
 /**
  * Encapsulates any action with Optimizely.

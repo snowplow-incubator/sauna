@@ -16,26 +16,8 @@ package loggers
 // akka
 import akka.actor.Actor
 
-/**
- * A (unstructured) message.
- *
- * @param text Text of notification.
- */
-case class Notification(text: String)
-
-/**
- * A (structured) message.
- * Note that these params describe a schema.
- *
- * @param uid Unique identifier for message.
- * @param name Message header (for example, Optimizely list name).
- * @param status HTTP code for operation result.
- * @param description What happened.
- * @param lastModified Last modification date, if exists, else - operation date.
- */
-case class Manifestation(uid: String, name: String, status: Int, description: String, lastModified: String)
-
 trait Logger extends Actor {
+  import Logger._
 
   override def receive = {
     case message: Notification => log(message)
@@ -46,4 +28,25 @@ trait Logger extends Actor {
   def log(message: Notification): Unit
 
   def log(message: Manifestation): Unit
+}
+
+object Logger {
+  /**
+   * A (unstructured) message.
+   *
+   * @param text Text of notification.
+   */
+  case class Notification(text: String)
+
+  /**
+   * A (structured) message.
+   * Note that these params describe a schema.
+   *
+   * @param uid Unique identifier for message.
+   * @param name Message header (for example, Optimizely list name).
+   * @param status HTTP code for operation result.
+   * @param description What happened.
+   * @param lastModified Last modification date, if exists, else - operation date.
+   */
+  case class Manifestation(uid: String, name: String, status: Int, description: String, lastModified: String)
 }

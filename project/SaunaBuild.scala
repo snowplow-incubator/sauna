@@ -15,6 +15,7 @@ import Keys._
 
 object SaunaBuild extends Build {
   val playVersion = "2.4.4"
+  val akkaVersion = "2.4.1"
 
   lazy val project = Project("sauna", file("."))
     .settings(buildSettings: _*)
@@ -24,7 +25,8 @@ object SaunaBuild extends Build {
         "com.typesafe" % "config" % "1.3.0",
         "com.typesafe.play" %% "play-json" % playVersion,
         "com.typesafe.play" %% "play-ws" % playVersion,
-        "com.typesafe.akka" %% "akka-actor" % "2.4.1",
+        "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+        "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
 
         "org.scalatest" %% "scalatest" % "2.2.4" % "test"
       )

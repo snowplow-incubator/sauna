@@ -28,7 +28,7 @@ import awscala.s3.{Bucket, S3}
 
 // sauna
 import apis.Optimizely
-import loggers.Notification
+import loggers.Logger._
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.

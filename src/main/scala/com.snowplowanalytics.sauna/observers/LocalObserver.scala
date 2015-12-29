@@ -23,7 +23,7 @@ import scala.collection.JavaConversions._
 import scala.collection.mutable
 
 // sauna
-import loggers.Notification
+import loggers.Logger._
 import processors.Processor
 
 /**

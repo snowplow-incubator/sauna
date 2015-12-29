@@ -23,12 +23,22 @@ import scala.io.Source.fromInputStream
 // scalatest
 import org.scalatest._
 
+// akka
+import akka.actor.ActorSystem
+import akka.testkit.TestActorRef
+
 // sauna
 import loggers.MutedLogger
 import processors.Processor
 
 
-class LocalObserverTest extends FunSuite {
+class LocalObserverTest extends FunSuite with BeforeAndAfter{
+  implicit var as: ActorSystem = _
+
+  before {
+    as = ActorSystem.create()
+  }
+
   test("integration") {
     val path = "/opt/sauna/"
     val fileName = UUID.randomUUID().toString
@@ -42,7 +52,8 @@ class LocalObserverTest extends FunSuite {
           expectedLines = fromInputStream(is).getLines().toSeq
       }
     )
-    val lo = new LocalObserver(path, processors) with MutedLogger
+    val logger = new HasLogger(TestActorRef(new MutedLogger {}))
+    val lo = new LocalObserver(path, processors)(logger)
     new Thread(lo).start()
 
     Thread.sleep(100)

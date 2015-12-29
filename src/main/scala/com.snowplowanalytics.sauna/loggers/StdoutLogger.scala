@@ -13,6 +13,9 @@
 package com.snowplowanalytics.sauna
 package loggers
 
+// sauna
+import loggers.Logger._
+
 /**
  * Writes messages to standard output.
  */

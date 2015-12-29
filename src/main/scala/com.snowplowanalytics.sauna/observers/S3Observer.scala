@@ -25,8 +25,8 @@ import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
 
 // sauna
-import loggers.Notification
 import processors.Processor
+import loggers.Logger._
 
 /**
  * Observes some AWS S3 bucket.

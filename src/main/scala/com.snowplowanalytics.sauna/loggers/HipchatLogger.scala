@@ -13,6 +13,9 @@
 package com.snowplowanalytics.sauna
 package loggers
 
+// sauna
+import loggers.Logger._
+
 trait HipchatLogger extends HasWSClient with Logger {
   import HipchatLogger._
 
