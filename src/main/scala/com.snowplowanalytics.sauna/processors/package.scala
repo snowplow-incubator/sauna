@@ -13,7 +13,7 @@
 package com.snowplowanalytics.sauna
 
 // akka
-import akka.actor.{Props, ActorSystem}
+import akka.actor._
 
 import scala.language.implicitConversions
 
@@ -21,6 +21,11 @@ import scala.language.implicitConversions
  * Some convenient implicit methods to reduce boilerplate code.
  */
 package object processors {
-  implicit def processor2processorActor(processor: Processor)(implicit system: ActorSystem): ProcessorActorWrapper =
+  implicit def processor2processorActorWrapper(processor: Processor)(implicit system: ActorSystem): ProcessorActorWrapper =
     new ProcessorActorWrapper(system.actorOf(Props(processor)))
+
+  implicit class processorActorWrapper2actor(processorActorWrapper: ProcessorActorWrapper) {
+    def !(message: Any)(implicit sender: ActorRef = Actor.noSender) =
+      processorActorWrapper.processingActor.!(message)(sender)
+  }
 }

@@ -32,15 +32,14 @@ import processors.Processor.FileAppeared
  * Observes files in local filesystem.
  */
 class LocalObserver(observedDir: String, processors: Seq[ProcessorActorWrapper])
-                   (implicit loggerActorWrapper: LoggerActorWrapper) extends Observer {
-  import loggerActorWrapper.loggingActor
+                   (implicit logger: LoggerActorWrapper) extends Observer {
 
   private def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
     if (event == StandardWatchEventKinds.ENTRY_CREATE) {
       val is = new FileInputStream(path.toFile)
 
-      loggingActor ! Notification(s"De  tected new local file [$path].")
-      processors.foreach(_.processingActor ! FileAppeared("" + path, is))
+      logger ! Notification(s"Detected new local file [$path].")
+      processors.foreach(_ ! FileAppeared("" + path, is))
 
       try {
         Files.delete(path)

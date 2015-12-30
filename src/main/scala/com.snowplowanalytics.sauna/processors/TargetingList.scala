@@ -24,10 +24,9 @@ import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Targeting List feature.
- * Represents input data format + helper methods.
  */
 class TargetingList(optimizely: Optimizely)
-                   (implicit loggerActorWrapper: LoggerActorWrapper) extends Processor {
+                   (implicit logger: LoggerActorWrapper) extends Processor {
   import TargetingList._
 
   override def process(fileAppeared: FileAppeared): Unit = {

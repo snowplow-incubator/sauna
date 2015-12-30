@@ -13,7 +13,7 @@
 package com.snowplowanalytics.sauna
 
 // akka
-import akka.actor.{Props, ActorSystem}
+import akka.actor._
 
 import scala.language.implicitConversions
 
@@ -23,4 +23,9 @@ import scala.language.implicitConversions
 package object loggers {
   implicit def logger2loggerActorWrapper(logger: Logger)(implicit system: ActorSystem): LoggerActorWrapper =
     new LoggerActorWrapper(system.actorOf(Props(logger)))
+
+  implicit class loggerActorWrapper2actor(loggerActorWrapper: LoggerActorWrapper) {
+    def !(message: Any)(implicit sender: ActorRef = Actor.noSender) =
+      loggerActorWrapper.logger.!(message)(sender)
+  }
 }

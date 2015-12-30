@@ -34,9 +34,8 @@ import processors.Processor.FileAppeared
  * Observes some AWS S3 bucket.
  */
 class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ProcessorActorWrapper])
-                (implicit loggerActorWrapper: LoggerActorWrapper) extends Observer {
+                (implicit logger: LoggerActorWrapper) extends Observer {
   import S3Observer._
-  import loggerActorWrapper.loggingActor
 
   /**
    * Gets file content from S3 bucket.
@@ -61,8 +60,8 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ProcessorActorW
            val decodedFileName = decode(fileName, "UTF-8")
            val is = getInputStream(bucketName, decodedFileName)
 
-           loggingActor ! Notification(s"Detected new S3 file $decodedFileName.")
-           processors.foreach(_.processingActor ! FileAppeared(decodedFileName, is))
+           logger ! Notification(s"Detected new S3 file $decodedFileName.")
+           processors.foreach(_ ! FileAppeared(decodedFileName, is))
            sqs.delete(message)
          }
     }

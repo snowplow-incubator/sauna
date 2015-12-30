@@ -34,9 +34,8 @@ import processors.TargetingList
 /**
  * Encapsulates any action with Optimizely.
  */
-class Optimizely(implicit loggerActorWrapper: LoggerActorWrapper) extends HasWSClient {
+class Optimizely(implicit logger: LoggerActorWrapper) extends HasWSClient {
   import Optimizely._
-  import loggerActorWrapper.loggingActor
 
   /**
    * Uploads data to Optimizely.
@@ -75,16 +74,16 @@ class Optimizely(implicit loggerActorWrapper: LoggerActorWrapper) extends HasWSC
                                                            .getOrElse(defaultLastModified)
 
                 // log results
-                loggingActor ! Manifestation(id, name, status, description, lastModified)
+                logger ! Manifestation(id, name, status, description, lastModified)
                 if (status == 201) {
-                  loggingActor ! Notification(s"Successfully uploaded targeting lists with name [$name].")
+                  logger ! Notification(s"Successfully uploaded targeting lists with name [$name].")
                 } else {
-                  loggingActor ! Notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
+                  logger ! Notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
                 }
 
               } catch { case e: JsonParseException =>
-                loggingActor ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
-                loggingActor ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+                logger ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
+                logger ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
               }
             }
   }
@@ -111,7 +110,7 @@ class Optimizely(implicit loggerActorWrapper: LoggerActorWrapper) extends HasWSC
                 ) yield (accessKey, secretKey)
 
               } catch { case e: JsonParseException =>
-                loggingActor ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+                logger ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
                 None
               }
             }

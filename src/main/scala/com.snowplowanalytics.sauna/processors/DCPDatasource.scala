@@ -39,7 +39,7 @@ import processors.Processor.FileAppeared
 class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
                    (implicit loggerActorWrapper: LoggerActorWrapper) extends Processor {
   import DCPDatasource._
-  import loggerActorWrapper.loggingActor
+  import loggerActorWrapper.logger
 
   // todo tests everywhere after akka
 
@@ -49,12 +49,12 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
     filePath match {
       case pathRegexp(service, datasource, attrs) =>
         if (attrs.isEmpty) {
-          loggingActor ! Notification("Should be at least one attribute.")
+          logger ! Notification("Should be at least one attribute.")
           return
         }
 
         if (!attrs.contains("customerId")) {
-          loggingActor ! Notification("Attribute 'customerId' must be included.")
+          logger ! Notification("Attribute 'customerId' must be included.")
           return
         }
 
@@ -65,7 +65,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                         case Some(file) =>
                           file
                         case None =>
-                          loggingActor ! Notification("Invalid file, stopping datasource uploading.")
+                          logger ! Notification("Invalid file, stopping datasource uploading.")
                           return
                       }
 
@@ -76,16 +76,16 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
 
                       try {
                         Bucket("optimizely-import").put(s3path, correctedFile)
-                        loggingActor ! Notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
+                        logger ! Notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
                         if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
                       } catch { case e: Exception =>
-                        loggingActor ! Notification(e.getMessage)
-                        loggingActor ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
+                        logger ! Notification(e.getMessage)
+                        logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
                       }
 
                     case None =>
-                      loggingActor ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
+                      logger ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
                   }
 
       case _ => // do nothing
@@ -153,8 +153,8 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                                 .getTime
           Some(s"$left$epoch$right")
 
-        } catch { case e: ParseException =>
-          loggingActor ! Notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
+        } catch { case e: ParseException => // this may happen, for example, for month '99'
+          logger ! Notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
           None
         }
 

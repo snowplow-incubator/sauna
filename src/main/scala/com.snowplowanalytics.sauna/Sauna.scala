@@ -75,7 +75,7 @@ object Sauna extends App {
   val observers = Seq(
     new LocalObserver(config.saunaRoot, processorActors),
     new S3Observer(s3, sqs, queue, processorActors)
-  ).foreach(o => new Thread(o).start())
+  ).foreach(new Thread(_).start())
 
   println("Application started. \n")
 }

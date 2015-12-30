@@ -18,6 +18,6 @@ import akka.actor.ActorRef
 /**
  * An actor wrapper for Logger.
  *
- * @param loggingActor An actor that was created from Logger.
+ * @param logger An actor that was created from Logger.
  */
-class LoggerActorWrapper(val loggingActor: ActorRef)
+class LoggerActorWrapper(val logger: ActorRef)
