@@ -14,16 +14,24 @@ package com.snowplowanalytics.sauna
 package processors
 
 // scala
-import com.snowplowanalytics.sauna.loggers.LoggerActorWrapper
-
 import scala.io.Source.fromInputStream
+
+// akka
+import akka.actor.{Props, ActorSystem}
 
 // sauna
 import apis.Optimizely
+import loggers.LoggerActorWrapper
 import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Targeting List feature.
+ *
+ * Constructs an actor wrapper over Logger.
+ *
+ * @param optimizely Instance of Optimizely.
+ * @param logger LoggerActorWrapper for the wrapper.
+ * @return ProcessorActorWrapper.
  */
 class TargetingList(optimizely: Optimizely)
                    (implicit logger: LoggerActorWrapper) extends Processor {
@@ -59,6 +67,19 @@ object TargetingList {
    */
   case class Data(projectId: String, listName: String, listDescription: String,
                   listType: Short, keyFields: Option[String], value: String)
+
+  /**
+   * Constructs an actor wrapper over Logger.
+   *
+   * @param optimizely Instance of Optimizely.
+   * @param system Actor system for the wrapper.
+   * @param logger LoggerActorWrapper for the wrapper.
+   * @return ProcessorActorWrapper.
+   */
+  def apply(optimizely: Optimizely)
+           (implicit system: ActorSystem, logger: LoggerActorWrapper): ProcessorActorWrapper = {
+    new ProcessorActorWrapper(system.actorOf(Props(new TargetingList(optimizely))))
+  }
 
   /**
    * Tries to extract an Data from given string.

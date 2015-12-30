@@ -10,19 +10,8 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna
+package com.snowplowanalytics.sauna.apis
 
-// akka
-import akka.actor._
+class DummyOptimizely {
 
-import scala.language.implicitConversions
-
-/**
- * Some convenient implicit methods to reduce boilerplate code.
- */
-package object loggers {
-  implicit class loggerActorWrapper2actor(loggerActorWrapper: LoggerActorWrapper) {
-    def !(message: Any)(implicit sender: ActorRef = Actor.noSender) =
-      loggerActorWrapper.logger.!(message)(sender)
-  }
 }

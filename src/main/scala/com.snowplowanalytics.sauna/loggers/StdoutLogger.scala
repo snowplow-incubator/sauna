@@ -13,6 +13,9 @@
 package com.snowplowanalytics.sauna
 package loggers
 
+// akka
+import akka.actor.{Props, ActorSystem}
+
 // sauna
 import loggers.Logger._
 
@@ -31,5 +34,17 @@ class StdoutLogger extends Logger {
     import message._
 
     println(s"MANIFESTATION: got uid = [$uid], name = [$name], status = [$status], description = [$description], lastModified = [$lastModified].")
+  }
+}
+
+object StdoutLogger {
+  /**
+   * Constructs an actor wrapper over Logger.
+   *
+   * @param system Actor system for the wrapper.
+   * @return LoggerActorWrapper.
+   */
+  def apply(implicit system: ActorSystem): LoggerActorWrapper = {
+    new LoggerActorWrapper(system.actorOf(Props(new StdoutLogger)))
   }
 }

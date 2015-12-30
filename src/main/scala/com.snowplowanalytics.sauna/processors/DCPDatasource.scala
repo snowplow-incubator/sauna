@@ -15,14 +15,15 @@ package processors
 
 // java
 import java.io.{File, InputStream, PrintWriter}
-import java.text.{ParseException, SimpleDateFormat}
+import java.text.SimpleDateFormat
 import java.util.UUID
-
-import com.snowplowanalytics.sauna.loggers.LoggerActorWrapper
 
 // scala
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
+
+// akka
+import akka.actor.{Props, ActorSystem}
 
 // awscala
 import awscala.Region
@@ -30,16 +31,22 @@ import awscala.s3.{Bucket, S3}
 
 // sauna
 import apis.Optimizely
+import loggers.LoggerActorWrapper
 import loggers.Logger.Notification
 import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
+ *
+ * @param optimizely Instance of Optimizely.
+ * @param saunaRoot A place for 'tmp' directory.
+ * @param optimizelyImportRegion What region uses Optimizely S3 bucket.
+ * @param logger LoggerActorWrapper for the wrapper.
+ * @return ProcessorActorWrapper.
  */
 class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
-                   (implicit loggerActorWrapper: LoggerActorWrapper) extends Processor {
+                   (implicit logger: LoggerActorWrapper) extends Processor {
   import DCPDatasource._
-  import loggerActorWrapper.logger
 
   // todo tests everywhere after akka
 
@@ -61,14 +68,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
         optimizely.getOptimizelyS3Credentials(datasource)
                   .foreach {
                     case Some((accessKey, secretKey)) =>
-                      val correctedFile = correct(is, attrs) match {
-                        case Some(file) =>
-                          file
-                        case None =>
-                          logger ! Notification("Invalid file, stopping datasource uploading.")
-                          return
-                      }
-
+                      val correctedFile = correct(is, attrs)
                       implicit val region = Region.apply(optimizelyImportRegion)
                       implicit val s3 = S3(accessKey, secretKey)
                       val fileName = filePath.substring(filePath.indexOf(attrs) + attrs.length + 1)
@@ -98,17 +98,12 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
    * @param is An InputStream for some source.
-   * @return Some(Corrected file) or None, if something (e.g. wrong date format) went wrong.
+   * @return Corrected file.
    */
-  def correct(is: InputStream, header: String): Option[File] = {
+  def correct(is: InputStream, header: String): File = {
     val sb = new StringBuilder(header + "\n")
     fromInputStream(is).getLines()
-                       .foreach { case line =>
-                         correct(line) match {
-                           case Some(corrected) => sb.append(corrected + "\n")
-                           case None => return None // notification is done in 'correct' method
-                         }
-                       }
+                       .foreach { case line => sb.append(correct(line) + "\n") }
 
     val _ = new File(saunaRoot + "/tmp/").mkdir() // if tmp/ does not exists
     val fileName = saunaRoot + "/tmp/" + UUID.randomUUID().toString
@@ -119,7 +114,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
       close()
     }
 
-    Some(file)
+    file
   }
 
   /**
@@ -130,7 +125,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    * @param _line A string to be corrected.
    * @return Some(Corrected string) or None, if something (e.g. wrong date format) went wrong.
    */
-  def correct(_line: String): Option[String] = {
+  def correct(_line: String): String = {
     val line = _line.replaceAll("[ ]{2,}", "\t") // handle cases when \t got converted to spaces
     val sb = new StringBuilder
     var i = 0
@@ -148,17 +143,12 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
 
     sb.toString() match {
       case dateRegexp(left, timestamp, right) =>
-        try {
           val epoch = dateFormat.parse(timestamp)
-                                .getTime
-          Some(s"$left$epoch$right")
+                                .getTime // use milliseconds
 
-        } catch { case e: ParseException => // this may happen, for example, for month '99'
-          logger ! Notification(s"$timestamp is not in valid format. Try 'yyyy-MM-dd HH:mm:ss.SSS' .")
-          None
-        }
+          s"$left$epoch$right"
 
-      case s => Some(s) // no timestamp. do nothing
+      case s => s // no timestamp. do nothing
     }
   }
 
@@ -183,4 +173,19 @@ object DCPDatasource {
 
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
   val dateRegexp = "(.*?)(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})(.*)".r
+
+  /**
+   * Constructs an actor wrapper over Logger.
+   *
+   * @param optimizely Instance of Optimizely.
+   * @param saunaRoot A place for 'tmp' directory.
+   * @param optimizelyImportRegion What region uses Optimizely S3 bucket.
+   * @param system Actor system for the wrapper.
+   * @param logger LoggerActorWrapper for the wrapper.
+   * @return ProcessorActorWrapper.
+   */
+  def apply(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
+           (implicit system: ActorSystem, logger: LoggerActorWrapper): ProcessorActorWrapper = {
+    new ProcessorActorWrapper(system.actorOf(Props(new DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion))))
+  }
 }

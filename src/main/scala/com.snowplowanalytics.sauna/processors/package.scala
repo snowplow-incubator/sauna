@@ -21,9 +21,6 @@ import scala.language.implicitConversions
  * Some convenient implicit methods to reduce boilerplate code.
  */
 package object processors {
-  implicit def processor2processorActorWrapper(processor: Processor)(implicit system: ActorSystem): ProcessorActorWrapper =
-    new ProcessorActorWrapper(system.actorOf(Props(processor)))
-
   implicit class processorActorWrapper2actor(processorActorWrapper: ProcessorActorWrapper) {
     def !(message: Any)(implicit sender: ActorRef = Actor.noSender) =
       processorActorWrapper.processingActor.!(message)(sender)
