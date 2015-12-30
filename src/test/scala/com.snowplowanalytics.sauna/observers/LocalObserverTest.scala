@@ -35,9 +35,11 @@ import processors.Processor.FileAppeared
 
 class LocalObserverTest extends FunSuite with BeforeAndAfter {
   implicit var system: ActorSystem = _
+  implicit var logger: LoggerActorWrapper = _
 
   before {
     system = ActorSystem.create()
+    logger = new LoggerActorWrapper(TestActorRef(new MutedLogger))
   }
 
   test("integration") {
@@ -54,11 +56,10 @@ class LocalObserverTest extends FunSuite with BeforeAndAfter {
       }))
     )
 
-    val logger = new LoggerActorWrapper(TestActorRef(new MutedLogger))
-    val lo = new LocalObserver(path, processors)(logger)
+    val lo = new LocalObserver(path, processors)
     new Thread(lo).start()
 
-    Thread.sleep(100)
+    Thread.sleep(300)
 
     new PrintWriter(file) {
       write(s"$line1\n$line2")
@@ -66,7 +67,7 @@ class LocalObserverTest extends FunSuite with BeforeAndAfter {
       close()
     }
 
-    Thread.sleep(100)
+    Thread.sleep(300)
 
     assert(!file.exists())
     assert(expectedLines === Seq(line1, line2))

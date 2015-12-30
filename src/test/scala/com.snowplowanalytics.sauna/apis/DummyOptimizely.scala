@@ -10,8 +10,19 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.apis
+package com.snowplowanalytics.sauna
+package apis
 
-class DummyOptimizely {
+// scala
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
 
+// sauna
+import loggers.LoggerActorWrapper
+import processors.TargetingList.Data
+
+class DummyOptimizely(implicit logger: LoggerActorWrapper) extends Optimizely {
+  override def targetingLists(tlData: Seq[Data], token: String): Unit = {}
+
+  override def getOptimizelyS3Credentials(dcpDatasourceId: String, token: String): Future[Option[(String, String)]] = Future(None)
 }
