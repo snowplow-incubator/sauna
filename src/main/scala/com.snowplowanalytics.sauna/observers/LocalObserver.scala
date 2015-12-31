@@ -47,7 +47,7 @@ class LocalObserver(observedDir: String, processors: Seq[ActorRef])
       processors.foreach(_ ! FileAppeared("" + path, is))
 
       try {
-        Files.delete(path)
+        val _ = Files.deleteIfExists(path)
       } catch { case e: IOException =>
         System.err.println(s"Unable to delete [$path].")
       }
