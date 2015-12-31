@@ -62,7 +62,7 @@ class Optimizely(implicit logger: LoggerActorWrapper) extends HasWSClient {
 
               try { // response.body is valid json
                 val json = Json.parse(response.body)
-                val id = (json \ "id").asOpt[String]
+                val id = (json \ "id").asOpt[Long]
                                       .orElse((json \ "uuid").asOpt[String])
                                       .getOrElse(defaultId)
                 val name = (json \ "name").asOpt[String]
@@ -74,7 +74,7 @@ class Optimizely(implicit logger: LoggerActorWrapper) extends HasWSClient {
                                                            .getOrElse(defaultLastModified)
 
                 // log results
-                logger ! Manifestation(id, name, status, description, lastModified)
+                logger ! Manifestation(id.toString, name, status, description, lastModified)
                 if (status == 201) {
                   logger ! Notification(s"Successfully uploaded targeting lists with name [$name].")
                 } else {
