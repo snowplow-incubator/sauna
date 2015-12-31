@@ -17,6 +17,9 @@ package observers
 import java.io.InputStream
 import java.net.URLDecoder._
 
+// akka
+import akka.actor.ActorRef
+
 // play
 import play.api.libs.json.Json
 
@@ -25,16 +28,20 @@ import awscala.s3.{Bucket, S3}
 import awscala.sqs.{Queue, SQS}
 
 // sauna
-import loggers.LoggerActorWrapper
 import loggers.Logger.Notification
-import processors._
 import processors.Processor.FileAppeared
 
 /**
  * Observes some AWS S3 bucket.
+ *
+ * @param s3 Provides actions for AWS S3.
+ * @param sqs Both with `queue` provide actions for AWS SQS.
+ * @param queue Both with `sqs` provide actions for AWS SQS.
+ * @param processors A Seq of ActorRef with underlying Processor. They will be called after new file appeared.
+ * @param logger A logger actor.
  */
-class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ProcessorActorWrapper])
-                (implicit logger: LoggerActorWrapper) extends Observer {
+class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ActorRef])
+                (implicit logger: ActorRef) extends Observer {
   import S3Observer._
 
   /**

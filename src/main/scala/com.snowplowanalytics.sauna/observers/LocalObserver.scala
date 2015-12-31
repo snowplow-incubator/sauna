@@ -22,17 +22,22 @@ import java.nio.file.attribute._
 import scala.collection.JavaConversions._
 import scala.collection.mutable
 
+// akka
+import akka.actor.ActorRef
+
 // sauna
-import loggers.LoggerActorWrapper
 import loggers.Logger.Notification
-import processors.ProcessorActorWrapper
 import processors.Processor.FileAppeared
 
 /**
  * Observes files in local filesystem.
+ *
+ * @param observedDir A directory what will be (recursively) watched for new files.
+ * @param processors A Seq of ActorRef with underlying Processor. They will be called after new file appeared.
+ * @param logger A logger actor.
  */
-class LocalObserver(observedDir: String, processors: Seq[ProcessorActorWrapper])
-                   (implicit logger: LoggerActorWrapper) extends Observer {
+class LocalObserver(observedDir: String, processors: Seq[ActorRef])
+                   (implicit logger: ActorRef) extends Observer {
 
   private def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
     if (event == StandardWatchEventKinds.ENTRY_CREATE) {

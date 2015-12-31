@@ -17,24 +17,20 @@ package processors
 import scala.io.Source.fromInputStream
 
 // akka
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{Props, ActorSystem, ActorRef}
 
 // sauna
 import apis.Optimizely
-import loggers.LoggerActorWrapper
 import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Targeting List feature.
  *
- * Constructs an actor wrapper over Logger.
- *
  * @param optimizely Instance of Optimizely.
  * @param logger LoggerActorWrapper for the wrapper.
- * @return ProcessorActorWrapper.
  */
 class TargetingList(optimizely: Optimizely)
-                   (implicit logger: LoggerActorWrapper) extends Processor {
+                   (implicit logger: ActorRef) extends Processor {
   import TargetingList._
 
   override def process(fileAppeared: FileAppeared): Unit = {
@@ -45,7 +41,7 @@ class TargetingList(optimizely: Optimizely)
                          .toSeq
                          .flatMap(s => TargetingList.unapply(s))
                          .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-                         .foreach { case (_, tls) => optimizely.targetingLists(tls) }
+                         .foreach { case (_, tls) => optimizely.postTargetingLists(tls) }
     }
   }
 }
@@ -69,17 +65,15 @@ object TargetingList {
                   listType: Short, keyFields: Option[String], value: String)
 
   /**
-   * Constructs an actor wrapper over Logger.
+   * Constructs a TargetingList actor.
    *
    * @param optimizely Instance of Optimizely.
-   * @param system Actor system for the wrapper.
-   * @param logger LoggerActorWrapper for the wrapper.
-   * @return ProcessorActorWrapper.
+   * @param system Actor system that creates an actor.
+   * @param logger Actor with underlying Logger.
+   * @return TargetingList as ActorRef.
    */
-  def apply(optimizely: Optimizely)
-           (implicit system: ActorSystem, logger: LoggerActorWrapper): ProcessorActorWrapper = {
-    new ProcessorActorWrapper(system.actorOf(Props(new TargetingList(optimizely))))
-  }
+  def apply(optimizely: Optimizely)(implicit system: ActorSystem, logger: ActorRef): ActorRef =
+    system.actorOf(Props(new TargetingList(optimizely)))
 
   /**
    * Tries to extract an Data from given string.

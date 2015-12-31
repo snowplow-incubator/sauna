@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
 
 // akka
-import akka.actor.{Props, ActorSystem}
+import akka.actor.{Props, ActorSystem, ActorRef}
 
 // awscala
 import awscala.Region
@@ -31,7 +31,6 @@ import awscala.s3.{Bucket, S3}
 
 // sauna
 import apis.Optimizely
-import loggers.LoggerActorWrapper
 import loggers.Logger.Notification
 import processors.Processor.FileAppeared
 
@@ -41,11 +40,10 @@ import processors.Processor.FileAppeared
  * @param optimizely Instance of Optimizely.
  * @param saunaRoot A place for 'tmp' directory.
  * @param optimizelyImportRegion What region uses Optimizely S3 bucket.
- * @param logger LoggerActorWrapper for the wrapper.
- * @return ProcessorActorWrapper.
+ * @param logger A logger actor.
  */
 class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
-                   (implicit logger: LoggerActorWrapper) extends Processor {
+                   (implicit logger: ActorRef) extends Processor {
   import DCPDatasource._
 
   // todo tests everywhere after akka
@@ -175,17 +173,16 @@ object DCPDatasource {
   val dateRegexp = "(.*?)(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})(.*)".r
 
   /**
-   * Constructs an actor wrapper over Logger.
+   * Constructs a DCPDatasource actor.
    *
    * @param optimizely Instance of Optimizely.
    * @param saunaRoot A place for 'tmp' directory.
    * @param optimizelyImportRegion What region uses Optimizely S3 bucket.
-   * @param system Actor system for the wrapper.
-   * @param logger LoggerActorWrapper for the wrapper.
-   * @return ProcessorActorWrapper.
+   * @param system Actor system that creates an actor.
+   * @param logger Actor with underlying Logger.
+   * @return DCPDatasource as ActorRef.
    */
   def apply(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
-           (implicit system: ActorSystem, logger: LoggerActorWrapper): ProcessorActorWrapper = {
-    new ProcessorActorWrapper(system.actorOf(Props(new DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion))))
-  }
+           (implicit system: ActorSystem, logger: ActorRef): ActorRef =
+    system.actorOf(Props(new DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion)))
 }

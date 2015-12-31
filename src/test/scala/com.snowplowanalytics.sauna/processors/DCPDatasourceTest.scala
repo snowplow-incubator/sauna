@@ -27,16 +27,16 @@ import akka.testkit.TestActorRef
 
 // sauna
 import apis.{Optimizely, DummyOptimizely}
-import loggers.{LoggerActorWrapper, MutedLogger}
+import loggers._
 
 class DCPDatasourceTest extends FunSuite with BeforeAndAfter  {
   implicit var system: ActorSystem = _
-  implicit var logger: LoggerActorWrapper = _
+  implicit var logger: TestActorRef[Logger] = _
   var dummyOptimizely: Optimizely = _
 
   before {
     system = ActorSystem.create()
-    logger = new LoggerActorWrapper(TestActorRef(new MutedLogger))
+    logger = TestActorRef(new MutedLogger)
     dummyOptimizely = new DummyOptimizely
   }
 

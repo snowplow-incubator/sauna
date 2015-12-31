@@ -17,12 +17,14 @@ package apis
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
 
+// akka
+import akka.actor.ActorRef
+
 // sauna
-import loggers.LoggerActorWrapper
 import processors.TargetingList.Data
 
-class DummyOptimizely(implicit logger: LoggerActorWrapper) extends Optimizely {
-  override def targetingLists(tlData: Seq[Data], token: String): Unit = {}
+class DummyOptimizely(implicit logger: ActorRef) extends Optimizely {
+  override def postTargetingLists(tlData: Seq[Data], token: String): Unit = {}
 
   override def getOptimizelyS3Credentials(dcpDatasourceId: String, token: String): Future[Option[(String, String)]] = Future(None)
 }

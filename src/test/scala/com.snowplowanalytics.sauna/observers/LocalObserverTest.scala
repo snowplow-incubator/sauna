@@ -15,6 +15,7 @@ package observers
 
 // java
 import java.io.{File, PrintWriter}
+import java.nio.file.{Paths, Files}
 import java.util.UUID
 
 // scala
@@ -28,40 +29,41 @@ import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 
 // sauna
-import loggers.{LoggerActorWrapper, MutedLogger}
+import apis.Optimizely
+import loggers._
 import processors._
 import processors.Processor.FileAppeared
+import processors.TargetingList.Data
 
 
 class LocalObserverTest extends FunSuite with BeforeAndAfter {
   implicit var system: ActorSystem = _
-  implicit var logger: LoggerActorWrapper = _
+  implicit var logger: TestActorRef[Logger] = _
 
   before {
     system = ActorSystem.create()
-    logger = new LoggerActorWrapper(TestActorRef(new MutedLogger))
+    logger = TestActorRef(new StdoutLogger)
   }
 
-  test("integration") {
-    val path = "/opt/sauna/"
+  test("integration local") {
+    val saunaRoot = "/opt/sauna/"
     val fileName = UUID.randomUUID().toString
-    val file = new File(path + fileName)
+    val testFile = new File(saunaRoot + fileName)
     val line1 = "aaaaaa"
     val line2 = "bbbbbb"
     var expectedLines: Seq[String] = null
-
     val processors = Seq(
-      new ProcessorActorWrapper(TestActorRef(new Processor {
+      TestActorRef(new Processor {
         override def process(fileAppeared: FileAppeared): Unit = expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
-      }))
+      })
     )
 
-    val lo = new LocalObserver(path, processors)
+    val lo = new LocalObserver(saunaRoot, processors)
     new Thread(lo).start()
 
     Thread.sleep(300)
 
-    new PrintWriter(file) {
+    new PrintWriter(testFile) {
       write(s"$line1\n$line2")
 
       close()
@@ -69,7 +71,7 @@ class LocalObserverTest extends FunSuite with BeforeAndAfter {
 
     Thread.sleep(300)
 
-    assert(!file.exists())
+    assert(!testFile.exists())
     assert(expectedLines === Seq(line1, line2))
   }
 }

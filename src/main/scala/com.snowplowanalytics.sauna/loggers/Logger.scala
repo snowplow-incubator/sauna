@@ -22,7 +22,6 @@ trait Logger extends Actor {
   override def receive = {
     case message: Notification => log(message)
     case message: Manifestation => log(message)
-    case message => throw new Exception(s"Logger doesn't know what to do with [$message].")
   }
 
   def log(message: Notification): Unit

@@ -20,21 +20,24 @@ import java.util.UUID
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
+// akka
+import akka.actor.ActorRef
+
 // play
 import play.api.libs.json.Json
+import play.api.libs.ws.WSResponse
 
 // jackson
 import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
-import loggers.LoggerActorWrapper
 import loggers.Logger.{Notification, Manifestation}
 import processors.TargetingList
 
 /**
  * Encapsulates any action with Optimizely.
  */
-class Optimizely(implicit logger: LoggerActorWrapper) extends HasWSClient {
+class Optimizely(implicit logger: ActorRef) extends HasWSClient {
   import Optimizely._
 
   /**
@@ -43,11 +46,9 @@ class Optimizely(implicit logger: LoggerActorWrapper) extends HasWSClient {
    * @param tlData Data to be uploaded.
    * @param token Optimizely token.
    */
-  def targetingLists(tlData: Seq[TargetingList.Data],
-                     token: String = Sauna.config.optimizelyToken): Unit = {
+  def postTargetingLists(tlData: Seq[TargetingList.Data],
+                         token: String = Sauna.config.optimizelyToken): Unit = {
     val projectId = tlData.head.projectId // all tls have one projectId
-
-    println(s"tlData = $tlData")
 
     wsClient.url(urlPrefix + s"projects/$projectId/targeting_lists/")
             .withHeaders("Token" -> token, "Content-Type" -> "application/json")
@@ -115,6 +116,32 @@ class Optimizely(implicit logger: LoggerActorWrapper) extends HasWSClient {
               }
             }
   }
+
+  /**
+   * Gets an information about some targeting list.
+   *
+   * @param tlListId Identifier of the targeting list we are looking for.
+   * @param token Optimizely token.
+   * @return Future WSResponse.
+   */
+  def getTargetingList(tlListId: String,
+                       token: String = Sauna.config.optimizelyToken): Future[WSResponse] =
+    wsClient.url(urlPrefix + s"targeting_lists/$tlListId")
+            .withHeaders("Token" -> token)
+            .get
+
+  /**
+   * Deletes an information about some targeting list.
+   *
+   * @param tlListId Identifier of the targeting list we are looking for.
+   * @param token Optimizely token.
+   * @return Future WSResponse.
+   */
+  def deleteTargetingList(tlListId: String,
+                          token: String = Sauna.config.optimizelyToken): Future[WSResponse] =
+    wsClient.url(urlPrefix + s"targeting_lists/$tlListId")
+            .withHeaders("Token" -> token)
+            .delete
 }
 
 object Optimizely {
