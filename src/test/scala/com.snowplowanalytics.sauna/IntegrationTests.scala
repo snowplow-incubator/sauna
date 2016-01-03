@@ -57,7 +57,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     // actors (if executed in another thread) silences error
     // approach with testing 'receive' is also impossible,
-    // because this test show go as close to real one as possible
+    // because this test should go as close to real one as possible
     // so, let's introduce a variable that will be assigned if something goes wrong
     var wasError = false
 
