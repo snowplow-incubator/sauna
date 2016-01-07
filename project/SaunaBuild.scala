@@ -61,6 +61,7 @@ object SaunaBuild extends Build {
                     ),
     scalacOptions in (Compile, console) ~= (_ filterNot (_ == "-Xfatal-warnings")),
     scalacOptions in (Test, console) := (scalacOptions in (Compile, console)).value,
-    ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) }
+    ivyScala := ivyScala.value map { _.copy(overrideScalaVersion = true) },
+    parallelExecution in Test := false
   )
 }
