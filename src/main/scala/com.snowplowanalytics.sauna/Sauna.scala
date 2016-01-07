@@ -39,6 +39,8 @@ object Sauna extends App {
     System.exit(1)
   }
 
+  println("Starting application... \n")
+
   implicit val system = ActorSystem("sauna")
 
   // configuration
