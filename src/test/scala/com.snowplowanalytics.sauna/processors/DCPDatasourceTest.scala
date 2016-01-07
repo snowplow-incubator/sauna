@@ -40,6 +40,10 @@ class DCPDatasourceTest extends FunSuite with BeforeAndAfter  {
     dummyOptimizely = new DummyOptimizely
   }
 
+  after {
+    val _ = system.terminate()
+  }
+
   test("correct line") {
     val line1 = """"t"    "123"    "alpha"    "2013-12-15 14:05:06.789""""
     val line2 = """"f"    "456"    "delta"    "2014-06-10 21:48:32.712""""

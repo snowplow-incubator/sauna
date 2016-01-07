@@ -15,16 +15,17 @@ package apis
 
 // scala
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
 
-// akka
-import akka.actor.ActorRef
+// play
+import play.api.libs.ws.WSResponse
 
 // sauna
 import processors.TargetingList.Data
 
-class DummyOptimizely(implicit logger: ActorRef) extends Optimizely {
-  override def postTargetingLists(tlData: Seq[Data], token: String): Unit = {}
+class DummyOptimizely extends Optimizely("")(null) { // DummyOptimizely wont need these value
+  override def postTargetingLists(tlData: Seq[Data]): Future[WSResponse] =
+    Future.failed(new Exception("Using DummyOptimizely"))
 
-  override def getOptimizelyS3Credentials(dcpDatasourceId: String, token: String): Future[Option[(String, String)]] = Future(None)
+  override def getOptimizelyS3Credentials(dcpDatasourceId: String): Future[Option[(String, String)]] =
+    Future.failed(new Exception("Using DummyOptimizely"))
 }

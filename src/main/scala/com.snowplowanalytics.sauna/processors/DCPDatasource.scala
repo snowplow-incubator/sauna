@@ -46,21 +46,19 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                    (implicit logger: ActorRef) extends Processor {
   import DCPDatasource._
 
-  // todo tests everywhere after akka
-
-  override def process(fileAppeared: FileAppeared): Unit = {
+  override def processed(fileAppeared: FileAppeared): Boolean = {
     import fileAppeared._
 
     filePath match {
       case pathRegexp(service, datasource, attrs) =>
         if (attrs.isEmpty) {
           logger ! Notification("Should be at least one attribute.")
-          return
+          return true
         }
 
         if (!attrs.contains("customerId")) {
           logger ! Notification("Attribute 'customerId' must be included.")
-          return
+          return true
         }
 
         optimizely.getOptimizelyS3Credentials(datasource)
@@ -86,7 +84,9 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                       logger ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
                   }
 
-      case _ => // do nothing
+        true // file was processed
+
+      case _ => false // file was not processed
     }
   }
 
@@ -164,7 +164,7 @@ object DCPDatasource {
       |(.*?)/
       |(.*?)/
       |tsv:([^\/]+)/
-      |.*$
+      |.+$
     """.stripMargin
       .replaceAll("[\n ]", "")
       .r

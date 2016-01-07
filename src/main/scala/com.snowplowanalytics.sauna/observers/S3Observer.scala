@@ -15,7 +15,7 @@ package observers
 
 //java
 import java.io.InputStream
-import java.net.URLDecoder._
+import java.net.URLDecoder
 
 // akka
 import akka.actor.ActorRef
@@ -29,7 +29,7 @@ import awscala.sqs.{Queue, SQS}
 
 // sauna
 import loggers.Logger.Notification
-import processors.Processor.FileAppeared
+import processors.Processor._
 
 /**
  * Observes some AWS S3 bucket.
@@ -64,11 +64,11 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ActorRef])
          .foreach { case message =>
            val (bucketName, fileName) = getBucketAndFile(message.body)
                                          .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
-           val decodedFileName = decode(fileName, "UTF-8")
+           val decodedFileName = URLDecoder.decode(fileName, "UTF-8")
            val is = getInputStream(bucketName, decodedFileName)
 
            logger ! Notification(s"Detected new S3 file $decodedFileName.")
-           processors.foreach(_ ! FileAppeared(decodedFileName, is))
+           processors.foreach(_ ! FileAppeared(decodedFileName, is, InS3(s3, bucketName, fileName)))
            sqs.delete(message)
          }
     }
@@ -88,6 +88,6 @@ object S3Observer {
       s3 <- s3opt
       bucket <- (s3 \ "bucket" \ "name").asOpt[String]
       file <- (s3 \ "object" \ "key").asOpt[String]
-    } yield (decode(bucket, "UTF-8"), file)
+    } yield (URLDecoder.decode(bucket, "UTF-8"), file)
   }
 }

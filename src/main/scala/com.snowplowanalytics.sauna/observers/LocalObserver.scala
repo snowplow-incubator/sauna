@@ -27,7 +27,7 @@ import akka.actor.ActorRef
 
 // sauna
 import loggers.Logger.Notification
-import processors.Processor.FileAppeared
+import processors.Processor._
 
 /**
  * Observes files in local filesystem.
@@ -44,13 +44,7 @@ class LocalObserver(observedDir: String, processors: Seq[ActorRef])
       val is = new FileInputStream(path.toFile)
 
       logger ! Notification(s"Detected new local file [$path].")
-      processors.foreach(_ ! FileAppeared("" + path, is))
-
-      try {
-        val _ = Files.deleteIfExists(path)
-      } catch { case e: IOException =>
-        System.err.println(s"Unable to delete [$path].")
-      }
+      processors.foreach(_ ! FileAppeared(path.toString, is, InLocal))
     }
   }
 

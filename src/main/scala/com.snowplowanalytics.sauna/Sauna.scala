@@ -45,7 +45,7 @@ object Sauna extends App {
 
   // configuration
   val config = SaunaConfig(new File(args(0)))
-  implicit val region = Region.US_WEST_2
+  implicit val region = Region(config.awsRegion)
   implicit val credentials = new Credentials(config.accessKeyId, config.secretAccessKey)
 
   // loggers
@@ -65,7 +65,7 @@ object Sauna extends App {
                  .getOrElse(throw new Exception("No queue with that name found"))
 
   // responders
-  val optimizely = new Optimizely
+  val optimizely = new Optimizely(config.optimizelyToken)
 
   // processors
   val processorActors = Seq(

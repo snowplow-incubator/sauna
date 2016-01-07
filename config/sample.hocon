@@ -1,17 +1,27 @@
-aws {
-  access_key_id = _
-  secret_access_key = _
-  dynamodb_table_name = _
-}
-optimizely {
-  token = _
-  import_region = "us-east-1"
-}
 sauna.root = /opt/sauna
-queue.name = snowplow-sauna-sandbox
+
 logging {
   hipchat {
     room_id = _
     token = _
   }
 }
+
+aws {
+  access_key_id = _
+  secret_access_key = _
+  region = "us-west-2"
+  dynamodb {
+    table_name = _
+  }
+  sqs {
+    queue.name = _
+  }
+}
+
+optimizely {
+  token = _
+  import_region = "us-east-1"
+}
+
+sendgrid.token = _

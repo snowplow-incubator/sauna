@@ -13,7 +13,12 @@
 package com.snowplowanalytics.sauna
 
 // java
+import java.io.{File, PrintWriter}
 import java.nio.file.{Files, Paths}
+import java.util.UUID
+
+// scala
+import scala.io.Source.fromInputStream
 
 // scalatest
 import org.scalatest._
@@ -27,8 +32,8 @@ import apis.Optimizely
 import loggers.Logger.{Manifestation, Notification}
 import loggers._
 import observers._
-import processors.TargetingList.Data
 import processors._
+import processors.Processor._
 
 class IntegrationTests extends FunSuite with BeforeAndAfter {
   implicit var system: ActorSystem = _
@@ -39,7 +44,47 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     logger = TestActorRef(new MutedLogger)
   }
 
-  test("local optimizely") {
+  after {
+    val _ = system.terminate()
+  }
+
+  test("local no processor") {
+    // prepare for start, define some variables
+    val saunaRoot = "/opt/sauna/"
+    val fileName = UUID.randomUUID().toString
+    val testFile = new File(saunaRoot + fileName)
+    val line1 = "aaaaaa"
+    val line2 = "bbbbbb"
+    var expectedLines: Seq[String] = null
+    val processors = Seq(
+      TestActorRef(new Processor {
+        override def processed(fileAppeared: FileAppeared): Unit = expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
+      })
+    )
+    val lo = new LocalObserver(saunaRoot, processors)
+
+    // start observer
+    new Thread(lo).start()
+
+    // wait
+    Thread.sleep(300)
+
+    // do an action that should trigger observer
+    new PrintWriter(testFile) {
+      write(s"$line1\n$line2")
+
+      close()
+    }
+
+    // wait
+    Thread.sleep(300)
+
+    // make sure everything went as expected
+    assert(!testFile.exists())
+    assert(expectedLines === Seq(line1, line2))
+  }
+
+  test("local targeting lists") {
     // prepare for start, define some variables
     val saunaRoot = "/opt/sauna/"
     val source = Paths.get("src/test/resources/targeting_list.tsv")
@@ -87,10 +132,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     })
 
     // define mocked Optimizely
-    val optimizely = new Optimizely {
-      override def postTargetingLists(tlData: Seq[Data], token: String = secretToken): Unit =
-        super.postTargetingLists(tlData, token)
-    }
+    val optimizely = new Optimizely(secretToken)
 
     // define real processor and observer
     val processorActors = Seq(TargetingList(optimizely))
@@ -106,11 +148,11 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // wait, assuming 5 seconds is enough to get to Optimizely and back
     Thread.sleep(5000)
 
+    // cleanup
+    optimizely.deleteTargetingList(id)
+
     // id should be updated
     assert(id != null)
-
-    // cleanup
-    optimizely.deleteTargetingList(id, secretToken)
 
     // make sure everything went as expected
     assert(!wasError)
