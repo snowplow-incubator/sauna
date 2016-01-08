@@ -21,6 +21,7 @@ object SaunaBuild extends Build {
     .settings(buildSettings: _*)
     .settings(
       libraryDependencies ++= Seq(
+        "com.github.tototoshi" %% "scala-csv" % "1.2.2",
         "com.github.seratch" %% "awscala" % "0.5.+",
         "com.typesafe" % "config" % "1.3.0",
         "com.typesafe.play" %% "play-json" % playVersion,

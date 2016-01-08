@@ -43,7 +43,6 @@ trait Processor extends Actor {
             case InS3(s3: S3, _bucketName: String, _fileName: String) =>
               val bucketName = URLDecoder.decode(_bucketName, "UTF-8")
               val fileName = URLDecoder.decode(_fileName, "UTF-8")
-              println("AAAAAAAAAAAAA", s3, bucketName, fileName)
               s3.deleteObject(bucketName, fileName)
           }
         }  catch { case e: Exception =>
@@ -54,6 +53,15 @@ trait Processor extends Actor {
 
   /**
    * Method that describes "how to process new files".
+   *
+   * @param fileAppeared Describes necessary data about newly appeared file.
+   *                     @see `Processor.FileAppeared`
+   *
+   * @return true if file was processed, and false if it is not a subject of current Processor implementation.
+   *         This result could be used, for example, for cleanup. So, if the file appeared in S3, it should
+   *         be deleted in other manner than if it appeared locally.
+   *         Also note that one could not simply delete FileAppeared.filePath, because a collision may
+   *         happen - for example, if file appeared in S3, but there is a local file with exactly same filePath.
    */
   def processed(fileAppeared: FileAppeared): Boolean
 }
@@ -66,7 +74,7 @@ object Processor {
    *
    * @param filePath Full path of file.
    * @param is InputStream from it.
-   * @param location Tells where this this file exists. See FileLocation for possible choices.
+   * @param location Tells where this this file exists. See `Processor.FileLocation` for possible choices.
    */
   case class FileAppeared(filePath: String, is: InputStream, location: FileLocation)
 

@@ -58,7 +58,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     var expectedLines: Seq[String] = null
     val processors = Seq(
       TestActorRef(new Processor {
-        override def processed(fileAppeared: FileAppeared): Unit = expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
+        override def processed(fileAppeared: FileAppeared): Boolean = {
+          expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
+          true
+        }
       })
     )
     val lo = new LocalObserver(saunaRoot, processors)

@@ -14,6 +14,7 @@ package com.snowplowanalytics.sauna
 package processors
 
 // java
+import java.io.StringReader
 import java.util.UUID
 
 // scala
@@ -29,6 +30,9 @@ import play.api.libs.json.Json
 // jackson
 import com.fasterxml.jackson.core.JsonParseException
 
+// scala-csv
+import com.github.tototoshi.csv._
+
 // sauna
 import apis.Optimizely
 import loggers.Logger.{Notification, Manifestation}
@@ -36,6 +40,7 @@ import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Targeting List feature.
+ * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#targeting-list
  *
  * @param optimizely Instance of Optimizely.
  * @param logger LoggerActorWrapper for the wrapper.
@@ -103,7 +108,7 @@ object TargetingList {
     """.stripMargin
        .replaceAll("[\n ]", "")
 
-  val validLineRegexp = """(.+?)\t(.+?)\t(.+?)\t([0-9]+?)\t(.*?)\t(.+?)""".r
+  val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
 
   /**
    * Represents valid line format.
@@ -128,14 +133,25 @@ object TargetingList {
    * @param line A string to be extracting from.
    * @return Option[Data]
    */
-  def unapply(line: String): Option[Data] = line match {
-    case validLineRegexp(projectId, listName, listDescription, _listType, _keyFields, value) =>
-      val listType = _listType.toShort
-      val keyFields = if (_keyFields.isEmpty) None else Some(_keyFields)
+  def unapply(line: String): Option[Data] = {
+    val reader = CSVReader.open(new StringReader(line))(tsvFormat)
 
-      Some(Data(projectId, listName, listDescription, listType, keyFields, value))
+    try {
+      reader.readNext() match {
+        case Some(List(projectId: String, listName: String, listDescription: String, _listType: String, _keyFields: String, value: String)) =>
+            val listType = _listType.toShort
+            val keyFields = if (_keyFields.isEmpty) None else Some(_keyFields)
+            Some(Data(projectId, listName, listDescription, listType, keyFields, value))
 
-    case _ => None
+        case _ => None
+      }
+
+    } catch {
+      case _: Exception => None
+
+    } finally {
+      reader.close()
+    }
   }
 
   /**

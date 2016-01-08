@@ -14,7 +14,7 @@ package com.snowplowanalytics.sauna
 package processors
 
 // java
-import java.io.{File, InputStream, PrintWriter}
+import java.io.{StringReader, File, InputStream, PrintWriter}
 import java.text.SimpleDateFormat
 import java.util.UUID
 
@@ -29,6 +29,9 @@ import akka.actor.{Props, ActorSystem, ActorRef}
 import awscala.Region
 import awscala.s3.{Bucket, S3}
 
+// scala-csv
+import com.github.tototoshi.csv._
+
 // sauna
 import apis.Optimizely
 import loggers.Logger.Notification
@@ -36,6 +39,7 @@ import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
+ * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#dcp-batch
  *
  * @param optimizely Instance of Optimizely.
  * @param saunaRoot A place for 'tmp' directory.
@@ -50,7 +54,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
     import fileAppeared._
 
     filePath match {
-      case pathRegexp(service, datasource, attrs) =>
+      case pathRegexp(service, datasource, attrs) => // file is subject of DCPDatasource processor, so return true now
         if (attrs.isEmpty) {
           logger ! Notification("Should be at least one attribute.")
           return true
@@ -71,7 +75,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                       val s3path = s"dcp/$service/$datasource/$fileName"
 
                       try {
-                        Bucket("optimizely-import").put(s3path, correctedFile)
+                        Bucket("optimizely-import").put(s3path, correctedFile) // trigger Optimizely to get data from this bucket
                         logger ! Notification(s"Successfully uploaded file to S3 bucket 'optimizely-import/$s3path'.")
                         if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
@@ -84,7 +88,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                       logger ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
                   }
 
-        true // file was processed
+        true
 
       case _ => false // file was not processed
     }
@@ -95,13 +99,18 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    *
    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
+   *
    * @param is An InputStream for some source.
    * @return Corrected file.
    */
   def correct(is: InputStream, header: String): File = {
     val sb = new StringBuilder(header + "\n")
     fromInputStream(is).getLines()
-                       .foreach { case line => sb.append(correct(line) + "\n") }
+                       .foreach { case line => correct(line) match {
+                           case Some(corrected) => sb.append(corrected + "\n")
+                           case _ => sb.append("\n")
+                         }
+                       }
 
     val _ = new File(saunaRoot + "/tmp/").mkdir() // if tmp/ does not exists
     val fileName = saunaRoot + "/tmp/" + UUID.randomUUID().toString
@@ -120,39 +129,45 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    *
    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
-   * @param _line A string to be corrected.
+   *
+   * @param line A string to be corrected.
    * @return Some(Corrected string) or None, if something (e.g. wrong date format) went wrong.
    */
-  def correct(_line: String): String = {
-    val line = _line.replaceAll("[ ]{2,}", "\t") // handle cases when \t got converted to spaces
-    val sb = new StringBuilder
-    var i = 0
+  def correct(line: String): Option[String] = {
+    val reader = CSVReader.open(new StringReader(line))(tsvFormat)
 
-    while (i < line.length) {
-      val char = line(i)
+    try {
+      reader.readNext() // get next line, it should be only one
+            .map(list => list.map(correctWord)
+                             .mkString(",")
+                             .replaceAll("\"", ""))
 
-      if (char == 't' && wordEnded(line, i + 1)) sb.append("true")
-      else if (char == 'f' && wordEnded(line, i + 1)) sb.append("false")
-      else if (char == '\t') sb.append(',')
-      else if (char != '"') sb.append(char)
+    } catch {
+      case _: Exception => None
 
-      i += 1
-    }
-
-    sb.toString() match {
-      case dateRegexp(left, timestamp, right) =>
-          val epoch = dateFormat.parse(timestamp)
-                                .getTime // use milliseconds
-
-          s"$left$epoch$right"
-
-      case s => s // no timestamp. do nothing
+    } finally {
+      reader.close()
     }
   }
 
-  private def wordEnded(s: String, i: Int): Boolean = {
-    if (i >= s.length) return false
-    !s(i).isLetterOrDigit
+  /**
+   * Corrects a single word according to following rules:
+   *   1) Change "t" to "true"
+   *   2) Change "f" to "false"
+   *   3) Change timestamp to epoch
+   *
+   * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
+   *
+   * @param word A word to be corrected.
+   * @return Corrected word.
+   */
+  def correctWord(word: String): String = word match {
+    case dateRegexp(timestamp) => dateFormat.parse(timestamp)
+                                            .getTime
+                                            .toString
+    case "t" => "true"
+    case "f" => "false"
+    case _ => word
   }
 }
 
@@ -169,8 +184,9 @@ object DCPDatasource {
       .replaceAll("[\n ]", "")
       .r
 
+  val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
-  val dateRegexp = "(.*?)(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})(.*)".r
+  val dateRegexp = "^(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})$".r
 
   /**
    * Constructs a DCPDatasource actor.
