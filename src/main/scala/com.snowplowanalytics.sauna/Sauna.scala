@@ -64,13 +64,15 @@ object Sauna extends App {
   val queue = sqs.queue(config.queueName)
                  .getOrElse(throw new Exception("No queue with that name found"))
 
-  // responders
+  // apis
   val optimizely = new Optimizely(config.optimizelyToken)
+  val sendgrid = new Sendgrid(config.sendgridToken)
 
   // processors
   val processorActors = Seq(
     TargetingList(optimizely),
-    DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion)
+    DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion),
+    Recipients(sendgrid)
   )
 
   // define and run observers
