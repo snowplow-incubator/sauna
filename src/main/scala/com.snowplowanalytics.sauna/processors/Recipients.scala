@@ -64,9 +64,9 @@ class Recipients(sendgrid: Sendgrid)
 
         val keys = attrs.split(",")
 
-        val seq = fromInputStream(is).getLines()
+        fromInputStream(is).getLines()
                            .toSeq
-                           .map(words)
+                           .map(extractWords)
                            .grouped(LINE_LIMIT) // respect Sendgrid's limitations
                            .foreach { case valuess =>
                              sendgrid.postRecipients(keys, valuess)
@@ -157,7 +157,7 @@ object Recipients {
    * @param line A line to be converted.
    * @return A seq of corrected words
    */
-  def words(line: String): Seq[String] = {
+  def extractWords(line: String): Seq[String] = {
     val reader = CSVReader.open(new StringReader(line))(tsvFormat)
 
     try {
