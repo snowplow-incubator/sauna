@@ -27,6 +27,14 @@ import org.scalatest._
 import akka.actor.{Actor, ActorSystem}
 import akka.testkit.TestActorRef
 
+// amazonaws
+import com.amazonaws.services.s3.model.AmazonS3Exception
+
+// awscala
+import awscala.{Credentials, Region}
+import awscala.s3.S3
+import awscala.sqs.SQS
+
 // sauna
 import apis.Optimizely
 import loggers.Logger.{Manifestation, Notification}
@@ -38,10 +46,30 @@ import processors.Processor._
 class IntegrationTests extends FunSuite with BeforeAndAfter {
   implicit var system: ActorSystem = _
   implicit var logger: TestActorRef[Actor] = _
+  var accessKeyId: String = _
+  var secretAccessKey: String = _
+  var bucketName: String = _
+  var queueName: String = _
+  var awsRegion: String = _
+  var secretToken: String = _
 
   before {
     system = ActorSystem.create()
     logger = TestActorRef(new MutedLogger)
+
+    // credentials
+    accessKeyId = System.getenv("AWS_ACCESS_KEY_ID")
+    secretAccessKey = System.getenv("AWS_SECRET_ACCESS_KEY")
+    bucketName = System.getenv("AWS_BUCKET_NAME")
+    queueName = System.getenv("AWS_QUEUE_NAME")
+    awsRegion = System.getenv("AWS_REGION")
+    secretToken = System.getenv("OPTIMIZELY_PROJECT_TOKEN")
+    assert(accessKeyId != null, "not found system variable 'AWS_ACCESS_KEY_ID'")
+    assert(secretAccessKey != null, "not found system variable 'AWS_SECRET_ACCESS_KEY'")
+    assert(bucketName != null, "not found system variable 'AWS_BUCKET_NAME'")
+    assert(queueName != null, "not found system variable 'AWS_BUCKET_NAME'")
+    assert(awsRegion != null, "not found system variable 'AWS_REGION'")
+    assert(secretToken != null, "not found system variable 'OPTIMIZELY_PROJECT_TOKEN'")
   }
 
   after {
@@ -83,7 +111,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     Thread.sleep(300)
 
     // make sure everything went as expected
-    assert(!testFile.exists())
+    assert(!testFile.exists(), "test file was not deleted")
     assert(expectedLines === Seq(line1, line2))
   }
 
@@ -96,10 +124,6 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // cleanup
     Files.deleteIfExists(destination)
 
-    // get a secret token
-    val secretToken = System.getenv("OPTIMIZELY_PROJECT_TOKEN")
-    assert(secretToken != null)
-
     // this should be changed if TargetingList works properly
     var id: String = null
 
@@ -107,37 +131,37 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // approach with testing 'receive' is also impossible,
     // because this test should go as close to real one as possible
     // so, let's introduce a variable that will be assigned if something goes wrong
-    var wasError = false
+    var error = Option.empty[String]
 
     // define mocked logger
     logger = TestActorRef(new Actor {
       def step1: Receive = {
         case message: Notification =>
-          if (!message.text.contains("Detected new local file")) wasError = true
+          val expectedText = "Detected new local file"
+          if (!message.text.contains(expectedText)) error = Some(s"in step1, ${message.text} does not contain [$expectedText]]")
           context.become(step2)
 
-        case _ =>
-          wasError = true
+        case message =>
+          error = Some(s"in step1, got unexpected message $message")
       }
 
       def step2: Receive = {
         case message: Notification =>
-          if (message.text != "Successfully uploaded targeting lists with name [dec_ab_group].") wasError = true
+          val expectedText = "Successfully uploaded targeting lists with name [dec_ab_group]."
+          if (message.text != expectedText) error = Some(s"in step2, ${message.text} does not contain [$expectedText]]")
 
         case message: Manifestation =>
           id = message.uid
 
-        case _ =>
-          wasError = true
+        case message =>
+          error = Some(s"in step2, got unexpected message $message")
       }
 
       override def receive = step1
     })
 
-    // define mocked Optimizely
+    // define Optimizely, processor and observer
     val optimizely = new Optimizely(secretToken)
-
-    // define real processor and observer
     val processorActors = Seq(TargetingList(optimizely))
     val observers = Seq(new LocalObserver(saunaRoot, processorActors))
     observers.foreach(new Thread(_).start())
@@ -154,10 +178,88 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // cleanup
     optimizely.deleteTargetingList(id)
 
-    // id should be updated
-    assert(id != null)
+    // make sure everything went as expected
+    assert(id != null, "id was not updated")
+    assert(!destination.toFile.exists(), "processed file should have been deleted")
+    assert(error.isEmpty)
+  }
+
+  test("s3 targeting lists") {
+    // prepare for start, define some variables
+    val source = new File("src/test/resources/targeting_list.tsv")
+    val destination = "com.optimizely/targeting_lists/v1/tsv:*/marketing-team/mary/warehouse.tsv"
+    implicit val region = Region(awsRegion)
+    implicit val credentials = new Credentials(accessKeyId, secretAccessKey)
+    val s3 = S3(credentials)
+    val sqs = SQS(credentials)
+    val queue = sqs.queue(queueName)
+                   .getOrElse(throw new Exception("No queue with that name found"))
+
+    // clean up, if object does not exist, Amazon S3 returns a success message instead of an error message
+    s3.deleteObject(bucketName, destination)
+
+    // this should be changed if TargetingList works properly
+    var id: String = null
+
+    // actors (if executed in another thread) silences error
+    // approach with testing 'receive' is also impossible,
+    // because this test should go as close to real one as possible
+    // so, let's introduce a variable that will be assigned if something goes wrong
+    var error = Option.empty[String]
+
+    // define mocked logger
+    logger = TestActorRef(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Detected new S3 file"
+          if (!message.text.contains(expectedText)) error = Some(s"in step1, ${message.text} does not contain [$expectedText]]")
+          context.become(step2)
+
+        case message =>
+          error = Some(s"in step1, got unexpected message $message")
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = "Successfully uploaded targeting lists with name [dec_ab_group]."
+          if (message.text != expectedText) error = Some(s"in step2, ${message.text} does not contain [$expectedText]]")
+
+        case message: Manifestation =>
+          id = message.uid
+
+        case message =>
+          error = Some(s"in step2, got unexpected message $message")
+      }
+
+      override def receive = step1
+    })
+
+    // define Optimizely, processor and observer
+    val optimizely = new Optimizely(secretToken)
+    val processorActors = Seq(TargetingList(optimizely))
+    val observers = Seq(new S3Observer(s3, sqs, queue, processorActors))
+    observers.foreach(new Thread(_).start())
+
+    // wait
+    Thread.sleep(500)
+
+    // do an action that should trigger observer
+    s3.putObject(bucketName, destination, source)
+
+    // wait, assuming 5 seconds is enough to get file from AWS, and travel to Optimizely and back
+    Thread.sleep(5000)
+
+    // cleanup
+    optimizely.deleteTargetingList(id)
 
     // make sure everything went as expected
-    assert(!wasError)
+    assert(id != null, "id was not updated")
+    try {
+      val _ = s3.getObject(bucketName, destination)
+      assert(false, "processed file should have been deleted")
+    } catch { case e: AmazonS3Exception if e.getMessage.contains("The specified key does not exist") =>
+        // do nothing, it's 'happy path'
+    }
+    assert(error.isEmpty)
   }
 }

@@ -59,8 +59,7 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ActorRef])
 
   override def run(): Unit = {
     while (true) {
-      Thread.sleep(1000)
-      sqs.receiveMessage(queue, count = 10) // blocking, so no overlapping happens
+      sqs.receiveMessage(queue, count = 10, wait = 1) // blocking, so no overlapping happens
          .foreach { case message =>
            val (bucketName, fileName) = getBucketAndFile(message.body)
                                          .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
