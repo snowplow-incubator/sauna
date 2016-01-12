@@ -18,6 +18,7 @@ import java.io.StringReader
 import java.text.SimpleDateFormat
 
 // scala
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
 
 // akka
@@ -70,7 +71,10 @@ class Recipients(sendgrid: Sendgrid)
                            .grouped(LINE_LIMIT) // respect Sendgrid's limitations
                            .foreach { case valuess =>
                              sendgrid.postRecipients(keys, valuess)
-                             logger ! Notification("Successfully posted bunch of recipients to Sendgrid.")
+                                     .foreach { case response =>
+                                       val text = response.body // todo extract meaningful text, handle errors
+                                       logger ! Notification(text)
+                                     }
                              Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
                                                      // so new `fileAppeared` will be processed after current one
                            }
@@ -83,8 +87,8 @@ class Recipients(sendgrid: Sendgrid)
 }
 
 object Recipients {
-  val LINE_LIMIT = 1000
-  val WAIT_TIME = 3000L // 3 seconds
+  val LINE_LIMIT = 1000 // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-a-Single-Recipient-to-a-List-POST
+  val WAIT_TIME = 667L // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-Recipients-POST
 
   val pathRegexp =
     """.*com\.sendgrid\.contactdb/
