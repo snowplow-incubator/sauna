@@ -136,13 +136,14 @@ object Recipients {
    * @return Sendgrid-friendly json.
    */
   def makeValidJson(keys: Seq[String], valuess: Seq[Seq[String]]): String = {
-    val recipients = for (values <- valuess) yield {
-      assert(values.length == keys.length) // todo check how that works
-      val recipientDara = keys.zip(values)
-      Json.toJson(recipientDara.toMap)
-          .toString()
-          .replaceAll(""""(\d+|null)"""", "$1") // null and all numbers too
-    }
+    val recipients = for (values <- valuess
+                          if values.length == keys.length) // skip 100% corrupted data
+                       yield {
+                         val recipientsData = keys.zip(values)
+                         Json.toJson(recipientsData.toMap)
+                             .toString()
+                             .replaceAll(""""(\d+|null)"""", "$1") // null and all numbers too
+                       }
 
     s"[${recipients.mkString(",")}]"
   }
