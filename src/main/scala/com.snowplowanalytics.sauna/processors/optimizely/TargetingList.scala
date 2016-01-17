@@ -12,6 +12,7 @@
  */
 package com.snowplowanalytics.sauna
 package processors
+package optimizely
 
 // java
 import java.io.StringReader
@@ -22,7 +23,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
 
 // akka
-import akka.actor.{Props, ActorSystem, ActorRef}
+import akka.actor.{ActorRef, ActorSystem, Props}
 
 // play
 import play.api.libs.json.Json

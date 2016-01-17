@@ -27,7 +27,8 @@ import awscala.{Credentials, Region}
 // sauna
 import loggers._
 import observers._
-import processors._
+import processors.optimizely._
+import processors.sendgrid._
 import apis._
 
 /**

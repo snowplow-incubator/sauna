@@ -14,6 +14,8 @@ package com.snowplowanalytics.sauna
 package apis
 
 // scala
+import com.snowplowanalytics.sauna.processors.sendgrid.Recipients
+
 import scala.concurrent.Future
 
 // akka
@@ -23,7 +25,6 @@ import akka.actor.ActorRef
 import play.api.libs.ws.WSResponse
 
 // sauna
-import processors.Recipients
 
 /**
  * Encapsulates any action with Sendgrid.

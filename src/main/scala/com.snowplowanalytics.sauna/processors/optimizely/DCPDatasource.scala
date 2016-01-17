@@ -12,9 +12,10 @@
  */
 package com.snowplowanalytics.sauna
 package processors
+package optimizely
 
 // java
-import java.io.{StringReader, File, InputStream, PrintWriter}
+import java.io.{File, InputStream, PrintWriter, StringReader}
 import java.text.SimpleDateFormat
 import java.util.UUID
 
@@ -23,7 +24,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
 
 // akka
-import akka.actor.{Props, ActorSystem, ActorRef}
+import akka.actor.{ActorRef, ActorSystem, Props}
 
 // awscala
 import awscala.Region
@@ -80,6 +81,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                         if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
                       } catch { case e: Exception =>
+                        println(e.getMessage)
                         logger ! Notification(e.getMessage)
                         logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
                       }

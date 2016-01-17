@@ -14,6 +14,8 @@ package com.snowplowanalytics.sauna
 package apis
 
 // scala
+import com.snowplowanalytics.sauna.processors.optimizely.TargetingList
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -29,7 +31,6 @@ import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
 import loggers.Logger.Notification
-import processors.TargetingList
 
 /**
  * Encapsulates any action with Optimizely.
@@ -94,11 +95,22 @@ class Optimizely(token: String)
   /**
    * Deletes an information about some targeting list.
    *
-   * @param tlListId Identifier of the targeting list we are looking for.
+   * @param tlListId Identifier of the targeting list we want to delete.
    * @return Future WSResponse.
    */
   def deleteTargetingList(tlListId: String): Future[WSResponse] =
     wsClient.url(urlPrefix + s"targeting_lists/$tlListId")
+            .withHeaders("Token" -> token)
+            .delete
+
+  /**
+   * Deletes an information about some DCP Service.
+   *
+   * @param datasourceId Identifier of the datasource we want to delete.
+   * @return Future WSResponse.
+   */
+  def deleteDcpService(datasourceId: String): Future[WSResponse] =
+    wsClient.url(urlPrefix + s"dcp_services/$datasourceId")
             .withHeaders("Token" -> token)
             .delete
 }
