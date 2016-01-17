@@ -13,12 +13,13 @@
 package com.snowplowanalytics.sauna
 package processors
 
+// java
+import java.io.ByteArrayInputStream
+
 // scala
 import scala.io.Source.fromFile
 
 // scalatest
-import java.io.ByteArrayInputStream
-
 import org.scalatest._
 
 // akka
@@ -28,6 +29,7 @@ import akka.testkit.TestActorRef
 // sauna
 import apis.{Optimizely, DummyOptimizely}
 import loggers._
+import processors.optimizely.DCPDatasource
 
 class DCPDatasourceTest extends FunSuite with BeforeAndAfter  {
   implicit var system: ActorSystem = _

@@ -16,6 +16,9 @@ package processors
 // scalatest
 import org.scalatest._
 
+// sauna
+import optimizely.TargetingList
+
 class TargetingListTest extends FunSuite {
   test("unapply invalid input") {
     val s = "qwerty"
