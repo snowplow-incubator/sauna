@@ -191,13 +191,13 @@ object Recipients {
    */
   def correctWord(word: String): String = word match {
     case dateRegexpFull(timestamp) => dateFormatFull.parse(timestamp)
-                                                .getTime
-                                                ./(1000) // seems like Sendgrid does not accept milliseconds
-                                                .toString
+                                                    .getTime
+                                                    ./(1000) // seems like Sendgrid does not accept milliseconds
+                                                    .toString
     case dateRegexpShort(timestamp) => dateFormatShort.parse(timestamp)
-                                                     .getTime
-                                                     ./(1000) // seems like Sendgrid does not accept milliseconds
-                                                     .toString
+                                                      .getTime
+                                                      ./(1000) // seems like Sendgrid does not accept milliseconds
+                                                      .toString
     case "" => "null"
     case _ => word
   }
