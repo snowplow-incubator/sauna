@@ -10,14 +10,12 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna
-package processors
+package com.snowplowanalytics.sauna.processors.optimizely
 
 // scalatest
 import org.scalatest._
 
 // sauna
-import optimizely.TargetingList
 
 class TargetingListTest extends FunSuite {
   test("unapply invalid input") {

@@ -43,7 +43,7 @@ import processors.Processor.FileAppeared
  * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide
  *
  * @param sendgrid Instance of Sendgrid.
- * @param logger LoggerActorWrapper for the wrapper.
+ * @param logger A logger actor.
  */
 class Recipients(sendgrid: Sendgrid)
                 (implicit logger: ActorRef) extends Processor {

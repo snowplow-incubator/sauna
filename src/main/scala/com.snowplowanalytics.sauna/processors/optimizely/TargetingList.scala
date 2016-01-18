@@ -44,7 +44,7 @@ import processors.Processor.FileAppeared
  * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#targeting-list
  *
  * @param optimizely Instance of Optimizely.
- * @param logger LoggerActorWrapper for the wrapper.
+ * @param logger A logger actor.
  */
 class TargetingList(optimizely: Optimizely)
                    (implicit logger: ActorRef) extends Processor {
