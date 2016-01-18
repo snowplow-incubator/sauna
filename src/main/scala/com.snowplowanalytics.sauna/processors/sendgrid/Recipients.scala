@@ -15,7 +15,7 @@ package processors
 package sendgrid
 
 // java
-import java.io.StringReader
+import java.io.{InputStream, StringReader}
 import java.text.SimpleDateFormat
 
 // scala
@@ -41,7 +41,6 @@ import processors.Processor.FileAppeared
  *
  * @see https://sendgrid.com/docs/User_Guide/Marketing_Campaigns/contacts.html
  * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide
- *
  * @param sendgrid Instance of Sendgrid.
  * @param logger A logger actor.
  */
@@ -66,24 +65,50 @@ class Recipients(sendgrid: Sendgrid)
 
         val keys = attrs.split(",")
 
-        fromInputStream(is).getLines()
-                           .toSeq
-                           .map(extractWords)
-                           .grouped(LINE_LIMIT) // respect Sendgrid's limitations
-                           .foreach { case valuess =>
-                             sendgrid.postRecipients(keys, valuess)
-                                     .foreach { case response =>
-                                       val text = response.body // todo extract meaningful text, handle errors
-                                       logger ! Notification(text)
-                                     }
-                             Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
-                                                     // so new `fileAppeared` will be processed after current one
-                           }
+        // do the stuff
+        getData(is).foreach(sendData(keys, _))
 
         true
 
       case _ => false
     }
+  }
+
+  /**
+   * This method does the first part of job for "import recipients" feature.
+   * It gets file content and parses it, handles errors, and sends result to Sendgrid.
+   *
+   * @param is InputStream to data file.
+   * @return Iterator of valuess data. Valuess are extracted from the file.
+   *
+   * @see `Recipients.makeValidJson`
+   */
+  def getData(is: InputStream): Iterator[Seq[Seq[String]]] = {
+    fromInputStream(is).getLines()
+                       .toSeq
+                       .flatMap(valuesFromTsv)
+                       .grouped(LINE_LIMIT) // respect Sendgrid's limitations
+  }
+
+  /**
+   * This method does the second part of job for "import recipients" feature.
+   * It handles errors and sends result to Sendgrid.
+   *
+   * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
+   * @param valuess Seq of recipients, where recipient is a seq of attribute values.
+   *                Each `values` in `valuess` should have one length with `keys`.
+   *
+   * @see `Recipients.makeValidJson`
+   */
+  def sendData(keys: Seq[String], valuess: Seq[Seq[String]]): Unit = {
+    sendgrid.postRecipients(keys, valuess)
+            .foreach { case response =>
+              val text = response.body // todo extract meaningful text, handle errors
+              logger ! Notification(text)
+            }
+
+    Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
+                            // so new `fileAppeared` will be processed after current one
   }
 }
 
@@ -138,41 +163,39 @@ object Recipients {
    *
    * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
    * @param valuess Seq of recipients, where recipient is a seq of attribute values.
+   *                Each `values` in `valuess` should have one length with `keys`.
    * @return Sendgrid-friendly json.
+   * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
    */
   def makeValidJson(keys: Seq[String], valuess: Seq[Seq[String]]): String = {
     val recipients = for (values <- valuess
-                          if values.length == keys.length) // skip 100% corrupted data
+                          if values.length == keys.length; // skip invalid data
+                          correctedValues = values.map(correctTimestamps))
                        yield {
-                         val recipientsData = keys.zip(values)
+                         val recipientsData = keys.zip(correctedValues)
                          Json.toJson(recipientsData.toMap)
                              .toString()
-                             .replaceAll(""""(\d+|null)"""", "$1") // null and all numbers too
+                             .replaceAll("\"\"", "null") // null should be without quotations
+                             .replaceAll(""""(\d+)"""", "$1") // and positive integers too
                        }
 
     s"[${recipients.mkString(",")}]"
   }
 
   /**
-   * Converts given line in Sendgrid-friendly format.
-   * That includes (see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm):
-   *   1) split the line into words
-   *   2) change "" words to null
-   *   3) change date-like words to epochs
+   * Tries to extract values from given tab-separated line.
    *
-   * @param line A line to be converted.
-   * @return A seq of corrected words
+   * @param tsvLine A tab-separated line.
+   * @return Some[Seq of values]. In case of exception, returns None.
    */
-  def extractWords(line: String): Seq[String] = {
-    val reader = CSVReader.open(new StringReader(line))(tsvFormat)
+  def valuesFromTsv(tsvLine: String): Option[Seq[String]] = {
+    val reader = CSVReader.open(new StringReader(tsvLine))(tsvFormat)
 
     try {
       reader.readNext() // get next line, it should be only one
-            .map(list => list.map(correctWord))
-            .getOrElse(List())
 
     } catch {
-      case _: Exception => List()
+      case _: Exception => None
 
     } finally {
       reader.close()
@@ -180,16 +203,14 @@ object Recipients {
   }
 
   /**
-   * Corrects a single word according to following rules:
-   *   1) change "" words to null
-   *   2) change timestamps words to epochs
+   * Corrects a single string according to following rules:
+   *   1) change timestamps words to epochs
    *
    * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
-   *
-   * @param word A word to be corrected.
+   * @param s A string to be corrected.
    * @return Corrected word.
    */
-  def correctWord(word: String): String = word match {
+  def correctTimestamps(s: String): String = s match {
     case dateRegexpFull(timestamp) => dateFormatFull.parse(timestamp)
                                                     .getTime
                                                     ./(1000) // seems like Sendgrid does not accept milliseconds
@@ -198,7 +219,6 @@ object Recipients {
                                                       .getTime
                                                       ./(1000) // seems like Sendgrid does not accept milliseconds
                                                       .toString
-    case "" => "null"
-    case _ => word
+    case _ => s
   }
 }

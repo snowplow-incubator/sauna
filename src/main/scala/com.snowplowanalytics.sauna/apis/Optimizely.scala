@@ -14,8 +14,6 @@ package com.snowplowanalytics.sauna
 package apis
 
 // scala
-import com.snowplowanalytics.sauna.processors.optimizely.TargetingList
-
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 
@@ -31,6 +29,7 @@ import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
 import loggers.Logger.Notification
+import processors.optimizely.TargetingList
 
 /**
  * Encapsulates any action with Optimizely.

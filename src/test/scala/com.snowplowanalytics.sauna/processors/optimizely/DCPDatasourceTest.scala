@@ -10,13 +10,12 @@
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
-package com.snowplowanalytics.sauna.processors.optimizely
+package com.snowplowanalytics.sauna
+package processors
+package optimizely
 
 // java
 import java.io.ByteArrayInputStream
-
-import com.snowplowanalytics.sauna.apis.{DummyOptimizely, Optimizely}
-import com.snowplowanalytics.sauna.loggers.{Logger, MutedLogger}
 
 // scala
 import scala.io.Source.fromFile
@@ -29,6 +28,8 @@ import akka.actor.ActorSystem
 import akka.testkit.TestActorRef
 
 // sauna
+import apis.{Optimizely, DummyOptimizely}
+import loggers._
 
 class DCPDatasourceTest extends FunSuite with BeforeAndAfter  {
   implicit var system: ActorSystem = _

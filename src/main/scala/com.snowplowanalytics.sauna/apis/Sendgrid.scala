@@ -14,8 +14,6 @@ package com.snowplowanalytics.sauna
 package apis
 
 // scala
-import com.snowplowanalytics.sauna.processors.sendgrid.Recipients
-
 import scala.concurrent.Future
 
 // akka
@@ -25,6 +23,7 @@ import akka.actor.ActorRef
 import play.api.libs.ws.WSResponse
 
 // sauna
+import processors.sendgrid.Recipients
 
 /**
  * Encapsulates any action with Sendgrid.
@@ -53,6 +52,7 @@ class Sendgrid(token: String)
    *
    * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
    * @param valuess Seq of recipients, where recipient is a seq of attribute values.
+   *                Each `values` in `valuess` should have one length with `keys`.
    * @return Future[Response]
    *
    * @see Sendgrid.makeValidJson

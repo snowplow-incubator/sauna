@@ -41,6 +41,7 @@ import apis.Optimizely
 import loggers.Logger.{Manifestation, Notification}
 import loggers._
 import observers._
+import processors.Processor
 import processors.Processor._
 import processors.optimizely._
 
@@ -271,70 +272,70 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   }
 
   // todo after datasource restored
-//  test("local dynamic client profiles") {
-//    // prepare for start, define some variables
-//    val saunaRoot = "/opt/sauna"
-//    val source = Paths.get("src/test/resources/dynamic_client_profiles.tsv")
-//    val serviceId = "4034482827"
-//    val datasourceId = "4560617625"
-//    val destinationPath = s"$saunaRoot/com.optimizely.dcp/datasource/v1/$serviceId/$datasourceId/tsv:isVip,customerId,spendSegment,whenCreated/ua-team/joe"
-//    val destinationName = "warehouse.tsv"
-//    val destination = Paths.get(s"$destinationPath/$destinationName")
-//
-//    // cleanup
-//    val _ = new File(destinationPath).mkdirs()
-//    Files.deleteIfExists(destination)
-//
-//    // actors (if executed in another thread) silences error
-//    // approach with testing 'receive' is also impossible,
-//    // because this test should go as close to real one as possible
-//    // so, let's introduce a variable that will be assigned if something goes wrong
-//    var error = Option.empty[String]
-//
-//    // define mocked logger
-//    logger = TestActorRef(new Actor {
-//      def step1: Receive = {
-//        case message: Notification =>
-//          val expectedText = "Detected new local file"
-//          if (!message.text.contains(expectedText)) error = Some(s"in step1, [${message.text}] does not contain [$expectedText]]")
-//          context.become(step2)
-//
-//        case message =>
-//          error = Some(s"in step1, got unexpected message [$message]")
-//      }
-//
-//      def step2: Receive = {
-//        case message: Notification =>
-//          val expectedText = s"Successfully uploaded file to S3 bucket 'optimizely-import/dcp/$serviceId/$datasourceId"
-//          if (message.text != expectedText) error = Some(s"in step2, [${message.text}] is not equal to [$expectedText]]")
-//
-//        case message =>
-//          error = Some(s"in step2, got unexpected message [$message]")
-//      }
-//
-//      override def receive = step1
-//    })
-//
-//    // define Optimizely, processor and observer
-//    val optimizely = new Optimizely(secretToken)
-//    val processorActors = Seq(DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion))
-//    val observers = Seq(new LocalObserver(saunaRoot, processorActors))
-//    observers.foreach(new Thread(_).start())
-//
-//    // wait
-//    Thread.sleep(500)
-//
-//    // do an action that should trigger observer
-//    Files.copy(source, destination)
-//
-//    // wait, assuming 5 seconds is enough to get to S3, Optimizely and back
-//    Thread.sleep(5000)
-//
-//    // cleanup
-////    optimizely.deleteDcpService(datasourceId)
-//
-//    // make sure everything went as expected
-//    assert(!destination.toFile.exists(), "processed file should have been deleted")
-//    assert(error.isEmpty)
-//  }
+  ignore("local dynamic client profiles") {
+    // prepare for start, define some variables
+    val saunaRoot = "/opt/sauna"
+    val source = Paths.get("src/test/resources/dynamic_client_profiles.tsv")
+    val serviceId = "4034482827"
+    val datasourceId = "4560617625"
+    val destinationPath = s"$saunaRoot/com.optimizely.dcp/datasource/v1/$serviceId/$datasourceId/tsv:isVip,customerId,spendSegment,whenCreated/ua-team/joe"
+    val destinationName = "warehouse.tsv"
+    val destination = Paths.get(s"$destinationPath/$destinationName")
+
+    // cleanup
+    val _ = new File(destinationPath).mkdirs()
+    Files.deleteIfExists(destination)
+
+    // actors (if executed in another thread) silences error
+    // approach with testing 'receive' is also impossible,
+    // because this test should go as close to real one as possible
+    // so, let's introduce a variable that will be assigned if something goes wrong
+    var error = Option.empty[String]
+
+    // define mocked logger
+    logger = TestActorRef(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Detected new local file"
+          if (!message.text.contains(expectedText)) error = Some(s"in step1, [${message.text}] does not contain [$expectedText]]")
+          context.become(step2)
+
+        case message =>
+          error = Some(s"in step1, got unexpected message [$message]")
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"Successfully uploaded file to S3 bucket 'optimizely-import/dcp/$serviceId/$datasourceId"
+          if (message.text != expectedText) error = Some(s"in step2, [${message.text}] is not equal to [$expectedText]]")
+
+        case message =>
+          error = Some(s"in step2, got unexpected message [$message]")
+      }
+
+      override def receive = step1
+    })
+
+    // define Optimizely, processor and observer
+    val optimizely = new Optimizely(optimizelyToken)
+    val processorActors = Seq(DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion))
+    val observers = Seq(new LocalObserver(saunaRoot, processorActors))
+    observers.foreach(new Thread(_).start())
+
+    // wait
+    Thread.sleep(500)
+
+    // do an action that should trigger observer
+    Files.copy(source, destination)
+
+    // wait, assuming 5 seconds is enough to get to S3, Optimizely and back
+    Thread.sleep(5000)
+
+    // cleanup
+    optimizely.deleteDcpService(datasourceId)
+
+    // make sure everything went as expected
+    assert(!destination.toFile.exists(), "processed file should have been deleted")
+    assert(error.isEmpty)
+  }
 }
