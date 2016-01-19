@@ -87,7 +87,7 @@ class Recipients(sendgrid: Sendgrid)
     fromInputStream(is).getLines()
                        .toSeq
                        .flatMap(valuesFromTsv)
-                       .grouped(LINE_LIMIT) // respect Sendgrid's limitations
+                       .grouped(LINE_LIMIT)
   }
 
   /**

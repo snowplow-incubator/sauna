@@ -20,6 +20,7 @@ import java.nio.file.Files
 
 // akka
 import akka.actor.Actor
+import akka.actor.Status.{Success, Failure}
 
 // awscala
 import awscala.s3.S3
@@ -45,10 +46,19 @@ trait Processor extends Actor {
               val fileName = URLDecoder.decode(_fileName, "UTF-8")
               s3.deleteObject(bucketName, fileName)
           }
-        }  catch { case e: Exception =>
+          sender() ! Success
+
+        } catch { case e: Exception =>
           System.err.println(s"Unable to delete [${message.filePath}], that is located in [${message.location}].")
+          sender() ! Failure(e)
         }
+
+      } else {
+        sender() ! Failure(new Exception(s"A FileAppeared from ${sender()} is not a subject of current Processor [${this.toString}]."))
       }
+
+    case _ =>
+      sender() ! Failure(new Exception(s"${sender()} just sent strange message."))
   }
 
   /**
@@ -74,6 +84,7 @@ object Processor {
    *
    * @param filePath Full path of file.
    * @param is InputStream from it.
+   *           *** This field is mutable! ***
    * @param location Tells where this this file exists. See `Processor.FileLocation` for possible choices.
    */
   case class FileAppeared(filePath: String, is: InputStream, location: FileLocation)

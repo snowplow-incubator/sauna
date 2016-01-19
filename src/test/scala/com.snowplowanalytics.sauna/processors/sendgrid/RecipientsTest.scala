@@ -15,17 +15,19 @@ package processors
 package sendgrid
 
 // java
-import java.io.FileInputStream
+import java.io.ByteArrayInputStream
 
 // scala
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
+import scala.concurrent.duration._
 
 // scalatest
 import org.scalatest._
 
 // akka
 import akka.actor.{Props, ActorSystem}
-import akka.testkit.TestActorRef
+import akka.pattern.ask
+import akka.util.Timeout
 
 // play
 import play.api.libs.json.Json
@@ -34,6 +36,7 @@ import play.api.libs.ws.WSResponse
 // sauna
 import apis.Sendgrid
 import loggers.MutedLogger
+import processors.Processor._
 
 class RecipientsTest extends FunSuite {
   test("makeValidJson valid data") {
@@ -118,27 +121,29 @@ class RecipientsTest extends FunSuite {
   }
 
   test("respect Sendgrid limitations: LINE_LIMIT and WAIT_TIME") {
+    val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
+    val data = (for (i <- 1 to 3000) yield s""""bob$i@foo.com"\t"1980-06-21"\t"Al"\t"13"\t"2013-12-15 14:05:06.789"""")
+                  .mkString("\n")
     implicit val system = ActorSystem("RecipientsTest")
     implicit val logger = system.actorOf(Props(new MutedLogger))
-    val mockedSendgrid = new Sendgrid("") {
+    val mockedSendgrid = new Sendgrid("")(logger) {
       override def postRecipients(keys: Seq[String], valuess: Seq[Seq[String]]): Future[WSResponse] = {
         assert(valuess.length <= Recipients.LINE_LIMIT, "too many lines in a single chunk")
         Future.failed(new Exception)
       }
     }
-    val recipients = TestActorRef(new Recipients(mockedSendgrid)).underlyingActor
-    val inputStream1 = new FileInputStream("src/test/resources/recipients_big.tsv") // 3000 lines
-    val inputStream2 = new FileInputStream("src/test/resources/recipients_big.tsv")
-    val keys = Seq("email", "birthday", "middle_name", "favorite_number", "when_promoted")
+    val recipients = Recipients(mockedSendgrid)
+    implicit val timeout = Timeout(10.seconds)
 
+    // preparing is done, start timing
     val time = System.currentTimeMillis()
-    recipients.getData(inputStream1)
-              .foreach(recipients.sendData(keys, _))
-    inputStream1.close()
+
     // simulate two simultaneous messages
-    recipients.getData(inputStream2)
-              .foreach(recipients.sendData(keys, _))
-    inputStream2.close()
+    val f1 = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")), InLocal)
+    val f2 = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")), InLocal)
+    // and wait for them
+    Await.ready(f1, 10.seconds)
+    Await.ready(f2, 10.seconds)
 
     assert(System.currentTimeMillis() - time > 4000, "file was processed too fast") // 2 x 3000 lines == 4 seconds
   }

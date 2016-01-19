@@ -26,6 +26,7 @@ import org.scalatest._
 
 // akka
 import akka.actor.{Actor, ActorSystem}
+import akka.actor.Status.Success
 import akka.testkit.TestActorRef
 
 // amazonaws
@@ -161,6 +162,8 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
         case message: Manifestation =>
           id = message.uid
 
+        case Success => // do nothing
+
         case message =>
           error = Some(s"in step2, got unexpected message [$message]")
       }
@@ -235,6 +238,8 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
         case message: Manifestation =>
           id = message.uid
 
+        case Success => // do nothing
+
         case message =>
           error = Some(s"in step2, got unexpected message [$message]")
       }
@@ -308,6 +313,8 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
         case message: Notification =>
           val expectedText = s"Successfully uploaded file to S3 bucket 'optimizely-import/dcp/$serviceId/$datasourceId"
           if (message.text != expectedText) error = Some(s"in step2, [${message.text}] is not equal to [$expectedText]]")
+
+        case Success => // do nothing
 
         case message =>
           error = Some(s"in step2, got unexpected message [$message]")
