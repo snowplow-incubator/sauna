@@ -30,7 +30,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 // play
-import play.api.libs.json.Json
+import play.api.libs.json._
 import play.api.libs.ws.WSResponse
 
 // sauna
@@ -54,19 +54,17 @@ class RecipientsTest extends FunSuite {
     assert(resultJson === expectedJson)
   }
 
-  test("makeValidJson skip invalid lines") {
+  test("makeValidJson should assert invalid lines") {
     val keys = Seq("email", "birthday", "middle_name", "favorite_number", "when_promoted")
     val valuess = Seq(
       "\"bob@foo.com\"\"1980-06-21\"\t\"Al\"\t\"13\"\t\"2013-12-15 14:05:06.789\"",
       "\"karl@bar.de\"\t\"1975-07-02\"\t\"\"\t\"12\"\t\"2014-06-10 21:48:32.712\"",
       "\"ed@me.co.uk\"\t\"1992-09-12\"\t\"Jo\"\t\"98\"\t\"2015-01-28 07:32:16.329\""
     ).flatMap(Recipients.valuesFromTsv)
-    val result = Recipients.makeValidJson(keys, valuess)
-    val resultJson = Json.parse(result)
-    val expected = """[{"email":"karl@bar.de","birthday":173491200,"middle_name":null,"favorite_number":12,"when_promoted":1402436912},{"email":"ed@me.co.uk","birthday":716256000,"middle_name":"Jo","favorite_number":98,"when_promoted":1422430336}]"""
-    val expectedJson = Json.parse(expected)
 
-    assert(resultJson === expectedJson)
+    val _ = intercept[AssertionError] {
+      Recipients.makeValidJson(keys, valuess)
+    }
   }
 
   test("makeValidJson using \"null\" (without quotations) instead of \"\"") {
@@ -127,8 +125,11 @@ class RecipientsTest extends FunSuite {
     implicit val system = ActorSystem("RecipientsTest")
     implicit val logger = system.actorOf(Props(new MutedLogger))
     val mockedSendgrid = new Sendgrid("")(logger) {
-      override def postRecipients(keys: Seq[String], valuess: Seq[Seq[String]]): Future[WSResponse] = {
-        assert(valuess.length <= Recipients.LINE_LIMIT, "too many lines in a single chunk")
+      override def postRecipients(json: String): Future[WSResponse] = {
+        Json.parse(json)
+            .asOpt[JsArray]
+            .foreach( array => assert(array.value.length <= Recipients.LINE_LIMIT, "too many lines in a single chunk") )
+
         Future.failed(new Exception)
       }
     }

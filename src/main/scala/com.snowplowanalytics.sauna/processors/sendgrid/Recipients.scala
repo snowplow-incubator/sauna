@@ -26,7 +26,7 @@ import scala.io.Source.fromInputStream
 import akka.actor.{ActorRef, ActorSystem, Props}
 
 // play
-import play.api.libs.json.Json
+import play.api.libs.json._
 
 // scala-csv
 import com.github.tototoshi.csv._
@@ -66,7 +66,7 @@ class Recipients(sendgrid: Sendgrid)
         val keys = attrs.split(",")
 
         // do the stuff
-        getData(is).foreach(sendData(keys, _))
+        getData(is).foreach(processData(keys, _))
 
         true
 
@@ -76,11 +76,10 @@ class Recipients(sendgrid: Sendgrid)
 
   /**
    * This method does the first part of job for "import recipients" feature.
-   * It gets file content and parses it, handles errors, and sends result to Sendgrid.
+   * It gets file content, parses it and splits into smaller chunks to satisfy Sendgrid's limitations.
    *
    * @param is InputStream to data file.
    * @return Iterator of valuess data. Valuess are extracted from the file.
-   *
    * @see `Recipients.makeValidJson`
    */
   def getData(is: InputStream): Iterator[Seq[Seq[String]]] = {
@@ -97,18 +96,93 @@ class Recipients(sendgrid: Sendgrid)
    * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
    * @param valuess Seq of recipients, where recipient is a seq of attribute values.
    *                Each `values` in `valuess` should have one length with `keys`.
-   *
    * @see `Recipients.makeValidJson`
    */
-  def sendData(keys: Seq[String], valuess: Seq[Seq[String]]): Unit = {
-    sendgrid.postRecipients(keys, valuess)
+  def processData(keys: Seq[String], valuess: Seq[Seq[String]]): Unit = {
+    val (probablyValid, definitelyInvalid) = valuess.partition(_.length == keys.length)
+
+    // deal with 100% corrupted data
+    definitelyInvalid.foreach { invalidValues =>
+      logger ! Notification(s"Unable to process [${invalidValues.mkString("\t")}], " +
+                            s"it has only ${invalidValues.length} columns, when ${keys.length} are required.")
+    }
+
+    val json = Recipients.makeValidJson(keys, probablyValid)
+    sendgrid.postRecipients(json)
             .foreach { case response =>
-              val text = response.body // todo extract meaningful text, handle errors
-              logger ! Notification(text)
+              val json = response.body
+              handleErrors(probablyValid.length, json)
             }
 
     Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
                             // so new `fileAppeared` will be processed after current one
+  }
+
+  /**
+   * Used to handle possible errors from Sendgrid's response.
+   * Informs user via logger ! Notification.
+   * Heavily relies to Sendgrid's response json structure.
+   *
+   * @param totalRecordsNumber Sometimes records "disappear".
+   *                           So, originally were 10, error_count = 2, updated_count = 4, new_count = 3.
+   *                           One record was lost. This param is expected total records number.
+   * @param jsonText A json text from Sendgrid.
+   */
+  def handleErrors(totalRecordsNumber: Int, jsonText: String) = try {
+    val json = Json.parse(jsonText)
+    /*
+      json example:
+
+      {
+         "error_count":1,
+         "error_indices":[
+            2
+         ],
+         "errors":[
+            {
+               "error_indices":[
+                  2
+               ],
+               "message":"date type conversion error"
+            }
+         ],
+         "new_count":2,
+         "persisted_recipients":[
+            "Ym9iQGZvby5jb20=",
+            "a2FybEBiYXIuZGU="
+         ],
+         "updated_count":0
+      }
+
+      */
+    val errorCount = (json \ "error_count").as[Int]
+    val errorIndices = (json \ "error_indices").as[Seq[Int]]
+    val errors = (json \ "errors").as[Seq[JsObject]]
+                                  .map(_.value)
+    val newCount = (json \ "new_count").as[Int]
+    val updatedCount = (json \ "updated_count").as[Int]
+
+    for (errorIndex <- errorIndices) { // trying to get error explanation
+      errors.find(_.apply("error_indices")
+                   .as[Seq[Int]]
+                   .contains(errorIndex)) match {
+        case Some(error) =>
+          val reason = error.apply("message")
+                            .as[String]
+          logger ! Notification(s"Error $errorIndex caused due to [$reason].")
+
+        case None =>
+          logger ! Notification(s"Unable to find reason for error $errorIndex.")
+      }
+    }
+
+    if (errorCount + newCount + updatedCount != totalRecordsNumber) {
+      logger ! Notification(s"For some reasons, several records disappeared. " +
+                            s"It's rare Sendgrid's bug double-check you input. ")
+    }
+
+  } catch { case e: Exception =>
+    logger ! Notification(s"Got exception ${e.getMessage} while parsing Sendgrid's response.")
   }
 }
 
@@ -144,7 +218,7 @@ object Recipients {
     system.actorOf(Props(new Recipients(sendgrid)))
 
   /**
-   * Created a Sendgrid-friendly json from given keys and valuess.
+   * Creates a Sendgrid-friendly json from given keys and valuess.
    *
    * For example, for `keys` = Seq("name1", "name2"),
    *                  `valuess` = Seq(Seq("value11", "value12"), Seq("value21", "value22")),
@@ -163,13 +237,13 @@ object Recipients {
    *
    * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
    * @param valuess Seq of recipients, where recipient is a seq of attribute values.
-   *                Each `values` in `valuess` should have one length with `keys`.
+   *                Each `values` in `valuess` must already have one length with `keys`.
    * @return Sendgrid-friendly json.
    * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
    */
   def makeValidJson(keys: Seq[String], valuess: Seq[Seq[String]]): String = {
-    val recipients = for (values <- valuess
-                          if values.length == keys.length; // skip invalid data
+    val recipients = for (values <- valuess;
+                          _ = assert(values.length == keys.length);
                           correctedValues = values.map(correctTimestamps))
                        yield {
                          val recipientsData = keys.zip(correctedValues)

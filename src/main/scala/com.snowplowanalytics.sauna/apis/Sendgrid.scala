@@ -50,17 +50,15 @@ class Sendgrid(token: String)
    * Tries to upload several recipients. Note that this function is not limited by
    * Sendgrid's limit in 1500 recipients per second, it does what is said to do.
    *
-   * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
-   * @param valuess Seq of recipients, where recipient is a seq of attribute values.
-   *                Each `values` in `valuess` should have one length with `keys`.
+   * @param json This String supposed to be valid json for Sendgrid api.
    * @return Future[Response]
    *
    * @see Sendgrid.makeValidJson
    */
-  def postRecipients(keys: Seq[String], valuess: Seq[Seq[String]]): Future[WSResponse] =
+  def postRecipients(json: String): Future[WSResponse] =
     wsClient.url(urlPrefix + s"contactdb/recipients")
             .withHeaders("Authorization" -> s"Bearer $token", "Content-Type" -> "application/json")
-            .post(Recipients.makeValidJson(keys, valuess))
+            .post(json)
 
   /**
    * Tries to delete a recipient by id.
