@@ -18,7 +18,6 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 // scala
-import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
 
 // scalatest
@@ -58,7 +57,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   var optimizelyImportRegion: String = _
 
   before {
-    system = ActorSystem.create()
+    system = ActorSystem("IntegrationTest")
     logger = TestActorRef(new MutedLogger)
 
     // credentials

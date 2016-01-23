@@ -35,10 +35,21 @@ import play.api.libs.ws.WSResponse
 
 // sauna
 import apis.Sendgrid
-import loggers.MutedLogger
+import loggers._
+import loggers.Logger._
 import processors.Processor._
 
-class RecipientsTest extends FunSuite {
+class RecipientsTest extends FunSuite with BeforeAndAfter {
+  val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
+  implicit val timeout = Timeout(10.seconds)
+  implicit var system: ActorSystem = _
+  var sendgridToken: String = _
+
+  before {
+    system = ActorSystem("RecipientsTest")
+    sendgridToken = System.getenv("SENDGRID_TOKEN")
+  }
+
   test("makeValidJson valid data") {
     val keys = Seq("email", "birthday", "middle_name", "favorite_number", "when_promoted")
     val valuess = Seq(
@@ -118,11 +129,40 @@ class RecipientsTest extends FunSuite {
     assert(Recipients.correctTimestamps(s) === expected)
   }
 
+  test("handleErrors") {
+    val data = Seq(
+      "\"bob@foo.com1980-06-21\"\t\"Al\"\t\"13\"\t\"a2013-12-15 14:05:06.789\"",
+      "\"karl@bar.de\"\t\"1975-07-02\"\t\"\"\t\"12\"\t\"b2014-06-10 21:48:32.712\""
+    ).mkString("\n")
+    val expected = Seq(
+      "Unable to process [bob@foo.com1980-06-21\tAl\t13\ta2013-12-15 14:05:06.789], it has only 4 columns, when 5 are required.",
+      "Error 0 caused due to [date type conversion error]."
+    )
+    // using custom logger to check if all messages really appeared
+    var received = Seq.empty[String]
+    implicit val logger = system.actorOf(Props(new Logger {
+      override def log(message: Notification): Unit = received :+= message.text
+
+      override def log(message: Manifestation): Unit = {}
+    }))
+    val sendgrid = new Sendgrid(sendgridToken)
+    val recipients = Recipients(sendgrid)
+
+    // send a message, get a Future notification that it was processed
+    val f = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")), InLocal)
+
+    // wait until Future is processed
+    Await.ready(f, 10.seconds)
+
+    // wait for communication with Sendgrid
+    Thread.sleep(2000)
+    
+    assert(received == expected)
+  }
+
   test("respect Sendgrid limitations: LINE_LIMIT and WAIT_TIME") {
-    val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
     val data = (for (i <- 1 to 3000) yield s""""bob$i@foo.com"\t"1980-06-21"\t"Al"\t"13"\t"2013-12-15 14:05:06.789"""")
                   .mkString("\n")
-    implicit val system = ActorSystem("RecipientsTest")
     implicit val logger = system.actorOf(Props(new MutedLogger))
     val mockedSendgrid = new Sendgrid("")(logger) {
       override def postRecipients(json: String): Future[WSResponse] = {
@@ -134,7 +174,6 @@ class RecipientsTest extends FunSuite {
       }
     }
     val recipients = Recipients(mockedSendgrid)
-    implicit val timeout = Timeout(10.seconds)
 
     // preparing is done, start timing
     val time = System.currentTimeMillis()

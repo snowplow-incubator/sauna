@@ -110,8 +110,7 @@ class Recipients(sendgrid: Sendgrid)
     val json = Recipients.makeValidJson(keys, probablyValid)
     sendgrid.postRecipients(json)
             .foreach { case response =>
-              val json = response.body
-              handleErrors(probablyValid.length, json)
+              handleErrors(probablyValid.length, response.body)
             }
 
     Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
@@ -157,13 +156,15 @@ class Recipients(sendgrid: Sendgrid)
       */
     val errorCount = (json \ "error_count").as[Int]
     val errorIndices = (json \ "error_indices").as[Seq[Int]]
-    val errors = (json \ "errors").as[Seq[JsObject]]
-                                  .map(_.value)
+    val errorsOpt = (json \ "errors").asOpt[Seq[JsObject]]
     val newCount = (json \ "new_count").as[Int]
     val updatedCount = (json \ "updated_count").as[Int]
 
-    for (errorIndex <- errorIndices) { // trying to get error explanation
-      errors.find(_.apply("error_indices")
+    // trying to get error explanation
+    for (errorIndex <- errorIndices;
+         errors <- errorsOpt) {
+      errors.map(_.value)
+            .find(_.apply("error_indices")
                    .as[Seq[Int]]
                    .contains(errorIndex)) match {
         case Some(error) =>
