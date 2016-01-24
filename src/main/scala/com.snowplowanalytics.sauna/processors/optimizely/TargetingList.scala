@@ -48,58 +48,6 @@ import processors.Processor.FileAppeared
  */
 class TargetingList(optimizely: Optimizely)
                    (implicit logger: ActorRef) extends Processor {
-  import TargetingList._
-
-  override def processed(fileAppeared: FileAppeared): Boolean = {
-    import fileAppeared._
-
-    if (filePath.matches(pathPattern)) {
-      fromInputStream(is).getLines()
-                         .toSeq
-                         .flatMap(s => TargetingList.unapply(s)) // create TargetingList.Data from each line
-                         .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
-                         .map { case (_, tls) => optimizely.postTargetingLists(tls) } // for each group make an upload
-                         .foreach { future => future.foreach { case response => // parse each response to do logging
-                           lazy val defaultId = UUID.randomUUID().toString
-                           lazy val defaultName = "Not found."
-                           lazy val defaultDescription = response.body
-                           lazy val defaultLastModified = new java.sql.Timestamp(System.currentTimeMillis).toString
-                           val status = response.status
-
-                           try { // response.body is valid json
-                             val json = Json.parse(response.body)
-                             val id = (json \ "id").asOpt[Long]
-                                                   .orElse((json \ "uuid").asOpt[String])
-                                                   .getOrElse(defaultId)
-                             val name = (json \ "name").asOpt[String]
-                                                       .getOrElse(defaultName)
-                             val description = (json \ "description").asOpt[String]
-                                                                     .orElse((json \ "message").asOpt[String])
-                                                                     .getOrElse(defaultDescription)
-                             val lastModified = (json \ "last_modified").asOpt[String]
-                                                                        .getOrElse(defaultLastModified)
-
-                             // log results
-                             logger ! Manifestation(id.toString, name, status, description, lastModified)
-                             if (status == 201) {
-                               logger ! Notification(s"Successfully uploaded targeting lists with name [$name].")
-                             } else {
-                               logger ! Notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
-                             }
-
-                           } catch { case e: JsonParseException =>
-                             logger ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
-                             logger ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
-                           }
-                         }}
-      true // file was processed
-    } else {
-      false // file was not processed
-    }
-  }
-}
-
-object TargetingList {
   val pathPattern =
     """.*com\.optimizely/
       |targeting_lists/
@@ -109,6 +57,51 @@ object TargetingList {
     """.stripMargin
        .replaceAll("[\n ]", "")
 
+  override def process(fileAppeared: FileAppeared): Unit = {
+    import fileAppeared._
+
+    fromInputStream(is).getLines()
+                       .toSeq
+                       .flatMap(s => TargetingList.unapply(s)) // create TargetingList.Data from each line
+                       .groupBy(t => (t.projectId, t.listName)) // https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#215-troubleshooting
+                       .map { case (_, tls) => optimizely.postTargetingLists(tls) } // for each group make an upload
+                       .foreach { future => future.foreach { case response => // parse each response to do logging
+                         lazy val defaultId = UUID.randomUUID().toString
+                         lazy val defaultName = "Not found."
+                         lazy val defaultDescription = response.body
+                         lazy val defaultLastModified = new java.sql.Timestamp(System.currentTimeMillis).toString
+                         val status = response.status
+
+                         try { // response.body is valid json
+                           val json = Json.parse(response.body)
+                           val id = (json \ "id").asOpt[Long]
+                                                 .orElse((json \ "uuid").asOpt[String])
+                                                 .getOrElse(defaultId)
+                           val name = (json \ "name").asOpt[String]
+                                                     .getOrElse(defaultName)
+                           val description = (json \ "description").asOpt[String]
+                                                                   .orElse((json \ "message").asOpt[String])
+                                                                   .getOrElse(defaultDescription)
+                           val lastModified = (json \ "last_modified").asOpt[String]
+                                                                        .getOrElse(defaultLastModified)
+
+                           // log results
+                           logger ! Manifestation(id.toString, name, status, description, lastModified)
+                           if (status == 201) {
+                             logger ! Notification(s"Successfully uploaded targeting lists with name [$name].")
+                           } else {
+                             logger ! Notification(s"Unable to upload targeting list with name [$name] : [${response.body}].")
+                           }
+
+                         } catch { case e: JsonParseException =>
+                           logger ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
+                           logger ! Notification(s"Problems while connecting to Optimizely API. See [${response.body}].")
+                         }
+                       }}
+  }
+}
+
+object TargetingList {
   val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
 
   /**

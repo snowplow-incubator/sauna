@@ -40,8 +40,8 @@ import processors.Processor.FileAppeared
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
- * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#dcp-batch
  *
+ * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#dcp-batch
  * @param optimizely Instance of Optimizely.
  * @param saunaRoot A place for 'tmp' directory.
  * @param optimizelyImportRegion What region uses Optimizely S3 bucket.
@@ -51,19 +51,29 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                    (implicit logger: ActorRef) extends Processor {
   import DCPDatasource._
 
-  override def processed(fileAppeared: FileAppeared): Boolean = {
+  val pathPattern =
+    """.*com\.optimizely\.dcp/
+      |datasource/
+      |v1/
+      |(.*?)/
+      |(.*?)/
+      |tsv:([^\/]+)/
+      |.+$
+    """.stripMargin
+       .replaceAll("[\n ]", "")
+  val pathRegexp = pathPattern.r
+
+  override def process(fileAppeared: FileAppeared): Unit = {
     import fileAppeared._
 
     filePath match {
-      case pathRegexp(service, datasource, attrs) => // file is subject of DCPDatasource processor, so return true now
+      case pathRegexp(service, datasource, attrs) =>
         if (attrs.isEmpty) {
           logger ! Notification("Should be at least one attribute.")
-          return true
         }
 
         if (!attrs.contains("customerId")) {
           logger ! Notification("Attribute 'customerId' must be included.")
-          return true
         }
 
         optimizely.getOptimizelyS3Credentials(datasource)
@@ -89,10 +99,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                     case None =>
                       logger ! Notification("Unable to get credentials for S3 bucket 'optimizely-import'.")
                   }
-
-        true
-
-      case _ => false // file was not processed
     }
   }
 
@@ -101,7 +107,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    *
    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
-   *
    * @param is An InputStream for some source.
    * @return Corrected file.
    */
@@ -131,7 +136,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    *
    * @see http://developers.optimizely.com/rest/customer_profiles/index.html#bulk
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
-   *
    * @param line A string to be corrected.
    * @return Some(Corrected string) or None, if something (e.g. wrong date format) went wrong.
    */
@@ -159,7 +163,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
    *   3) Change timestamp to epoch
    *
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
-   *
    * @param word A word to be corrected.
    * @return Corrected word.
    */
@@ -174,18 +177,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
 }
 
 object DCPDatasource {
-  val pathRegexp =
-    """.*com\.optimizely\.dcp/
-      |datasource/
-      |v1/
-      |(.*?)/
-      |(.*?)/
-      |tsv:([^\/]+)/
-      |.+$
-    """.stripMargin
-      .replaceAll("[\n ]", "")
-      .r
-
   val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
   val dateRegexp = "^(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})$".r

@@ -48,29 +48,33 @@ class Recipients(sendgrid: Sendgrid)
                 (implicit logger: ActorRef) extends Processor {
   import Recipients._
 
-  override def processed(fileAppeared: FileAppeared): Boolean = {
+  val pathPattern =
+    """.*com\.sendgrid\.contactdb/
+      |recipients/
+      |v1/
+      |tsv:([^\/]+)/
+      |.+$
+    """.stripMargin
+       .replaceAll("[\n ]", "")
+  val pathRegexp = pathPattern.r
+
+  override def process(fileAppeared: FileAppeared): Unit = {
     import fileAppeared._
 
     filePath match {
-      case pathRegexp(attrs) => // file is subject of Recipients processor, so return true now
+      case pathRegexp(attrs) =>
         if (attrs.isEmpty) {
           logger ! Notification("Should be at least one attribute.")
-          return true
         }
 
         if (!attrs.contains("email")) {
           logger ! Notification("Attribute 'email' must be included.")
-          return true
         }
 
         val keys = attrs.split(",")
 
         // do the stuff
         getData(is).foreach(processData(keys, _))
-
-        true
-
-      case _ => false
     }
   }
 
@@ -190,16 +194,6 @@ class Recipients(sendgrid: Sendgrid)
 object Recipients {
   val LINE_LIMIT = 1000 // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-a-Single-Recipient-to-a-List-POST
   val WAIT_TIME = 667L // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-Recipients-POST
-
-  val pathRegexp =
-    """.*com\.sendgrid\.contactdb/
-      |recipients/
-      |v1/
-      |tsv:([^\/]+)/
-      |.+$
-    """.stripMargin
-       .replaceAll("[\n ]", "")
-       .r
 
   val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
   val dateFormatFull = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")

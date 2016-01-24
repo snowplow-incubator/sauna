@@ -91,9 +91,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     var expectedLines: Seq[String] = null
     val processors = Seq(
       TestActorRef(new Processor {
-        override def processed(fileAppeared: FileAppeared): Boolean = {
+        override val pathPattern: String = ".*"
+
+        override def process(fileAppeared: FileAppeared): Unit = {
           expectedLines = fromInputStream(fileAppeared.is).getLines().toSeq
-          true
         }
       })
     )

@@ -34,46 +34,69 @@ trait Processor extends Actor {
 
   override def receive = {
     case message: FileAppeared =>
-      if (processed(message)) { // only if this file was processed
-        try { // cleanup, delete that file
-          message.location match {
-            case InLocal =>
-              val file = new File(message.filePath)
-              val _ = Files.deleteIfExists(file.toPath)
+      if (shouldProcess(message)) { // only if this file was processed
+        process(message)
+        cleanup(message)
 
-            case InS3(s3: S3, _bucketName: String, _fileName: String) =>
-              val bucketName = URLDecoder.decode(_bucketName, "UTF-8")
-              val fileName = URLDecoder.decode(_fileName, "UTF-8")
-              s3.deleteObject(bucketName, fileName)
-          }
-          sender() ! Success
-
-        } catch { case e: Exception =>
-          System.err.println(s"Unable to delete [${message.filePath}], that is located in [${message.location}].")
-          sender() ! Failure(e)
-        }
-
-      } else {
+      } else { // avoid possible timeout when asking for Future
         sender() ! Failure(new Exception(s"A FileAppeared from ${sender()} is not a subject of current Processor [${this.toString}]."))
       }
 
-    case _ =>
-      sender() ! Failure(new Exception(s"${sender()} just sent strange message."))
+    case message => // avoid possible timeout when asking for Future
+      sender() ! Failure(new Exception(s"${sender()} just sent strange message $message."))
   }
 
   /**
-   * Method that describes "how to process new files".
+   * Describes a pattern for files that should be processed.
+   */
+  val pathPattern: String
+
+  /**
+   * Is this fileAppeared a subject for processing for current processor?
+   * Note that in current implementation regexp may get evaluated twice,
+   * if Processor's implementation needs captured groups.
    *
    * @param fileAppeared Describes necessary data about newly appeared file.
-   *                     @see `Processor.FileAppeared`
-   *
-   * @return true if file was processed, and false if it is not a subject of current Processor implementation.
+   * @return true if file is, and false otherwise.
    *         This result could be used, for example, for cleanup. So, if the file appeared in S3, it should
    *         be deleted in other manner than if it appeared locally.
    *         Also note that one could not simply delete FileAppeared.filePath, because a collision may
    *         happen - for example, if file appeared in S3, but there is a local file with exactly same filePath.
    */
-  def processed(fileAppeared: FileAppeared): Boolean
+  def shouldProcess(fileAppeared: FileAppeared): Boolean =
+    fileAppeared.filePath.matches(pathPattern)
+
+  /**
+   * How to process new file.
+   *
+   * @param fileAppeared Describes necessary data about newly appeared file.
+   */
+  def process(fileAppeared: FileAppeared): Unit
+
+  /**
+   * Deletes processed object.
+   *
+   * @param fileAppeared Describes necessary data about newly appeared file.
+   */
+  def cleanup(fileAppeared: FileAppeared): Unit = {
+    try {
+      fileAppeared.location match {
+        case InLocal =>
+          val file = new File(fileAppeared.filePath)
+          val _ = Files.deleteIfExists(file.toPath)
+
+        case InS3(s3: S3, _bucketName: String, _fileName: String) =>
+          val bucketName = URLDecoder.decode(_bucketName, "UTF-8")
+          val fileName = URLDecoder.decode(_fileName, "UTF-8")
+          s3.deleteObject(bucketName, fileName)
+      }
+      sender() ! Success
+
+    } catch { case e: Exception =>
+      System.err.println(s"Unable to delete [${fileAppeared.filePath}], that is located in [${fileAppeared.location}].")
+      sender() ! Failure(e)
+    }
+  }
 }
 
 object Processor {
