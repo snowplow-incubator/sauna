@@ -35,6 +35,7 @@ import com.github.tototoshi.csv._
 import apis.Sendgrid
 import loggers.Logger.Notification
 import processors.Processor.FileAppeared
+import utils._
 
 /**
  * Does stuff for Sendgrid import recipients feature.
@@ -195,7 +196,6 @@ object Recipients {
   val LINE_LIMIT = 1000 // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-a-Single-Recipient-to-a-List-POST
   val WAIT_TIME = 667L // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-Recipients-POST
 
-  val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
   val dateFormatFull = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
   val dateRegexpFull = "^(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})$".r
   val dateFormatShort = new SimpleDateFormat("yyyy-MM-dd")

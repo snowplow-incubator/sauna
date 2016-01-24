@@ -30,6 +30,7 @@ import com.fasterxml.jackson.core.JsonParseException
 // sauna
 import loggers.Logger.Notification
 import processors.optimizely.TargetingList
+import utils._
 
 /**
  * Encapsulates any action with Optimizely.
@@ -38,7 +39,7 @@ import processors.optimizely.TargetingList
  * @param logger A logger actor.
  */
 class Optimizely(token: String)
-                (implicit logger: ActorRef) extends HasWSClient {
+                (implicit logger: ActorRef) {
   import Optimizely._
 
   /**

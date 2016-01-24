@@ -38,6 +38,7 @@ import com.github.tototoshi.csv._
 import apis.Optimizely
 import loggers.Logger.{Notification, Manifestation}
 import processors.Processor.FileAppeared
+import utils._
 
 /**
  * Does stuff for Optimizely Targeting List feature.
@@ -102,8 +103,6 @@ class TargetingList(optimizely: Optimizely)
 }
 
 object TargetingList {
-  val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
-
   /**
    * Represents valid line format.
    */

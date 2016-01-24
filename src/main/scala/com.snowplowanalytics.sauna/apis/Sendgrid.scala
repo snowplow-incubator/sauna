@@ -23,7 +23,7 @@ import akka.actor.ActorRef
 import play.api.libs.ws.WSResponse
 
 // sauna
-import processors.sendgrid.Recipients
+import utils._
 
 /**
  * Encapsulates any action with Sendgrid.
@@ -32,7 +32,7 @@ import processors.sendgrid.Recipients
  * @param logger A logger actor.
  */
 class Sendgrid(token: String)
-              (implicit logger: ActorRef) extends HasWSClient {
+              (implicit logger: ActorRef) {
   import Sendgrid._
 
   /**
@@ -52,7 +52,6 @@ class Sendgrid(token: String)
    *
    * @param json This String supposed to be valid json for Sendgrid api.
    * @return Future[Response]
-   *
    * @see Sendgrid.makeValidJson
    */
   def postRecipients(json: String): Future[WSResponse] =

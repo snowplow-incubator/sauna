@@ -37,6 +37,7 @@ import com.github.tototoshi.csv._
 import apis.Optimizely
 import loggers.Logger.Notification
 import processors.Processor.FileAppeared
+import utils._
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
@@ -177,7 +178,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
 }
 
 object DCPDatasource {
-  val tsvFormat = new TSVFormat {} // force scala-csv to use tsv
   val dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
   val dateRegexp = "^(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})$".r
 

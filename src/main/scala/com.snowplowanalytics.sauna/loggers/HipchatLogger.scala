@@ -15,8 +15,9 @@ package loggers
 
 // sauna
 import loggers.Logger._
+import utils._
 
-trait HipchatLogger extends HasWSClient with Logger {
+trait HipchatLogger extends Logger {
   import HipchatLogger._
 
   /**
