@@ -92,7 +92,6 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                         if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
                       } catch { case e: Exception =>
-                        println(e.getMessage)
                         logger ! Notification(e.getMessage)
                         logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
                       }

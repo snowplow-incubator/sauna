@@ -149,7 +149,7 @@ class RecipientsTest extends FunSuite with BeforeAndAfter {
     val recipients = Recipients(sendgrid)
 
     // send a message, get a Future notification that it was processed
-    val f = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")), InLocal)
+    val f = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")))
 
     // wait until Future is processed
     Await.ready(f, 10.seconds)
@@ -179,8 +179,8 @@ class RecipientsTest extends FunSuite with BeforeAndAfter {
     val time = System.currentTimeMillis()
 
     // simulate two simultaneous messages
-    val f1 = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")), InLocal)
-    val f2 = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")), InLocal)
+    val f1 = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")))
+    val f2 = recipients ? FileAppeared(filePath, new ByteArrayInputStream(data.getBytes("UTF-8")))
     // and wait for them
     Await.ready(f1, 10.seconds)
     Await.ready(f2, 10.seconds)

@@ -19,6 +19,7 @@ import java.net.URLDecoder
 
 // akka
 import akka.actor.ActorRef
+import akka.pattern.ask
 
 // play
 import play.api.libs.json.Json
@@ -64,10 +65,17 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ActorRef])
            val (bucketName, fileName) = getBucketAndFile(message.body)
                                          .getOrElse(throw new Exception("Unable to find required fields in message json. Probably schema has changed."))
            val decodedFileName = URLDecoder.decode(fileName, "UTF-8")
+           val decodedBucketName = URLDecoder.decode(bucketName, "UTF-8")
            val is = getInputStream(bucketName, decodedFileName)
 
            logger ! Notification(s"Detected new S3 file $decodedFileName.")
-           processors.foreach(_ ! FileAppeared(decodedFileName, is, InS3(s3, bucketName, fileName)))
+           processors.foreach { case processor =>
+             val f = processor ? FileAppeared(decodedFileName, is) // trigger processor
+
+             f.onComplete { case _ => // cleanup
+               s3.deleteObject(decodedBucketName, decodedFileName)
+             }
+           }
            sqs.delete(message)
          }
     }

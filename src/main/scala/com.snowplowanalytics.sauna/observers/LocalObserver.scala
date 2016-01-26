@@ -24,6 +24,7 @@ import scala.collection.mutable
 
 // akka
 import akka.actor.ActorRef
+import akka.pattern.ask
 
 // sauna
 import loggers.Logger.Notification
@@ -44,7 +45,13 @@ class LocalObserver(observedDir: String, processors: Seq[ActorRef])
       val is = new FileInputStream(path.toFile)
 
       logger ! Notification(s"Detected new local file [$path].")
-      processors.foreach(_ ! FileAppeared(path.toString, is, InLocal))
+      processors.foreach { case processor =>
+        val f = processor ? FileAppeared(path.toString, is) // trigger processor
+
+        f.onComplete { case _ => // cleanup
+          Files.deleteIfExists(path)
+        }
+      }
     }
   }
 

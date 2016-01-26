@@ -14,16 +14,11 @@ package com.snowplowanalytics.sauna
 package processors
 
 // java
-import java.io.{File, InputStream}
-import java.net.URLDecoder
-import java.nio.file.Files
+import java.io.InputStream
 
 // akka
 import akka.actor.Actor
 import akka.actor.Status.{Success, Failure}
-
-// awscala
-import awscala.s3.S3
 
 /**
  * After new file appeared, Sauna should process it somehow.
@@ -36,7 +31,7 @@ trait Processor extends Actor {
     case message: FileAppeared =>
       if (shouldProcess(message)) { // only if this file was processed
         process(message)
-        cleanup(message)
+        sender() ! Success // here Success means that message was successfully handled by actor, not the result
 
       } else { // avoid possible timeout when asking for Future
         sender() ! Failure(new Exception(s"A FileAppeared from ${sender()} is not a subject of current Processor [${this.toString}]."))
@@ -72,31 +67,6 @@ trait Processor extends Actor {
    * @param fileAppeared Describes necessary data about newly appeared file.
    */
   def process(fileAppeared: FileAppeared): Unit
-
-  /**
-   * Deletes processed object.
-   *
-   * @param fileAppeared Describes necessary data about newly appeared file.
-   */
-  def cleanup(fileAppeared: FileAppeared): Unit = {
-    try {
-      fileAppeared.location match {
-        case InLocal =>
-          val file = new File(fileAppeared.filePath)
-          val _ = Files.deleteIfExists(file.toPath)
-
-        case InS3(s3: S3, _bucketName: String, _fileName: String) =>
-          val bucketName = URLDecoder.decode(_bucketName, "UTF-8")
-          val fileName = URLDecoder.decode(_fileName, "UTF-8")
-          s3.deleteObject(bucketName, fileName)
-      }
-      sender() ! Success
-
-    } catch { case e: Exception =>
-      System.err.println(s"Unable to delete [${fileAppeared.filePath}], that is located in [${fileAppeared.location}].")
-      sender() ! Failure(e)
-    }
-  }
 }
 
 object Processor {
@@ -108,30 +78,6 @@ object Processor {
    * @param filePath Full path of file.
    * @param is InputStream from it.
    *           *** This field is mutable! ***
-   * @param location Tells where this this file exists. See `Processor.FileLocation` for possible choices.
    */
-  case class FileAppeared(filePath: String, is: InputStream, location: FileLocation)
-
-  /**
-   * Represents possible locations for newly appeared file. May be useful, for example,
-   * for cleanup -- one should know where file is to delete it.
-   */
-  sealed trait FileLocation
-
-  /**
-   * For case when file is local.
-   *
-   * Note that it does not take any params, because filePath already is
-   * in `FileAppeared`, so it can be an object.
-   */
-  object InLocal extends FileLocation
-
-  /**
-   * For case when file is in AWS S3.
-   *
-   * @param s3 An authorized instance of S3.
-   * @param bucketName Name of bucket.
-   * @param fileName Name of file.
-   */
-  case class InS3(s3: S3, bucketName: String, fileName: String) extends FileLocation
+  case class FileAppeared(filePath: String, is: InputStream)
 }

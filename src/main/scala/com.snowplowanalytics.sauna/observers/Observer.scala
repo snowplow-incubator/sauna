@@ -13,7 +13,17 @@
 package com.snowplowanalytics.sauna
 package observers
 
+// scala
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+
+// akka
+import akka.util.Timeout
+
 /**
  * Observer should keep an eye on some place where new files may appear.
  */
-trait Observer extends Runnable
+trait Observer extends Runnable {
+  implicit val timeout = Timeout(10.seconds) // timeout for Future responses
+  implicit val ec = global
+}
