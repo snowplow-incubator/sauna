@@ -66,10 +66,12 @@ class Recipients(sendgrid: Sendgrid)
       case pathRegexp(attrs) =>
         if (attrs.isEmpty) {
           logger ! Notification("Should be at least one attribute.")
+          return
         }
 
         if (!attrs.contains("email")) {
           logger ! Notification("Attribute 'email' must be included.")
+          return
         }
 
         val keys = attrs.split(",")

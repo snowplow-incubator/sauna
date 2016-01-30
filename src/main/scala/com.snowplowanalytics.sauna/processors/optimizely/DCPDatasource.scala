@@ -71,10 +71,12 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
       case pathRegexp(service, datasource, attrs) =>
         if (attrs.isEmpty) {
           logger ! Notification("Should be at least one attribute.")
+          return
         }
 
         if (!attrs.contains("customerId")) {
           logger ! Notification("Attribute 'customerId' must be included.")
+          return
         }
 
         optimizely.getOptimizelyS3Credentials(datasource)
@@ -92,8 +94,7 @@ class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportR
                         if (!correctedFile.delete()) println(s"unable to delete file [$correctedFile].")
 
                       } catch { case e: Exception =>
-                        logger ! Notification(e.getMessage)
-                        logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'")
+                        logger ! Notification(s"Unable to upload to S3 bucket 'optimizely-import/$s3path'. See [$e].")
                       }
 
                     case None =>

@@ -282,7 +282,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val saunaRoot = "/opt/sauna"
     val source = Paths.get("src/test/resources/dynamic_client_profiles.tsv")
     val serviceId = "4034482827"
-    val datasourceId = "4560617625"
+    val datasourceId = "4259697784"
     val destinationPath = s"$saunaRoot/com.optimizely.dcp/datasource/v1/$serviceId/$datasourceId/tsv:isVip,customerId,spendSegment,whenCreated/ua-team/joe"
     val destinationName = "warehouse.tsv"
     val destination = Paths.get(s"$destinationPath/$destinationName")
