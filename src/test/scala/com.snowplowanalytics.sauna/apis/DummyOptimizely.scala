@@ -14,7 +14,7 @@ package com.snowplowanalytics.sauna
 package apis
 
 // scala
-import com.snowplowanalytics.sauna.processors.optimizely.TargetingList
+import com.snowplowanalytics.sauna.responders.optimizely.TargetingList
 
 import scala.concurrent.Future
 

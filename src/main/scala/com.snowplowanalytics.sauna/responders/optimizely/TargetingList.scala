@@ -11,7 +11,7 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package processors
+package responders
 package optimizely
 
 // java
@@ -37,18 +37,18 @@ import com.github.tototoshi.csv._
 // sauna
 import apis.Optimizely
 import loggers.Logger.{Notification, Manifestation}
-import processors.Processor.FileAppeared
+import responders.Responder.FileAppeared
 import utils._
 
 /**
  * Does stuff for Optimizely Targeting List feature.
- * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#targeting-list
  *
+ * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#targeting-list
  * @param optimizely Instance of Optimizely.
  * @param logger A logger actor.
  */
 class TargetingList(optimizely: Optimizely)
-                   (implicit logger: ActorRef) extends Processor {
+                   (implicit logger: ActorRef) extends Responder {
   val pathPattern =
     """.*com\.optimizely/
       |targeting_lists/

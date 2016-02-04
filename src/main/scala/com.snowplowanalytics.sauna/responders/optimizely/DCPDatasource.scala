@@ -11,7 +11,7 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package processors
+package responders
 package optimizely
 
 // java
@@ -36,7 +36,7 @@ import com.github.tototoshi.csv._
 // sauna
 import apis.Optimizely
 import loggers.Logger.Notification
-import processors.Processor.FileAppeared
+import responders.Responder.FileAppeared
 import utils._
 
 /**
@@ -49,7 +49,7 @@ import utils._
  * @param logger A logger actor.
  */
 class DCPDatasource(optimizely: Optimizely, saunaRoot: String, optimizelyImportRegion: String)
-                   (implicit logger: ActorRef) extends Processor {
+                   (implicit logger: ActorRef) extends Responder {
   import DCPDatasource._
 
   val pathPattern =

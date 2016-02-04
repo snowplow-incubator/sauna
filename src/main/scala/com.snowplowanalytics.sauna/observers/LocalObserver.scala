@@ -28,16 +28,16 @@ import akka.pattern.ask
 
 // sauna
 import loggers.Logger.Notification
-import processors.Processor._
+import responders.Responder._
 
 /**
  * Observes files in local filesystem.
  *
  * @param observedDir A directory what will be (recursively) watched for new files.
- * @param processors A Seq of ActorRef with underlying Processor. They will be called after new file appeared.
+ * @param responders A Seq of ActorRef with underlying Responder. They will be called after new file appeared.
  * @param logger A logger actor.
  */
-class LocalObserver(observedDir: String, processors: Seq[ActorRef])
+class LocalObserver(observedDir: String, responders: Seq[ActorRef])
                    (implicit logger: ActorRef) extends Observer {
 
   private def processEvent(event: WatchEvent.Kind[Path], path: Path): Unit = {
@@ -45,8 +45,8 @@ class LocalObserver(observedDir: String, processors: Seq[ActorRef])
       val is = new FileInputStream(path.toFile)
 
       logger ! Notification(s"Detected new local file [$path].")
-      processors.foreach { case processor =>
-        val f = processor ? FileAppeared(path.toString, is) // trigger processor
+      responders.foreach { case responder =>
+        val f = responder ? FileAppeared(path.toString, is) // trigger responder
 
         f.onComplete { case _ => // cleanup
           Files.deleteIfExists(path)

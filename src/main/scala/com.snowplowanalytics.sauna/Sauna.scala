@@ -27,8 +27,8 @@ import awscala.{Credentials, Region}
 // sauna
 import loggers._
 import observers._
-import processors.optimizely._
-import processors.sendgrid._
+import responders.optimizely._
+import responders.sendgrid._
 import apis._
 
 /**
@@ -69,8 +69,8 @@ object Sauna extends App {
   val optimizely = new Optimizely(config.optimizelyToken)
   val sendgrid = new Sendgrid(config.sendgridToken)
 
-  // processors
-  val processorActors = Seq(
+  // responders
+  val responderActors = Seq(
     TargetingList(optimizely),
     DCPDatasource(optimizely, config.saunaRoot, config.optimizelyImportRegion),
     Recipients(sendgrid)
@@ -78,8 +78,8 @@ object Sauna extends App {
 
   // define and run observers
   val observers = Seq(
-    new LocalObserver(config.saunaRoot, processorActors),
-    new S3Observer(s3, sqs, queue, processorActors)
+    new LocalObserver(config.saunaRoot, responderActors),
+    new S3Observer(s3, sqs, queue, responderActors)
   )
   observers.foreach(new Thread(_).start())
 

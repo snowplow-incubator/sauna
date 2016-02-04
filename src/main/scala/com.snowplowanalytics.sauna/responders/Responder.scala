@@ -11,7 +11,7 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package processors
+package responders
 
 // java
 import java.io.InputStream
@@ -22,10 +22,10 @@ import akka.actor.Status.{Success, Failure}
 
 /**
  * After new file appeared, Sauna should process it somehow.
- * That's what a Processor does.
+ * That's what a Responder does.
  */
-trait Processor extends Actor {
-  import Processor._
+trait Responder extends Actor {
+  import Responder._
 
   override def receive = {
     case message: FileAppeared =>
@@ -34,7 +34,7 @@ trait Processor extends Actor {
         sender() ! Success // here Success means that message was successfully handled by actor, not the result
 
       } else { // avoid possible timeout when asking for Future
-        sender() ! Failure(new Exception(s"A FileAppeared from ${sender()} is not a subject of current Processor [${this.toString}]."))
+        sender() ! Failure(new Exception(s"A FileAppeared from ${sender()} is not a subject of current Responder [${this.toString}]."))
       }
 
     case message => // avoid possible timeout when asking for Future
@@ -47,9 +47,9 @@ trait Processor extends Actor {
   val pathPattern: String
 
   /**
-   * Is this fileAppeared a subject for processing for current processor?
+   * Is this fileAppeared a subject for processing for current responder?
    * Note that in current implementation regexp may get evaluated twice,
-   * if Processor's implementation needs captured groups.
+   * if Responder's implementation needs captured groups.
    *
    * @param fileAppeared Describes necessary data about newly appeared file.
    * @return true if file is, and false otherwise.
@@ -69,7 +69,7 @@ trait Processor extends Actor {
   def process(fileAppeared: FileAppeared): Unit
 }
 
-object Processor {
+object Responder {
   /**
    * File can be outside of local fs, e.g. on AWS S3, and
    * some important parameters might be encoded as part of 'filePath',

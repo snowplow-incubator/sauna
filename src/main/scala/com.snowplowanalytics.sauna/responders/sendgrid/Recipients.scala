@@ -11,7 +11,7 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package processors
+package responders
 package sendgrid
 
 // java
@@ -34,7 +34,7 @@ import com.github.tototoshi.csv._
 // sauna
 import apis.Sendgrid
 import loggers.Logger.Notification
-import processors.Processor.FileAppeared
+import responders.Responder.FileAppeared
 import utils._
 
 /**
@@ -46,7 +46,7 @@ import utils._
  * @param logger A logger actor.
  */
 class Recipients(sendgrid: Sendgrid)
-                (implicit logger: ActorRef) extends Processor {
+                (implicit logger: ActorRef) extends Responder {
   import Recipients._
 
   val pathPattern =

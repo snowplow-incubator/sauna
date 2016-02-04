@@ -30,7 +30,7 @@ import awscala.sqs.{Queue, SQS}
 
 // sauna
 import loggers.Logger.Notification
-import processors.Processor._
+import responders.Responder._
 
 /**
  * Observes some AWS S3 bucket.
@@ -38,10 +38,10 @@ import processors.Processor._
  * @param s3 Provides actions for AWS S3.
  * @param sqs Both with `queue` provide actions for AWS SQS.
  * @param queue Both with `sqs` provide actions for AWS SQS.
- * @param processors A Seq of ActorRef with underlying Processor. They will be called after new file appeared.
+ * @param responders A Seq of ActorRef with underlying Responder. They will be called after new file appeared.
  * @param logger A logger actor.
  */
-class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ActorRef])
+class S3Observer(s3: S3, sqs: SQS, queue: Queue, responders: Seq[ActorRef])
                 (implicit logger: ActorRef) extends Observer {
   import S3Observer._
 
@@ -69,8 +69,8 @@ class S3Observer(s3: S3, sqs: SQS, queue: Queue, processors: Seq[ActorRef])
            val is = getInputStream(bucketName, decodedFileName)
 
            logger ! Notification(s"Detected new S3 file $decodedFileName.")
-           processors.foreach { case processor =>
-             val f = processor ? FileAppeared(decodedFileName, is) // trigger processor
+           responders.foreach { case responder =>
+             val f = responder ? FileAppeared(decodedFileName, is) // trigger responder
 
              f.onComplete { case _ => // cleanup
                s3.deleteObject(decodedBucketName, decodedFileName)

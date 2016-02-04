@@ -41,9 +41,9 @@ import apis.Optimizely
 import loggers.Logger.{Manifestation, Notification}
 import loggers._
 import observers._
-import processors.Processor
-import processors.Processor._
-import processors.optimizely._
+import responders.Responder
+import responders.Responder._
+import responders.optimizely._
 
 class IntegrationTests extends FunSuite with BeforeAndAfter {
   implicit var system: ActorSystem = _
@@ -81,7 +81,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val _ = system.terminate()
   }
 
-  test("local no processor") {
+  test("local no responder") {
     // prepare for start, define some variables
     val saunaRoot = "/opt/sauna/"
     val fileName = UUID.randomUUID().toString
@@ -89,8 +89,8 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val line1 = "aaaaaa"
     val line2 = "bbbbbb"
     var expectedLines: Seq[String] = null
-    val processors = Seq(
-      TestActorRef(new Processor {
+    val responders = Seq(
+      TestActorRef(new Responder {
         override val pathPattern: String = ".*"
 
         override def process(fileAppeared: FileAppeared): Unit = {
@@ -98,7 +98,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
         }
       })
     )
-    val lo = new LocalObserver(saunaRoot, processors)
+    val lo = new LocalObserver(saunaRoot, responders)
 
     // start observer
     new Thread(lo).start()
@@ -171,10 +171,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       override def receive = step1
     })
 
-    // define Optimizely, processor and observer
+    // define Optimizely, responder and observer
     val optimizely = new Optimizely(optimizelyToken)
-    val processorActors = Seq(TargetingList(optimizely))
-    val observers = Seq(new LocalObserver(saunaRoot, processorActors))
+    val responderActors = Seq(TargetingList(optimizely))
+    val observers = Seq(new LocalObserver(saunaRoot, responderActors))
     observers.foreach(new Thread(_).start())
 
     // wait
@@ -247,10 +247,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       override def receive = step1
     })
 
-    // define Optimizely, processor and observer
+    // define Optimizely, responder and observer
     val optimizely = new Optimizely(optimizelyToken)
-    val processorActors = Seq(TargetingList(optimizely))
-    val observers = Seq(new S3Observer(s3, sqs, queue, processorActors))
+    val responderActors = Seq(TargetingList(optimizely))
+    val observers = Seq(new S3Observer(s3, sqs, queue, responderActors))
     observers.foreach(new Thread(_).start())
 
     // wait
@@ -323,10 +323,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       override def receive = step1
     })
 
-    // define Optimizely, processor and observer
+    // define Optimizely, responder and observer
     val optimizely = new Optimizely(optimizelyToken)
-    val processorActors = Seq(DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion))
-    val observers = Seq(new LocalObserver(saunaRoot, processorActors))
+    val responderActors = Seq(DCPDatasource(optimizely, saunaRoot, optimizelyImportRegion))
+    val observers = Seq(new LocalObserver(saunaRoot, responderActors))
     observers.foreach(new Thread(_).start())
 
     // wait

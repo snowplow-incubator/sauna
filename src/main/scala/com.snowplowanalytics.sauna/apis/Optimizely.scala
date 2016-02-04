@@ -29,7 +29,7 @@ import com.fasterxml.jackson.core.JsonParseException
 
 // sauna
 import loggers.Logger.Notification
-import processors.optimizely.TargetingList
+import responders.optimizely.TargetingList
 import utils._
 
 /**

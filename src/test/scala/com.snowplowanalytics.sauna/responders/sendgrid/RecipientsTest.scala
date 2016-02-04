@@ -11,7 +11,7 @@
  * See the Apache License Version 2.0 for the specific language governing permissions and limitations there under.
  */
 package com.snowplowanalytics.sauna
-package processors
+package responders
 package sendgrid
 
 // java
@@ -37,7 +37,7 @@ import play.api.libs.ws.WSResponse
 import apis.Sendgrid
 import loggers._
 import loggers.Logger._
-import processors.Processor._
+import responders.Responder._
 
 class RecipientsTest extends FunSuite with BeforeAndAfter {
   val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
