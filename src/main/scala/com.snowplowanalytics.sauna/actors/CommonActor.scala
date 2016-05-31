@@ -11,6 +11,7 @@ import config._
 import loggers._
 import responders.optimizely._
 import responders.sendgrid._
+import responders.urbanairship._
 
 /**
  * Implementations of this actor run on cluster nodes. They launch different observers during lifetime.
@@ -43,8 +44,9 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
   // and it wont happen if appropriate responder was not activated
   val optimizely = new Optimizely(respondersConfig.optimizelyToken)
   val sendgrid = new Sendgrid(respondersConfig.sendgridToken)
-
+  val urbanairship=new UrbanAirship()
   // responders
+  //val uaresp=UAResponder(urbanairship)
   var responderActors = List.empty[ActorRef]
   if (respondersConfig.targetingListEnabled) {
     responderActors +:= context.actorOf(TargetingList(optimizely), "TargetingList")
@@ -55,6 +57,7 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
   if (respondersConfig.recipientsEnabled) {
     responderActors +:= context.actorOf(Recipients(sendgrid), "Recipients")
   }
+    responderActors +:= context.actorOf(UAResponder(urbanairship), "UAResponder")
 
   def receive: Receive = {
     case _ =>

@@ -32,7 +32,9 @@ object SaunaBuild extends Build {
         "com.typesafe.akka" %% "akka-testkit" % akkaVersion,
         "com.typesafe.akka" %% "akka-cluster" % akkaVersion,
         "com.typesafe.akka" %% "akka-cluster-tools" % akkaVersion,
-
+        "org.json" % "json" % "20160212",
+        "commons-io" % "commons-io" % "2.5",
+        
         "org.scalatest" %% "scalatest" % "2.2.4" % "test"
       )
     )
