@@ -1,0 +1,6 @@
+
+public class Airship {
+		String identifierType;
+		String identifier;
+}
+
