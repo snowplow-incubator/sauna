@@ -35,7 +35,7 @@ class UAResp {
 
     for (line <- Source.fromFile(fileName).getLines()) {
 
-      var rawlines = line.split("	")
+      var rawlines = line.split("	",-1)
       val str = rawlines(rawlines.length - 1).substring(0, rawlines(rawlines.length - 1).length() - 2)
       rawlines(rawlines.length - 1) = str
 
