@@ -27,53 +27,60 @@ class UAResp {
   
   def convertTSV(fileName: String):Unit = {
  
-    var appMap: Map[String, Map[String, List[Airship]]] = Map[String, Map[String, List[Airship]]]()
+    var appToListMap: Map[String, Map[String, List[Airship]]] = Map[String, Map[String, List[Airship]]]()
 
-    var listMap: Map[String, List[Airship]] = Map[String, List[Airship]]()
+    var listToIdentifierMap: Map[String, List[Airship]] = Map[String, List[Airship]]()
     
     var count:Int=0;
 
     for (line <- Source.fromFile(fileName).getLines()) {
 
-      var rawlines = line.split("	",-1)
+      val rawlines = line.split("\t",-1)
+      
       val str = rawlines(rawlines.length - 1).substring(0, rawlines(rawlines.length - 1).length() - 2)
       rawlines(rawlines.length - 1) = str
 
-      var lines = for (i <- rawlines) yield i.substring(1, i.length() - 1)
+      val lines = for (i <- rawlines) yield i.substring(1, i.length() - 1)
+      
+      val airship = new Airship(lines(2), lines(3))
 
-      var a = new Airship(lines(2), lines(3))
-
-      if (!appMap.contains(lines(0))) {
-        var list: List[Airship] = List()
-        list ::= a
-        listMap = Map[String, List[Airship]](lines(1) -> list)
+      if (!appToListMap.contains(lines(0))) {
+        var identifierList: List[Airship] = List(airship)
+        listToIdentifierMap = Map[String, List[Airship]](lines(1) -> identifierList)
       } else {
-        var str = ""
-        listMap = appMap(lines(0))
-        var list: List[Airship] = listMap(lines(1))
-        list ::= a
-        listMap += (lines(1) -> list)
+        
+        if (listToIdentifierMap.contains(lines(1))) {
+          listToIdentifierMap = appToListMap(lines(0))
+          var list: List[Airship] = airship :: listToIdentifierMap(lines(1))
+          listToIdentifierMap += (lines(1) -> list)
+        } else {
+          var list: List[Airship] = List(airship)
+          listToIdentifierMap += (lines(1) -> list)
+        }
       }
 
-      appMap += (lines(0) -> listMap)
+      appToListMap += (lines(0) -> listToIdentifierMap)
       count+=1
       
       if(count>=10000000)
       {
-        MaptoRequest(appMap)
-        appMap=Map()
+        MaptoRequest(appToListMap)
+        appToListMap=Map()
         count=0
       }
         
       
     }
-
+    println(appToListMap)
+    if(appToListMap.size>0)
+      MaptoRequest(appToListMap)
     
 
   }
 
   def MaptoRequest(appMap: Map[String, Map[String, List[Airship]]]): Unit =
     {
+     
       var listNamesToKeyMap: Map[String, String] = Map()
       for ((appKey, value) <- appMap) {
 
@@ -111,14 +118,13 @@ class UAResp {
         }
       }
       
-      var timeout: Long = System.currentTimeMillis() + 15 * 60 * 1000;
+      val timeout: Long = System.currentTimeMillis() + 15 * 60 * 1000;
       while (listNamesToKeyMap.size > 0 && timeout >= System.currentTimeMillis()) {
         
         for ((listName, userpass) <- listNamesToKeyMap) {
          
        
-          var status: String = checkStatus(listName, userpass)
-          
+          val status: String = checkStatus(listName, userpass)
           if (status == "ready")
             listNamesToKeyMap -= listName
         }
@@ -145,12 +151,12 @@ class UAResp {
 
       con.setRequestProperty("Authorization", "Basic " + javax.xml.bind.DatatypeConverter.printBase64Binary(userpass.getBytes()))
       con.setRequestProperty("Accept", "application/vnd.urbanairship+json; version=3")
-      var in: InputStream = con.getInputStream()
+      val in: InputStream = con.getInputStream()
       var encoding: String = con.getContentEncoding()
       encoding = if (encoding == null) "UTF-8" else encoding
-      var body: String = IOUtils.toString(in, encoding)
+      val body: String = IOUtils.toString(in, encoding)
      
-      var bodyJson:JSONObject= new JSONObject(body)
+      val bodyJson:JSONObject= new JSONObject(body)
       bodyJson.getString("status")
       
     }
@@ -158,9 +164,10 @@ class UAResp {
 }
 
 object UAResp extends App {
-  
+ 
   val u = new UAResp()
-  u.convertTSV("/home/manoj/data/test.tsv")	
+  u.convertTSV("/home/manoj/data/test.tsv")
+  
   //u.MaptoRequest(map)  
  // println("test" + u.checkStatus("weekly_offers", "5AkEYOJWQ1yWPS4bLOBW4Q:22NrhpfZRZ-7MNCoJ0h-ag"))
 }
