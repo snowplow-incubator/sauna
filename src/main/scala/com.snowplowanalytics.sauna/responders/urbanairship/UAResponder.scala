@@ -27,11 +27,11 @@ class UAResp {
   
   def convertTSV(fileName: String):Unit = {
  
-    var appToListMap: Map[String, Map[String, List[Airship]]] = Map[String, Map[String, List[Airship]]]()
+    var appToListMap = Map[String, Map[String, List[Airship]]]()
 
-    var listToIdentifierMap: Map[String, List[Airship]] = Map[String, List[Airship]]()
+    var listToIdentifierMap = Map[String, List[Airship]]()
     
-    var count:Int=0;
+    var count=0
 
     for (line <- Source.fromFile(fileName).getLines()) {
 
@@ -62,7 +62,7 @@ class UAResp {
       appToListMap += (lines(0) -> listToIdentifierMap)
       count+=1
       
-      if(count>=10000000)
+      if(count>=10000000)                  // Urban aiship limit for a single api call
       {
         MaptoRequest(appToListMap)
         appToListMap=Map()
@@ -71,7 +71,7 @@ class UAResp {
         
       
     }
-    println(appToListMap)
+    
     if(appToListMap.size>0)
       MaptoRequest(appToListMap)
     
@@ -81,7 +81,7 @@ class UAResp {
   def MaptoRequest(appMap: Map[String, Map[String, List[Airship]]]): Unit =
     {
      
-      var listNamesToKeyMap: Map[String, String] = Map()
+      var listNamesToKeyMap =  Map[String, String]()
       for ((appKey, value) <- appMap) {
 
         for ((listName, value1) <- value) {
@@ -93,7 +93,11 @@ class UAResp {
           //add request header
           con.setRequestMethod("PUT")
           
-          val userpass: String = appKey + ":"+"22NrhpfZRZ-7MNCoJ0h-ag"
+          val in=new FileInputStream("/home/manoj/urban_airship_config.json")
+          val body: String = IOUtils.toString(in, "UTF-8")
+          val json=new JSONObject(body)
+          val master=json.getJSONObject("data").getJSONObject("parameters").getJSONObject("credentials").get(appKey).asInstanceOf[String]
+          val userpass = appKey + ":"+master
           listNamesToKeyMap += (listName -> userpass)
           con.setRequestProperty("Authorization", "Basic " + javax.xml.bind.DatatypeConverter.printBase64Binary(userpass.getBytes()))
           con.setRequestProperty("Accept", "application/vnd.urbanairship+json; version=3")
@@ -118,17 +122,17 @@ class UAResp {
         }
       }
       
-      val timeout: Long = System.currentTimeMillis() + 15 * 60 * 1000;
+      val timeout = System.currentTimeMillis() + 15 * 60 * 1000;     //timeout for a list to process (15 minutes)
       while (listNamesToKeyMap.size > 0 && timeout >= System.currentTimeMillis()) {
         
         for ((listName, userpass) <- listNamesToKeyMap) {
          
        
-          val status: String = checkStatus(listName, userpass)
+          val status = checkStatus(listName, userpass)
           if (status == "ready")
             listNamesToKeyMap -= listName
         }
-        Thread.sleep(30000);
+        Thread.sleep(30000); // retry for status after 30s
       }
 
       if (timeout >= System.currentTimeMillis()) {
@@ -167,8 +171,6 @@ object UAResp extends App {
  
   val u = new UAResp()
   u.convertTSV("/home/manoj/data/test.tsv")
-  
-  //u.MaptoRequest(map)  
- // println("test" + u.checkStatus("weekly_offers", "5AkEYOJWQ1yWPS4bLOBW4Q:22NrhpfZRZ-7MNCoJ0h-ag"))
+
 }
 
