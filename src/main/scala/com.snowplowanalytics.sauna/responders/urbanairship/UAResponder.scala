@@ -37,22 +37,19 @@ class UAResponder(urbanairship: UrbanAirship)
 
   import UAResponder._
   
-  val pathPattern =
-    """.*com\.sendgrid\.contactdb/
-      |recipients/
+ val pathPattern =
+    """.*com\.urbanairship/
+      |static_lists/
       |v1/
-      |tsv:([^\/]+)/
+      |tsv:\*/
       |.+$
     """.stripMargin
        .replaceAll("[\n ]", "")
        
-  val pathRegexp = pathPattern.r
   
  override def process(fileAppeared: FileAppeared): Unit = {
     import fileAppeared._
-    filePath match {
-      case pathRegexp(attrs) => convertTSV(is)
-    }
+   convertTSV(is)
   }
    
   def convertTSV(is: InputStream):Unit = {
@@ -67,9 +64,6 @@ class UAResponder(urbanairship: UrbanAirship)
     for (line <- fromInputStream(is).getLines()) {
 
       val rawlines = line.split("\t",-1)
-      
-    //  val str = rawlines(rawlines.length - 1).substring(0, rawlines(rawlines.length - 1).length() - 2)
-      //rawlines(rawlines.length - 1) = str
 
       val lines = for (i <- rawlines) yield i.substring(1, i.length() - 1)
       
@@ -108,24 +102,18 @@ class UAResponder(urbanairship: UrbanAirship)
     
 
   }
-
-
-//object UAResp extends App {
-// 
-//  val u = new UAResp()
-//  u.convertTSV("/home/manoj/data/test.tsv")
-//  
-//  //u.MaptoRequest(map)  
-// // println("test" + u.checkStatus("weekly_offers", "5AkEYOJWQ1yWPS4bLOBW4Q:22NrhpfZRZ-7MNCoJ0h-ag"))
-//}
+  
 
 }
 
-object UAResponder extends App {
+object UAResponder  {
  
   
-  //u.convertTSV("/home/manoj/data/test.tsv")
+  
   case class Airship(identifierType: String, identifier: String)
+  
+  def apply(urbanairship: UrbanAirship)(implicit logger: ActorRef): Props =
+    Props(new UAResponder(urbanairship))
   
 }
 

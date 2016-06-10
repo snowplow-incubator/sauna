@@ -30,7 +30,7 @@ import gvjava.org.json.JSONObject
 import responders.urbanairship.UAResponder.Airship
 import scala.collection.immutable.ListMap
 
-class UrbanAirship(token:String)(implicit logger: ActorRef) {
+class UrbanAirship(implicit logger: ActorRef) {
   import UrbanAirship._
   def MaptoRequest(appMap: Map[String, Map[String, List[Airship]]]): Unit =
     {
@@ -157,7 +157,7 @@ class UrbanAirship(token:String)(implicit logger: ActorRef) {
 
 }
 
-object UrbanAirship extends App {
+object UrbanAirship  {
 
   val urlPrefix = "https://api.sendgrid.com/v3/"
 

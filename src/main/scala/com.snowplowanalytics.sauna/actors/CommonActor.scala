@@ -44,7 +44,7 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
   // and it wont happen if appropriate responder was not activated
   val optimizely = new Optimizely(respondersConfig.optimizelyToken)
   val sendgrid = new Sendgrid(respondersConfig.sendgridToken)
-  
+  val urbanairship=new UrbanAirship()
   // responders
   //val uaresp=UAResponder(urbanairship)
   var responderActors = List.empty[ActorRef]
@@ -57,7 +57,7 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
   if (respondersConfig.recipientsEnabled) {
     responderActors +:= context.actorOf(Recipients(sendgrid), "Recipients")
   }
-    responderActors +:= context.actorOf(UAResponder(new UrbanAirship), "UAResponder")
+    responderActors +:= context.actorOf(UAResponder(urbanairship), "UAResponder")
 
   def receive: Receive = {
     case _ =>
