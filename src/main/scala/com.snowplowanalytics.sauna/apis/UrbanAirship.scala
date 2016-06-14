@@ -5,7 +5,7 @@ package apis
 
 import java.io.DataOutputStream
 import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent.ExecutionContext
 import scala.util.{ Failure, Success }
 import org.apache.commons.io.IOUtils
 import java.io.File
@@ -18,6 +18,7 @@ import java.util.ArrayList
 import java.io.InputStream
 import java.util.HashMap
 import java.util.Iterator
+import scala.io.Source.fromFile
 import java.net.URL
 import akka.actor.{ActorRef, Props}
 import java.util.Map.Entry
@@ -29,9 +30,15 @@ import java.util.zip.GZIPOutputStream
 import gvjava.org.json.JSONObject
 import responders.urbanairship.UAResponder.Airship
 import scala.collection.immutable.ListMap
+import play.api.libs.json.Json
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import scala.concurrent.ExecutionContext.Implicits.global
 
 class UrbanAirship(implicit logger: ActorRef) {
   import UrbanAirship._
+  
+//  implicit val ec = ExecutionContext.fromExecutor(Executors.newFixedThreadPool(10))
   def MaptoRequest(appMap: Map[String, Map[String, List[Airship]]]): Unit =
     {
 
@@ -45,15 +52,14 @@ class UrbanAirship(implicit logger: ActorRef) {
             val obj: URL = new URL(url)
             val con: HttpsURLConnection = obj.openConnection().asInstanceOf[HttpsURLConnection]
 
-            //add request header
             con.setRequestMethod("PUT")
+            
+             val urbanairshipFile = new File(Sauna.respondersLocation+"/urban_airship_config.json")
 
-            val in = new FileInputStream("/home/manoj/urban_airship_config.json")
-            val body: String = IOUtils.toString(in, "UTF-8")
-            val json = new JSONObject(body)
-            val master = json.getJSONObject("data").getJSONObject("parameters").getJSONObject("credentials").get(appKey).asInstanceOf[String]
+            val urbanairshipJson = Json.parse(fromFile(urbanairshipFile).mkString)
+            val master = (urbanairshipJson \ "data" \ "parameters" \ "credentials" \ appKey ).as[String]
             val userpass = appKey + ":" + master
-
+            
             listNamesToKeyMap += (listName -> userpass)
             con.setRequestProperty("Authorization", "Basic " + javax.xml.bind.DatatypeConverter.printBase64Binary(userpass.getBytes()))
             con.setRequestProperty("Accept", "application/vnd.urbanairship+json; version=3")
@@ -66,25 +72,16 @@ class UrbanAirship(implicit logger: ActorRef) {
               urlParameters.append(listElem.identifierType + "," + listElem.identifier).append("\n")
             }
 
-            //         urlParameters=urlParameters.substring(0,urlParameters.length()-2)
-            //println(">>>"+urlParameters.toString()+"<<")
-
             con.setDoOutput(true)
             val wr = new DataOutputStream(new GZIPOutputStream(con.getOutputStream()))
             wr.writeBytes(urlParameters.toString())
             wr.flush()
             wr.close()
 
-            //             val in2: InputStream = con.getInputStream()
-            //var encoding: String = con.getContentEncoding()
-            //encoding = if (encoding == null) "UTF-8" else encoding
-            // val body1: String = IOUtils.toString(in2, encoding)
-
-            // val bodyJson:JSONObject= new JSONObject(body)
-            // println(body1)
 
             val responseCode = con.getResponseCode()
             val response = con.getResponseMessage()
+            
             println("Sending 'POST' request to URL : " + url + ">>" + responseCode + "<<" + response)
             if (responseCode != 202)
               println("make logger for error")
@@ -92,7 +89,7 @@ class UrbanAirship(implicit logger: ActorRef) {
 
           }
           f.onComplete {
-            case Success(value) => //println(s"Got the callback, meaning = $value")
+            case Success(value) => 
             case Failure(e) => e.printStackTrace
           }
         }
@@ -102,25 +99,27 @@ class UrbanAirship(implicit logger: ActorRef) {
           Thread.sleep(1000);
         }
       }
-
+     
       val timeout = System.currentTimeMillis() + 15 * 60 * 1000;
-     // var i = 1
+    
 
       while (listNamesToKeyMap.size > 0 && timeout >= System.currentTimeMillis()) {
 
         for ((listName, userpass) <- listNamesToKeyMap) {
           val f = Future {
+            
             val status = checkStatus(listName, userpass)
             if (status == "ready") {
 
               listNamesToKeyMap -= listName
-            } else
-              Thread.sleep(10000)
+            } 
           }
           f.onComplete {
-            case Success(value) => //println(s"Got the callback, meaning = $value")
+            case Success(value) => 
             case Failure(e) => e.printStackTrace
-          }
+         }
+          if(listNamesToKeyMap.size > 0)
+            Thread.sleep(30000)
         }
 
       }
@@ -132,7 +131,7 @@ class UrbanAirship(implicit logger: ActorRef) {
         }
 
       }
-
+      println("upload complete")
     }
   def checkStatus(listName: String, userpass: String): String =
     {
@@ -152,6 +151,7 @@ class UrbanAirship(implicit logger: ActorRef) {
 
       val bodyJson: JSONObject = new JSONObject(body)
       bodyJson.getString("status")
+      
 
     }
 
@@ -159,12 +159,8 @@ class UrbanAirship(implicit logger: ActorRef) {
 
 object UrbanAirship  {
 
-  val urlPrefix = "https://api.sendgrid.com/v3/"
+  val urlPrefix = "https://go.urbanairship.com/api/lists/"
 
-  //val u = new UAResp()
-  //u.convertTSV("/home/manoj/data/test.tsv")
-
-  //u.MaptoRequest(map)  
-  // println("test" + u.checkStatus("weekly_offers", "5AkEYOJWQ1yWPS4bLOBW4Q:22NrhpfZRZ-7MNCoJ0h-ag"))
 }
+
 
