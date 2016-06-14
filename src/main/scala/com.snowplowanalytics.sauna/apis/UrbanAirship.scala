@@ -27,7 +27,7 @@ import scala.collection
 import scala.collection.mutable.{ Map => MutableMap }
 import javax.net.ssl.HttpsURLConnection
 import java.util.zip.GZIPOutputStream
-import gvjava.org.json.JSONObject
+import org.json.JSONObject
 import responders.urbanairship.UAResponder.Airship
 import scala.collection.immutable.ListMap
 import play.api.libs.json.Json

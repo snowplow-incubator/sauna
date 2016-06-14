@@ -22,14 +22,12 @@ import scala.collection;
 import scala.collection.mutable.{ Map => MutableMap }
 import javax.net.ssl.HttpsURLConnection;
 import java.util.zip.GZIPOutputStream
-import gvjava.org.json.JSONObject
 import apis.UrbanAirship
 import loggers.Logger.Notification
 import akka.actor.{ActorRef, Props}
 import responders.Responder.FileAppeared
 import responders.urbanairship.UAResponder.Airship
 import scala.concurrent.ExecutionContext.Implicits.global
-
 
 
 class UAResponder(urbanairship: UrbanAirship)
