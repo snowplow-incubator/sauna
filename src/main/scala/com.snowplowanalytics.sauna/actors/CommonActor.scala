@@ -44,7 +44,7 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
   // and it wont happen if appropriate responder was not activated
   val optimizely = new Optimizely(respondersConfig.optimizelyToken)
   val sendgrid = new Sendgrid(respondersConfig.sendgridToken)
-  val urbanairship=new UrbanAirship()
+  val urbanairship = new urbanAirship
   // responders
   //val uaresp=UAResponder(urbanairship)
   var responderActors = List.empty[ActorRef]

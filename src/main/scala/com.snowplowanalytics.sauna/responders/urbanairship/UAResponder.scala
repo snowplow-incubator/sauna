@@ -3,116 +3,101 @@ package responders
 package urbanairship
 
 import scala.io.Source.fromInputStream
-import java.io.DataOutputStream;
-import org.apache.commons.io.IOUtils;
-import java.io.File;
-import java.util.Properties;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.io.InputStream;
-import java.util.ArrayList;
-import java.io.InputStream;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.net.URL;
-import java.util.Map.Entry;
-import scala.io.Source
-import scala.collection;
-import scala.collection.mutable.{ Map => MutableMap }
-import javax.net.ssl.HttpsURLConnection;
-import java.util.zip.GZIPOutputStream
-import apis.UrbanAirship
-import loggers.Logger.Notification
-import akka.actor.{ActorRef, Props}
+
+import java.io.InputStream
+
+import apis.urbanAirship
+
+import akka.actor.{ ActorRef, Props }
+
 import responders.Responder.FileAppeared
-import responders.urbanairship.UAResponder.Airship
-import scala.concurrent.ExecutionContext.Implicits.global
 
+  /**
+ * Does stuff for UrbanAirship Static List upload feature.
+ *
+ * @see https://github.com/snowplow/sauna/wiki/Urban-Airship-Responder-user-guide
+ * @param urbanairship Instance of UrbanAirship.
+ * @param logger A logger actor.
+ */
 
-class UAResponder(urbanairship: UrbanAirship)
-                (implicit logger: ActorRef) extends Responder {
+class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends Responder {
 
   import UAResponder._
-  
- val pathPattern =
+
+  val pathPattern =
     """.*com\.urbanairship/
       |static_lists/
       |v1/
       |tsv:\*/
       |.+$
     """.stripMargin
-       .replaceAll("[\n ]", "")
-       
-  
- override def process(fileAppeared: FileAppeared): Unit = {
+      .replaceAll("[\n ]", "")
+
+  def process(fileAppeared: FileAppeared): Unit = {
     import fileAppeared._
-   convertTSV(is)
+    convertTSV(is)
   }
-   
-  def convertTSV(is: InputStream):Unit = {
-      
-    
+  
+/**
+   * Converts the TSV data and groups it in a map so as to make batched upload requests to UrbanAirship
+   *
+   * @param is the InputStream of the TSV file 
+   * @return a map of the data grouped by application keys and then by listNames
+   */
+
+  def convertTSV(is: InputStream): Unit = {
+
     var appToListMap = Map[String, Map[String, List[Airship]]]()
 
     var listToIdentifierMap = Map[String, List[Airship]]()
-    
-    var count=0
 
-    for (line <- fromInputStream(is).getLines()) {
+    var count = 0
 
-      val rawlines = line.split("\t",-1)
+    fromInputStream(is).getLines.foreach { rawLine =>
 
-      val lines = for (i <- rawlines) yield i.substring(1, i.length() - 1)
-      
-      
+      val line = rawLine.replace("\"", "").trim
 
-      if (!appToListMap.contains(lines(0))) {
-      
-        listToIdentifierMap = Map[String, List[Airship]](lines(1) -> List(new Airship(lines(2), lines(3))))
+      val Array(appKey, listName, idType, id) = line.split("\t", -1)
+
+      if (!appToListMap.contains(appKey)) {
+
+        listToIdentifierMap = Map[String, List[Airship]](listName -> List(new Airship(idType, id)))
       } else {
-        
-        if (listToIdentifierMap.contains(lines(1))) {
-          listToIdentifierMap = appToListMap(lines(0))
-          
-          listToIdentifierMap += (lines(1) -> (listToIdentifierMap(lines(1)):+new Airship(lines(2), lines(3))))
+
+        if (listToIdentifierMap.contains(listName)) {
+          listToIdentifierMap = appToListMap(appKey)
+
+          listToIdentifierMap += (listName -> (listToIdentifierMap(listName) :+ new Airship(idType, id)))
         } else {
-          
-          listToIdentifierMap += (lines(1) -> List(new Airship(lines(2), lines(3))))
+
+          listToIdentifierMap += (listName -> List(new Airship(idType, id)))
         }
       }
 
-      appToListMap += (lines(0) -> listToIdentifierMap)
-      count+=1
-      
-      if(count>=10000000)
-      {
-        urbanairship.MaptoRequest(appToListMap)
-        appToListMap=Map()
-        count=0
+      appToListMap += (appKey -> listToIdentifierMap)
+      count += 1
+
+      if (count >= 10000000) {
+        urbanairship.maptoRequest(appToListMap)
+        appToListMap = Map()
+        count = 0
       }
-        
-      
     }
-    
-    if(appToListMap.size>0)
-      urbanairship.MaptoRequest(appToListMap)
-    
+
+    if (appToListMap.size > 0)
+      urbanairship.maptoRequest(appToListMap)
 
   }
-  
 
 }
 
-object UAResponder  {
- 
-  
-  
+object UAResponder {
+
   case class Airship(identifierType: String, identifier: String)
-  
-  def apply(urbanairship: UrbanAirship)(implicit logger: ActorRef): Props =
+
+  def apply(urbanairship: urbanAirship)(implicit logger: ActorRef): Props =
     Props(new UAResponder(urbanairship))
-  
+
 }
 
 
