@@ -14,12 +14,23 @@ import scala.util.{ Failure, Success }
 import scala.collection.mutable.{ Map => MutableMap }
 import scala.concurrent.Future
 import scala.concurrent.ExecutionContext.Implicits.global
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.language.postfixOps
 
 import akka.actor.ActorRef
+ 
+import play.api.Play.current
+import play.api.libs.ws._
+import play.api.libs.ws.ning.NingAsyncHttpClientConfigBuilder
 
 import responders.urbanairship.UAResponder.Airship
 
 import play.api.libs.json.Json
+
+//import play.api.mvc._
+//import play.api.Play.current
+//import play.api.libs.ws._
 
 import loggers.Logger.Notification
 
@@ -34,12 +45,17 @@ class urbanAirship(implicit logger: ActorRef) {
 
   def maptoRequest(appMap: Map[String, Map[String, List[Airship]]]): Unit =
     {
+
       var listNamesToKeyMap = Map[String, String]()
       for ((appKey, value) <- appMap) {
+
         for ((listName, valueList) <- value) {
-          val userPass = makeRequest(appKey, listName, valueList)
+
+          val userPass = makeRequest(appKey, listName, valueList, listNamesToKeyMap)
           listNamesToKeyMap += (listName -> userPass)
+
         }
+
       }
 
       val timeout = System.currentTimeMillis() + 15 * 60 * 1000
@@ -49,7 +65,7 @@ class urbanAirship(implicit logger: ActorRef) {
         for ((listName, userpass) <- listNamesToKeyMap) {
           val f = Future {
 
-            val status = checkStatus(listName, userpass)       
+            val status = checkStatus(listName, userpass)
             if (status == "ready") {
               listNamesToKeyMap -= listName
             }
@@ -72,7 +88,7 @@ class urbanAirship(implicit logger: ActorRef) {
 
       }
       logger ! Notification("Upload Complete !")
-    } 
+    }
 
   /**
    * Converts the gouped data in the form of a map into upload requests to UrbanAirship and checks the status of the operation
@@ -82,71 +98,74 @@ class urbanAirship(implicit logger: ActorRef) {
    * @param valueMap is the List of Identifier and IdentifierTypes for the upload
    * @return userpass is the authentication key which is the combination of Appkey and MasterKey needed to make the request
    */
-  
-  def makeRequest(appKey: String, listName: String, values: List[Airship]): String =
+  def makeRequest(appKey: String, listName: String, values: List[Airship], listNamesToKeyMap: Map[String, String]): String =
     {
-
+  
+      val client = {
+        val builder = new com.ning.http.client.AsyncHttpClientConfig.Builder()
+        new play.api.libs.ws.ning.NingWSClient(builder.build())
+      }
+      
       val url = urlPrefix + listName + "/csv/"
-      val obj: URL = new URL(url)
-      val con: HttpsURLConnection = obj.openConnection().asInstanceOf[HttpsURLConnection]
-
-      con.setRequestMethod("PUT")
-
       val urbanairshipFile = new File(Sauna.respondersLocation + "/urban_airship_config.json")
 
       val urbanairshipJson = Json.parse(fromFile(urbanairshipFile).mkString)
       val master = (urbanairshipJson \ "data" \ "parameters" \ "credentials" \ appKey).as[String]
-      val userpass = appKey + ":" + master
-
-      con.setRequestProperty("Authorization", "Basic " + javax.xml.bind.DatatypeConverter.printBase64Binary(userpass.getBytes()))
-      con.setRequestProperty("Accept", "application/vnd.urbanairship+json; version=3")
-      con.setRequestProperty("Content-Type", "text/csv")
-      con.setRequestProperty("Content-Encoding", "gzip")
-
+      val userPass = appKey + ":" + master
       val urlParameters = new StringBuffer()
 
       values.foreach((listElem: Airship) => urlParameters.append(listElem.identifierType + "," + listElem.identifier).append("\n"))
 
-      con.setDoOutput(true)
-      val wr = new DataOutputStream(new GZIPOutputStream(con.getOutputStream))
-      wr.writeBytes(urlParameters.toString)
-      wr.flush
-      wr.close
-
-      val responseCode = con.getResponseCode
-      val response = con.getResponseMessage
-
-      if (responseCode != 202)
-        logger ! Notification("upload failed for list" + listName)
-      else
-        logger ! Notification("Sending 'POST' request to URL : " + url + ">>" + responseCode + "<<" + response)
+      
+      val  futureResponse:Future[WSResponse]  = client.url(url).withHeaders("Accept" -> "application/vnd.urbanairship+json; version=3")
+        .withHeaders("Content-Type" -> "text/csv").withAuth(appKey, master, WSAuthScheme.BASIC).withBody(urlParameters.toString).execute("PUT")
+     
+      val response = Await.result(futureResponse, 5000 milliseconds)
         
-      userpass
-    }
+      val responseFlag = (response.json \ "ok").as[Boolean]
   
-/**
+      client.close()
+      
+     if (responseFlag)
+        logger ! Notification("Sending 'POST' request to URL : " + url + "was sucessful" )
+      else
+        logger ! Notification("upload to list" + listName + "failed")
+
+      userPass
+    }
+
+  
+  
+  
+  /**
    * Checks to see if the upload request to a list is done with processing
    *
    * @param listName the name of the list for which we check the status
    * @param userpass the key required to make the request
    * @return status of the list wheather it has completed processing or is still processing
    */
+
   def checkStatus(listName: String, userpass: String): String =
     {
-      val url = urlPrefix + listName
-      val obj: URL = new URL(url)
-      val con: HttpsURLConnection = obj.openConnection().asInstanceOf[HttpsURLConnection]
 
-      //add request header
-      con.setRequestMethod("GET")
-      con.setRequestProperty("Authorization", "Basic " + javax.xml.bind.DatatypeConverter.printBase64Binary(userpass.getBytes()))
-      con.setRequestProperty("Accept", "application/vnd.urbanairship+json; version=3")
+      val Array(appKey, master) = userpass.split(":")
 
-      val response = fromInputStream(con.getInputStream).mkString
-      val bodyJson = Json.parse(response)
-      (bodyJson \ "status").as[String]
+      val client = {
+        val builder = new com.ning.http.client.AsyncHttpClientConfig.Builder()
+        new play.api.libs.ws.ning.NingWSClient(builder.build())
+      }
+
+      val futureResult: Future[String] = client.url(urlPrefix + listName).withHeaders("Accept" -> "application/vnd.urbanairship+json; version=3")
+        .withAuth(appKey, master, WSAuthScheme.BASIC).get().map {
+          response =>
+            (response.json \ "status").as[String]
+        }
+
+      val result = Await.result(futureResult, 5000 milliseconds)
+      client.close()
+      result
     }
-  
+
 }
 
 object UrbanAirship {
