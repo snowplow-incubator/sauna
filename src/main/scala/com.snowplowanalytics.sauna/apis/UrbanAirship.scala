@@ -45,14 +45,14 @@ class urbanAirship(implicit logger: ActorRef) {
 
   def maptoRequest(appMap: Map[String, Map[String, List[Airship]]]): Unit =
     {
-
-      var listNamesToKeyMap = Map[String, String]()
+      
+      var listNamesToKeyMap = Map[String,(Boolean,String)]()
       for ((appKey, value) <- appMap) {
 
         for ((listName, valueList) <- value) {
-
-          val userPass = makeRequest(appKey, listName, valueList, listNamesToKeyMap)
-          listNamesToKeyMap += (listName -> userPass)
+          
+          val (status,userPass) = makeRequest(appKey, listName, valueList)
+          listNamesToKeyMap += (listName -> (status,userPass))
 
         }
 
@@ -62,20 +62,21 @@ class urbanAirship(implicit logger: ActorRef) {
 
       while (listNamesToKeyMap.size > 0 && timeout >= System.currentTimeMillis()) {
 
-        for ((listName, userpass) <- listNamesToKeyMap) {
-          val f = Future {
-
-            val status = checkStatus(listName, userpass)
-            if (status == "ready") {
+        for ((listName, requestTuple) <- listNamesToKeyMap) {
+        
+            val (requestAccepted,userPass) = requestTuple
+            if(requestAccepted == true)
+            {
+              val status = checkStatus(listName, userPass)
+              if (status == "ready") {
               listNamesToKeyMap -= listName
+              }
             }
-          }
-          f.onComplete {
-            case Success(value) =>
-            case Failure(e) => e.printStackTrace
-          }
-          if (listNamesToKeyMap.size > 0)
-            Thread.sleep(30000)
+            else
+            {
+               listNamesToKeyMap -= listName
+            }
+        
         }
 
       }
@@ -98,7 +99,7 @@ class urbanAirship(implicit logger: ActorRef) {
    * @param valueMap is the List of Identifier and IdentifierTypes for the upload
    * @return userpass is the authentication key which is the combination of Appkey and MasterKey needed to make the request
    */
-  def makeRequest(appKey: String, listName: String, values: List[Airship], listNamesToKeyMap: Map[String, String]): String =
+  def makeRequest(appKey: String, listName: String, values: List[Airship]): (Boolean,String) =
     {
   
       val client = {
@@ -121,17 +122,19 @@ class urbanAirship(implicit logger: ActorRef) {
         .withHeaders("Content-Type" -> "text/csv").withAuth(appKey, master, WSAuthScheme.BASIC).withBody(urlParameters.toString).execute("PUT")
      
       val response = Await.result(futureResponse, 5000 milliseconds)
-        
-      val responseFlag = (response.json \ "ok").as[Boolean]
+      
+      val responseJson = response.json
+      
+      val responseFlag = (responseJson \ "ok").as[Boolean]
   
       client.close()
       
      if (responseFlag)
         logger ! Notification("Sending 'POST' request to URL : " + url + "was sucessful" )
       else
-        logger ! Notification("upload to list" + listName + "failed")
+        logger ! Notification("upload to list" + listName + " failed with error code " + (responseJson \ "error_code").as[Int])
 
-      userPass
+      (responseFlag,userPass)
     }
 
   
