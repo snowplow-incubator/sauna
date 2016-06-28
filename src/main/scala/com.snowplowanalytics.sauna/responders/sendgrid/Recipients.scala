@@ -51,7 +51,7 @@ class Recipients(sendgrid: Sendgrid)
 
   val pathPattern =
     """.*com\.sendgrid\.contactdb/
-      |recipients/
+      |lists/
       |v1/
       |tsv:([^\/]+)/
       |.+$

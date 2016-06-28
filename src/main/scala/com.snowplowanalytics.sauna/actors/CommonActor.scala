@@ -12,6 +12,7 @@ import loggers._
 import responders.optimizely._
 import responders.sendgrid._
 import responders.urbanairship._
+import responders.mailchimp._
 
 /**
  * Implementations of this actor run on cluster nodes. They launch different observers during lifetime.
@@ -45,6 +46,7 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
   val optimizely = new Optimizely(respondersConfig.optimizelyToken)
   val sendgrid = new Sendgrid(respondersConfig.sendgridToken)
   val urbanairship = new urbanAirship
+  val mailchimp = new mailChimp
   // responders
   //val uaresp=UAResponder(urbanairship)
   var responderActors = List.empty[ActorRef]
@@ -58,6 +60,8 @@ abstract class CommonActor(respondersConfig: RespondersConfig,
     responderActors +:= context.actorOf(Recipients(sendgrid), "Recipients")
   }
     responderActors +:= context.actorOf(UAResponder(urbanairship), "UAResponder")
+    
+    responderActors +:= context.actorOf(MailChimpResponder(mailchimp), "MailChimpResponder")
 
   def receive: Receive = {
     case _ =>

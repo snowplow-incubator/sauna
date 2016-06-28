@@ -36,7 +36,9 @@ object RespondersConfig {
   def apply(respondersDirectory: String): RespondersConfig = {
     val optimizelyFile = new File(s"$respondersDirectory/optimizely_config.json")
     val sendgridFile = new File(s"$respondersDirectory/sendgrid_config.json")
-    val urbanairshipFile=new File(s"$respondersDirectory/urban_airship_config.json")
+    val urbanairshipFile = new File(s"$respondersDirectory/urban_airship_config.json")
+    val mailchimpFile = new File(s"$respondersDirectory/mailchimp_config.json")
+    
     lazy val optimizelyJson = Json.parse(fromFile(optimizelyFile).mkString)
     lazy val sendgridJson = Json.parse(fromFile(sendgridFile).mkString)
 
@@ -48,7 +50,9 @@ object RespondersConfig {
                             else false
     val urbanairshipEnabled= if(urbanairshipFile.exists())true
                              else false
-    if (!targetingListEnabled && !dynamicClientProfilesEnabled && !recipientsEnabled && !urbanairshipEnabled)
+    val mailchimpEnabled= if(mailchimpFile.exists())true
+                             else false
+    if (!targetingListEnabled && !dynamicClientProfilesEnabled && !recipientsEnabled && !urbanairshipEnabled && !mailchimpEnabled)
       throw new RuntimeException("At least one responder should be enabled.")
 
     val optimizelyImportRegion = if (dynamicClientProfilesEnabled) (optimizelyJson \ "data" \ "parameters" \ "awsRegion").as[String]
