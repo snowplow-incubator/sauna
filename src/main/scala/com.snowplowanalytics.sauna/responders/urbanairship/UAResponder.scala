@@ -26,6 +26,9 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
 
   import UAResponder._
 
+  var appToListMap = Map[String, Map[String, List[Airship]]]()
+  var count = 0
+  
   val pathPattern =
     """.*com\.urbanairship/
       |static_lists/
@@ -48,11 +51,19 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
    */
   
   def getLinesFromTSV(is:InputStream):Unit={
-    var appToListMap = Map[String, Map[String, List[Airship]]]()
-    var count = 0
+    
     for(rawLine <- fromInputStream(is).getLines)
     {
-      val (listToIdentifierMap,appKey) = getMapEntryForLine(rawLine,appToListMap)  
+      getMapEntryForLine(rawLine,appToListMap) match{
+       case Right(msg) =>
+       case Left(test) => Left(makeRequest(test._1,test._2))  
+     }
+    }
+    if (appToListMap.size > 0)
+      urbanairship.maptoRequest(appToListMap)
+  }
+  
+  def makeRequest(listToIdentifierMap:Map[String, List[Airship]],appKey:String):Unit={
      if(appKey!=null)
      {
        appToListMap += (appKey -> listToIdentifierMap)
@@ -63,20 +74,20 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
           count = 0
          }
       }
-    }
-    if (appToListMap.size > 0)
-      urbanairship.maptoRequest(appToListMap)
   }
   
-  def getMapEntryForLine(rawLine:String,appToListMap:Map[String, Map[String, List[Airship]]]):(Map[String, List[Airship]],String) = {
-      val uaInputOption:Option[UAInput] =  getEntryFromLine(rawLine)
-      if(!uaInputOption.isDefined)
-      {
-        logger ! Notification("not enough fields !")
-        return (null,null)
-      }
-      val uaInput:UAInput = uaInputOption.get
-      val listToIdentifierMap:Map[String, List[Airship]] = if (!appToListMap.contains(uaInput.appKey.get)) {
+
+  
+  def getMapEntryForLine(rawLine:String,appToListMap:Map[String, Map[String, List[Airship]]]):Either[(Map[String, List[Airship]],String),Unit] = {
+      
+    getEntryFromLine(rawLine) match {
+  case Right(msg) => Right(logger ! Notification(msg))
+  case Left(uaInput) => Left(getEntry(uaInput,appToListMap))
+    }
+  }
+  
+  def getEntry(uaInput:UAInput,appToListMap:Map[String, Map[String, List[Airship]]]):(Map[String, List[Airship]],String)={
+    val listToIdentifierMap:Map[String, List[Airship]] = if (!appToListMap.contains(uaInput.appKey.get)) {
          Map[String, List[Airship]](uaInput.listName.get -> List(new Airship(uaInput.idType.get, uaInput.id.get)))
       } else {
         val listMapForApp:Map[String, List[Airship]] = appToListMap(uaInput.appKey.get)
@@ -92,14 +103,14 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
       (listToIdentifierMap,uaInput.appKey.get)
   }
   
-  def getEntryFromLine(rawLine:String):Option[UAInput]={
+  def getEntryFromLine(rawLine:String):Either[UAInput,String]={
     
     val line = rawLine.replace("\"", "").trim
       
      line.split("\t", -1) match 
      { 
-        case Array(appKey, listName,idType , id) => ( Some(UAInput(Some(appKey),Some(listName),Some(idType),Some(id))))
-        case _ => (None) 
+        case Array(appKey, listName,idType , id) => Left( UAInput(Some(appKey),Some(listName),Some(idType),Some(id)))
+        case _ => Right("not enough fields") 
      }
   }
   
