@@ -55,8 +55,8 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
     for(rawLine <- fromInputStream(is).getLines)
     {
       getMapEntryForLine(rawLine,appToListMap) match{
-       case Right(msg) =>
-       case Left(test) => Left(makeRequest(test._1,test._2))  
+       case Some(test) => makeRequest(test._1,test._2)
+       case _ => logger ! Notification("not enough fields in TSV!")
      }
     }
     if (appToListMap.size > 0)
@@ -78,11 +78,11 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
   
 
   
-  def getMapEntryForLine(rawLine:String,appToListMap:Map[String, Map[String, List[Airship]]]):Either[(Map[String, List[Airship]],String),Unit] = {
+  def getMapEntryForLine(rawLine:String,appToListMap:Map[String, Map[String, List[Airship]]]):Option[(Map[String, List[Airship]],String)] = {
       
     getEntryFromLine(rawLine) match {
-  case Right(msg) => Right(logger ! Notification(msg))
-  case Left(uaInput) => Left(getEntry(uaInput,appToListMap))
+  case Some(uaInput) => Some(getEntry(uaInput,appToListMap))
+  case _ => None
     }
   }
   
@@ -103,18 +103,17 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
       (listToIdentifierMap,uaInput.appKey.get)
   }
   
-  def getEntryFromLine(rawLine:String):Either[UAInput,String]={
+  def getEntryFromLine(rawLine:String):Option[UAInput]={
     
     val line = rawLine.replace("\"", "").trim
       
      line.split("\t", -1) match 
      { 
-        case Array(appKey, listName,idType , id) => Left( UAInput(Some(appKey),Some(listName),Some(idType),Some(id)))
-        case _ => Right("not enough fields") 
+        case Array(appKey, listName,idType , id) =>  Some(UAInput(Some(appKey),Some(listName),Some(idType),Some(id)))
+        case _ => None
      }
   }
   
-
 }
 
 object UAResponder {
