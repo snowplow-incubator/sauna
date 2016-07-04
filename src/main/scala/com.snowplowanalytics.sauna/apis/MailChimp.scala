@@ -8,7 +8,29 @@ import play.api.libs.ws.ning.NingAsyncHttpClientConfigBuilder
 
 import akka.actor.ActorRef
 
+import org.apache.commons.io.IOUtils
+import java.nio.charset.StandardCharsets
 import java.io.File
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream
+import java.io.InputStreamReader;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.GZIPOutputStream;
+import java.io.FileInputStream
+import java.io.BufferedInputStream
+import java.net.URL;
+import javax.net.ssl.HttpsURLConnection;
+
+import org.apache.commons.httpclient.HttpClient;
+import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.commons.httpclient.params.HttpMethodParams;
+
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -40,12 +62,81 @@ def uploadToMailChimpRequest(bodyJson:String): Unit = {
       val responseJson = response.json
       
        val id=(responseJson \ "id").as[String]
+		//println("id is"+id)
+		var status2=""
+		var url2=""
+		while(status2!="finished")
+		{
+		  val (status, url1) = getStatus(id,apiKey)
+		  Thread.sleep(1000)
+		  status2=status
+		  url2=url1
+	//	  println(status2+" "+url2)
+		}
+
+//		getErrorStatus(url2)
+
 		
-		println(getStatus(id,apiKey))
-		
+		getErrorStatus(url2)
 	}
 
-  def getStatus(listId:String, apiKey:String): String = {
+
+def getErrorStatus2(url:String):Unit={
+   val client:HttpClient = new HttpClient();
+
+    // Create a method instance.
+    val method:GetMethod = new GetMethod(url);
+    
+    // Provide custom retry handler is necessary
+   
+
+   
+      // Execute the method.
+     client.executeMethod(method);
+
+    /*  if (statusCode != HttpStatus.SC_OK) {
+        System.err.println("Method failed: " + method.getStatusLine());
+      }*/
+
+      // Read the response body.
+      
+
+      // Deal with the response.
+      // Use caution: ensure correct character encoding and is not binary data
+     // val body = method.getResponseBody()
+    // val bodystr= new String(body)
+ // val myInputStream:InputStream  = new ByteArrayInputStream(bodystr.trim().getBytes()); 
+    // val st:ByteArrayInputStream=new ByteArrayInputStream(new String(body).getBytes());
+	val in:GZIPInputStream  = new GZIPInputStream(method.getResponseBodyAsStream())
+val encoding = "UTF-8"
+			      val body1 = IOUtils.toString(in, encoding)
+			      println(body1.trim())
+}
+
+
+
+def getErrorStatus(url:String):Unit={
+  
+  val obj = new URL(url);
+		val con = obj.openConnection().asInstanceOf[HttpsURLConnection];
+
+		con.setRequestMethod("GET");
+val in:GZIPInputStream  = new GZIPInputStream(con.getInputStream())
+val encoding = "UTF-8"
+			      val body1 = IOUtils.toString(in, encoding)
+
+val jsonBody=body1.substring(body1.indexOf('['))
+  val jsonFormattedString = jsonBody.trim()
+  
+  val json=Json.parse(jsonFormattedString)
+  println(json)
+  
+  
+  
+  
+}
+
+  def getStatus(listId:String, apiKey:String): (String,String) = {
 		val url = "https://us9.api.mailchimp.com/3.0/batches/"+listId
 		
 		 val client = {
@@ -55,12 +146,16 @@ def uploadToMailChimpRequest(bodyJson:String): Unit = {
 		 
 		 val futureResult: Future[String] = client.url(url).withAuth("anyString", apiKey, WSAuthScheme.BASIC).get().map {
           response =>
-            (response.json \ "status").as[String]
+            (response.json).toString
         }
 		 
-val result = Await.result(futureResult, 5000 milliseconds)
+    val responseString = Await.result(futureResult, 5000 milliseconds)
+    val responseJson = Json.parse(responseString)
       client.close()
-      result
+//     println(responseString)
+      val result = (responseJson \ "status").as[String]
+    val responseUrl= (responseJson \ "response_body_url").as[String]
+      (result,responseUrl)
 	}
 
   

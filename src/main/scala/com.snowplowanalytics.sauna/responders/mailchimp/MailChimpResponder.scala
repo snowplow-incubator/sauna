@@ -86,6 +86,7 @@ class MailChimpResponder(mailchimp: mailChimp)
         val keys = attrs.split(",")
 
         // do the stuff
+        println("before")
         getData(is).foreach(processData(keys, _))
     }
   }
@@ -124,11 +125,13 @@ class MailChimpResponder(mailchimp: mailChimp)
 
     
     val json = MailChimpResponder.makeValidJson(keys, probablyValid)
+    println(json)
     mailchimp.uploadToMailChimpRequest(json)
 //            .foreach { case response =>
 //              handleErrors(probablyValid.length, response.body)
 //            }
     
+    println("Upload Complete !")
 
     Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
                             // so new `fileAppeared` will be processed after current one
@@ -245,6 +248,7 @@ object MailChimpResponder {
    * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
    */
   def makeValidJson(keys: Seq[String], valuess: Seq[Seq[String]]): String = {
+    var count = 0
     val recipients = for (values <- valuess;
                           _ = assert(values.length == keys.length);
                           correctedValues = values.map(correctTimestamps))
@@ -257,7 +261,8 @@ object MailChimpResponder {
                              .replaceAll("\"\"", "null") // null should be without quotations
                              .replaceAll(""""(\d+)"""", "$1") // and positive integers too
                              val path="lists/"+listName+"/members"
-                          (Json.obj("method" -> "POST") ++ Json.obj("path" -> path) ++ Json.obj("body" -> bodyJson))
+                             count += 1
+                          (Json.obj("method" -> "POST") ++ Json.obj("path" -> path) ++ Json.obj("operation_id" -> ("opid"+count)) ++ Json.obj("body" -> bodyJson) )
                        }
     val mailchimpBatchJson = Json.obj("operations" -> recipients)
     mailchimpBatchJson.toString
