@@ -101,11 +101,6 @@ class urbanAirship(implicit logger: ActorRef) {
    */
   def makeRequest(appKey: String, listName: String, values: List[Airship]): (Boolean,String) =
     {
-  
-      val client = {
-        val builder = new com.ning.http.client.AsyncHttpClientConfig.Builder()
-        new play.api.libs.ws.ning.NingWSClient(builder.build())
-      }
       
       val url = urlPrefix + listName + "/csv/"
       val urbanairshipFile = new File(Sauna.respondersLocation + "/urban_airship_config.json")
@@ -118,7 +113,7 @@ class urbanAirship(implicit logger: ActorRef) {
       values.foreach((listElem: Airship) => urlParameters.append(listElem.identifierType + "," + listElem.identifier).append("\n"))
 
       
-      val  futureResponse:Future[WSResponse]  = client.url(url).withHeaders("Accept" -> "application/vnd.urbanairship+json; version=3")
+      val  futureResponse:Future[WSResponse]  = utils.wsClient.url(url).withHeaders("Accept" -> "application/vnd.urbanairship+json; version=3")
         .withHeaders("Content-Type" -> "text/csv").withAuth(appKey, master, WSAuthScheme.BASIC).withBody(urlParameters.toString).execute("PUT")
      
       val response = Await.result(futureResponse, 5000 milliseconds)
@@ -126,8 +121,6 @@ class urbanAirship(implicit logger: ActorRef) {
       val responseJson = response.json
       
       val responseFlag = (responseJson \ "ok").as[Boolean]
-  
-      client.close()
       
      if (responseFlag)
         logger ! Notification("Sending 'POST' request to URL : " + url + "was sucessful" )
@@ -153,19 +146,14 @@ class urbanAirship(implicit logger: ActorRef) {
 
       val Array(appKey, master) = userpass.split(":")
 
-      val client = {
-        val builder = new com.ning.http.client.AsyncHttpClientConfig.Builder()
-        new play.api.libs.ws.ning.NingWSClient(builder.build())
-      }
 
-      val futureResult: Future[String] = client.url(urlPrefix + listName).withHeaders("Accept" -> "application/vnd.urbanairship+json; version=3")
+      val futureResult: Future[String] = utils.wsClient.url(urlPrefix + listName).withHeaders("Accept" -> "application/vnd.urbanairship+json; version=3")
         .withAuth(appKey, master, WSAuthScheme.BASIC).get().map {
           response =>
             (response.json \ "status").as[String]
         }
 
       val result = Await.result(futureResult, 5000 milliseconds)
-      client.close()
       result
     }
 
