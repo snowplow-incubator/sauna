@@ -36,8 +36,7 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
     """.stripMargin
       .replaceAll("[\n ]", "")
 
-    var appToListMap = Map[String, Map[String, List[Airship]]]()
-    var count = 0
+      
       
   def process(fileAppeared: FileAppeared): Unit = {
     import fileAppeared._
@@ -52,18 +51,21 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
    */
 
   def getLinesFromTSV(is: InputStream): Unit = {
-    
-  appToListMap = Map[String, Map[String, List[Airship]]]()   
-  count = 0
-  
+    var appMapOld:appMap = null
     for (rawLine <- fromInputStream(is).getLines) {
-      getMapEntryForLine(rawLine) match {
-        case Some(test) => makeRequest(test._1, test._2)
-        case _ => logger ! Notification("not enough fields in TSV!")
+     val appToMap:Option[appMap] = getMapEntryForLine(appMapOld,rawLine) match {
+         case Some(appToListMap) => Some(appToListMap)
+         case _ => None
+       }
+  
+     if(appToMap.isDefined)
+     {
+       appMapOld = appToMap.get
+     }
+       
       }
-    }
-    if (appToListMap.size > 0)
-      urbanairship.maptoRequest(appToListMap)
+   urbanairship.maptoRequest(appMapOld)
+    
   }
 
   /**
@@ -74,15 +76,11 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
    *
    */
 
-  def makeRequest(listToIdentifierMap: Map[String, List[Airship]], appKey: String): Unit = {
-    appToListMap += (appKey -> listToIdentifierMap)
-    count += 1
-    if (count >= 10000000) {
-      urbanairship.maptoRequest(appToListMap)
-      appToListMap = Map[String, Map[String, List[Airship]]]()
-      count = 0
-    }
-  }
+//  def makeRequest(appToListMap: appMap): appMap = {
+//      println("in make req"+appToListMap)
+//      urbanairship.maptoRequest(appToListMap)
+//      null
+//  }
 
   /**
    * gets Option[UAInput] object from getMapEntryForLine and Maps it to the getEntry function and maps to None if gets Nothing from getMapEntryForLine
@@ -91,14 +89,27 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
    * @param appToListMap the map of appKey to list map of values
    * @return Option[l(istToIdentifierMap,appKey)] returns an Option of the tuple if it gets a UAInput object else it return None
    */
-  def getMapEntryForLine(rawLine: String): Option[(Map[String, List[Airship]], String)] = {
+  def getMapEntryForLine(appToListMap: appMap,rawLine: String): Option[appMap] = {
 
     getEntryFromLine(rawLine) match {
-      case Some(uaInput) => Some(getEntry(uaInput))
+      case Some(uaInput) => Some(getEntry(appToListMap,uaInput))
       case _ => None
     }
   }
+  
+  
+  def updateAppMap(appToListMap:appMap,listToAirshipMap:listMap,appKey:String):appMap={appToListMap.filterKeys(_ == appKey).transform((k,v)=>listToAirshipMap)}
 
+  def updateListMap(listToAirshipMap:listMap,listName:String,airship:Airship):listMap={listToAirshipMap.filterKeys(_ == listName ).transform((k,v) => (v:+airship))}
+
+  def insertToAppMap(appToListMap:appMap,listToAirshipMap:listMap,appKey:String):appMap={appToListMap + (appKey -> listToAirshipMap)}
+  
+  def insertToListMap(listToAirshipMap:listMap,listName:String,airship:Airship):listMap={listToAirshipMap + (listName -> List(airship))}
+  
+  def getNewAppMap(appKey:String,listToAirshipMap:listMap):appMap={appMap(appKey,listToAirshipMap)}
+  
+  def getNewListMap(listName:String,airship:Airship):listMap={listMap(listName , List(airship))}
+  
   /**
    * makes an updated listToidentifierMap including the values from the input UAInput Object
    *
@@ -106,21 +117,24 @@ class UAResponder(urbanairship: urbanAirship)(implicit logger: ActorRef) extends
    * @param appToListMap the map of appKey to list map of values
    * @return (listToIdentifierMap,uaInput.appKey) the tuple of updated listToIdentfierMap including the new UAInput object and the appKey for that map
    */
-  def getEntry(uaInput: UAInput): (Map[String, List[Airship]], String) = {
-    val listToIdentifierMap: Map[String, List[Airship]] = if (!appToListMap.contains(uaInput.appKey)) {
-      Map[String, List[Airship]](uaInput.listName -> List(new Airship(uaInput.idType, uaInput.id)))
-    } else {
-      val listMapForApp: Map[String, List[Airship]] = appToListMap(uaInput.appKey)
-      val listMap: Map[String, List[Airship]] = if (listMapForApp.contains(uaInput.listName)) {
-        val newListEntry: Map[String, List[Airship]] = Map(uaInput.listName -> (listMapForApp(uaInput.listName) :+ new Airship(uaInput.idType, uaInput.id)))
-        listMapForApp ++ newListEntry
-      } else {
-        val newListEntry: Map[String, List[Airship]] = Map(uaInput.listName -> (List[Airship]() :+ new Airship(uaInput.idType, uaInput.id)))
-        listMapForApp ++ newListEntry
-      }
-      listMap
+  def getEntry(appToListMap:appMap,uaInput: UAInput): (appMap) = {
+    val appTolistMapNew: appMap = if (appToListMap == null) {
+     getNewAppMap(uaInput.appKey,getNewListMap(uaInput.listName,new Airship(uaInput.idType, uaInput.id)))
     }
-    (listToIdentifierMap, uaInput.appKey)
+    else if(!appToListMap.contains(uaInput.appKey))
+    {
+      insertToAppMap(appToListMap,  getNewListMap(uaInput.listName,new Airship(uaInput.idType, uaInput.id)),uaInput.appKey)
+    }
+    else {
+      val listMapForApp: listMap = appToListMap(uaInput.appKey)
+      val listToMap: listMap = if (listMapForApp.contains(uaInput.listName)) {
+        listMapForApp ++ updateListMap(listMapForApp,uaInput.listName,new Airship(uaInput.idType, uaInput.id)) 
+      } else {
+        insertToListMap(listMapForApp,uaInput.listName,new Airship(uaInput.idType, uaInput.id))
+      }
+      appToListMap ++ updateAppMap(appToListMap,listToMap,uaInput.appKey)
+    }
+    appTolistMapNew
   }
 
 }
@@ -130,7 +144,15 @@ object UAResponder {
   case class Airship(identifierType: String, identifier: String)
 
   case class UAInput(appKey: String, listName: String, idType: String, id: String)
-
+  
+  type listMap = Map[String, List[Airship]]
+  def listMap(listName: String,list: List[Airship]) = Map(listName -> list)
+  
+  
+  type appMap = Map[String, Map[String, List[Airship]]]
+  def appMap(appKey: String,listToAirshipMap: listMap)= Map(appKey -> listToAirshipMap )
+  
+  
   def apply(urbanairship: urbanAirship)(implicit logger: ActorRef): Props =
     Props(new UAResponder(urbanairship))
 
