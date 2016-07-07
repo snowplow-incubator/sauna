@@ -85,8 +85,6 @@ class MailChimpResponder(mailchimp: mailChimp)
 
         val keys = attrs.split(",")
 
-        // do the stuff
-        println("before")
         getData(is).foreach(processData(keys, _))
     }
   }
@@ -125,13 +123,9 @@ class MailChimpResponder(mailchimp: mailChimp)
 
     
     val json = MailChimpResponder.makeValidJson(keys, probablyValid)
-    println(json)
     mailchimp.uploadToMailChimpRequest(json)
-//            .foreach { case response =>
-//              handleErrors(probablyValid.length, response.body)
-//            }
     
-    println("Upload Complete !")
+    logger ! Notification("Upload Complete !")
 
     Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
                             // so new `fileAppeared` will be processed after current one
@@ -249,25 +243,48 @@ object MailChimpResponder {
    */
   def makeValidJson(keys: Seq[String], valuess: Seq[Seq[String]]): String = {
     var count = 0
+    
+   // val opidToListMap = Map[String,(String,String)]()
+    
     val recipients = for (values <- valuess;
                           _ = assert(values.length == keys.length);
                           correctedValues = values.map(correctTimestamps))
                        yield {
                          val recipientsData = keys.zip(correctedValues)
-                         val listName = recipientsData(0)._2
-                         val recipientsData1 = recipientsData.drop(1)
-                         val bodyJson=Json.toJson(recipientsData1.toMap)
-                             .toString()
+                         val (listName, bodyList) = fieldsAllowed(recipientsData)
+                         val bodyJson=Json.toJson(bodyList.toMap)
+                         val emailId= (bodyJson \ "email_address").as[String]
+                         val body=bodyJson.toString()
                              .replaceAll("\"\"", "null") // null should be without quotations
                              .replaceAll(""""(\d+)"""", "$1") // and positive integers too
                              val path="lists/"+listName+"/members"
                              count += 1
-                          (Json.obj("method" -> "POST") ++ Json.obj("path" -> path) ++ Json.obj("operation_id" -> ("opid"+count)) ++ Json.obj("body" -> bodyJson) )
+                          
+                           
+                          (Json.obj("method" -> "POST") ++ Json.obj("path" -> path) ++ Json.obj("operation_id" -> (listName+"_"+emailId)) ++ Json.obj("body" -> body) )
                        }
     val mailchimpBatchJson = Json.obj("operations" -> recipients)
     mailchimpBatchJson.toString
   }
 
+  
+  def fieldsAllowed(data:Seq[(String,String)]):(String, Seq[(String,String)])={
+    val whiteListedFields = List("email_type","status","interests","language","vip","ip_signup","timestamp_signup","ip_opt","timestamp_opt","email_address","location.latitude","location.longitude","location.gmtoff","location.dstoff","location.country_code","location.timezone")
+    val (list1,list2) = data.partition(x => whiteListedFields.contains(x._1) == true)
+    val (listTuple,mergeList) = list2.partition(x => (x._1=="list_id"))
+    val bodyList = if(mergeList.length > 0){
+      list1 :+ ("merge_fields" -> Json.toJson(mergeList.toMap).toString  )
+    }
+    else
+    {
+      list1
+    }
+    (listTuple(0)._2,bodyList)
+  }
+  
+  
+  
+  
   /**
    * Tries to extract values from given tab-separated line.
    *

@@ -2,6 +2,8 @@ package com.snowplowanalytics.sauna
 package apis
 
 import play.api.libs.json.Json
+import play.api.libs.json.JsString
+import play.api.libs.json.JsArray
 import play.api.Play.current
 import play.api.libs.ws._
 import play.api.libs.ws.ning.NingAsyncHttpClientConfigBuilder
@@ -27,10 +29,6 @@ import javax.net.ssl.HttpsURLConnection;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.params.HttpMethodParams;
-
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
 
 import scala.concurrent._
 import scala.concurrent.duration._
@@ -80,38 +78,38 @@ def uploadToMailChimpRequest(bodyJson:String): Unit = {
 		getErrorStatus(url2)
 	}
 
-
-def getErrorStatus2(url:String):Unit={
-   val client:HttpClient = new HttpClient();
-
-    // Create a method instance.
-    val method:GetMethod = new GetMethod(url);
-    
-    // Provide custom retry handler is necessary
-   
-
-   
-      // Execute the method.
-     client.executeMethod(method);
-
-    /*  if (statusCode != HttpStatus.SC_OK) {
-        System.err.println("Method failed: " + method.getStatusLine());
-      }*/
-
-      // Read the response body.
-      
-
-      // Deal with the response.
-      // Use caution: ensure correct character encoding and is not binary data
-     // val body = method.getResponseBody()
-    // val bodystr= new String(body)
- // val myInputStream:InputStream  = new ByteArrayInputStream(bodystr.trim().getBytes()); 
-    // val st:ByteArrayInputStream=new ByteArrayInputStream(new String(body).getBytes());
-	val in:GZIPInputStream  = new GZIPInputStream(method.getResponseBodyAsStream())
-val encoding = "UTF-8"
-			      val body1 = IOUtils.toString(in, encoding)
-			      println(body1.trim())
-}
+//
+//def getErrorStatus2(url:String):Unit={
+//   val client:HttpClient = new HttpClient();
+//
+//    // Create a method instance.
+//    val method:GetMethod = new GetMethod(url);
+//    
+//    // Provide custom retry handler is necessary
+//   
+//
+//   
+//      // Execute the method.
+//     client.executeMethod(method);
+//
+//    /*  if (statusCode != HttpStatus.SC_OK) {
+//        System.err.println("Method failed: " + method.getStatusLine());
+//      }*/
+//
+//      // Read the response body.
+//      
+//
+//      // Deal with the response.
+//      // Use caution: ensure correct character encoding and is not binary data
+//     // val body = method.getResponseBody()
+//    // val bodystr= new String(body)
+// // val myInputStream:InputStream  = new ByteArrayInputStream(bodystr.trim().getBytes()); 
+//    // val st:ByteArrayInputStream=new ByteArrayInputStream(new String(body).getBytes());
+//	val in:GZIPInputStream  = new GZIPInputStream(method.getResponseBodyAsStream())
+//val encoding = "UTF-8"
+//			      val body1 = IOUtils.toString(in, encoding)
+//			      println(body1.trim())
+//}
 
 
 
@@ -129,10 +127,22 @@ val jsonBody=body1.substring(body1.indexOf('['))
   val jsonFormattedString = jsonBody.trim()
   
   val json=Json.parse(jsonFormattedString)
-  println(json)
+  //println(json)
+  val count=json.as[JsArray].value.size
   
+  for( i <- 0 to count-1)
+  {
+    val jsonElement=json(i)
   
-  
+  val statusCode=(jsonElement \ "status_code").as[Int]
+    if(statusCode!=200)
+    {
+      val opId=(jsonElement \ "operation_id").as[String]
+      val Array(listId,emailId)=opId.split("_")
+      println("Upload for emailId "+emailId+" to listid "+listId+" failed with statuscode "+statusCode)
+    }
+    
+  }
   
 }
 
