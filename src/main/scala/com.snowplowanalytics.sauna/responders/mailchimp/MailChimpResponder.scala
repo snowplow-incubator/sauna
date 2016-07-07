@@ -15,7 +15,7 @@ package responders
 package mailchimp
 
 // java
-import java.io.{InputStream, StringReader}
+import java.io.{ InputStream, StringReader }
 import java.text.SimpleDateFormat
 
 // scala
@@ -23,7 +23,7 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source.fromInputStream
 
 // akka
-import akka.actor.{ActorRef, Props}
+import akka.actor.{ ActorRef, Props }
 
 // play
 import play.api.libs.json._
@@ -38,15 +38,11 @@ import responders.Responder.FileAppeared
 import utils._
 
 /**
- * Does stuff for Sendgrid import recipients feature.
- *
- * @see https://sendgrid.com/docs/User_Guide/Marketing_Campaigns/contacts.html
- * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide
- * @param sendgrid Instance of Sendgrid.
+ * Does stuff for MailChimp import members feature.
+ * @param mailchimp Instance of MailChimp.
  * @param logger A logger actor.
  */
-class MailChimpResponder(mailchimp: mailChimp)
-                (implicit logger: ActorRef) extends Responder {
+class MailChimpResponder(mailchimp: mailChimp)(implicit logger: ActorRef) extends Responder {
   import MailChimpResponder._
 
   val pathPattern =
@@ -56,7 +52,7 @@ class MailChimpResponder(mailchimp: mailChimp)
       |tsv:([^\/]+)/
       |.+$
     """.stripMargin
-       .replaceAll("[\n ]", "")
+      .replaceAll("[\n ]", "")
   val pathRegexp = pathPattern.r
 
   override def process(fileAppeared: FileAppeared): Unit = {
@@ -67,150 +63,79 @@ class MailChimpResponder(mailchimp: mailChimp)
           logger ! Notification("Should be at least one attribute.")
           return
         }
-        
-         if (!attrs.contains("list_id")) {
+
+        if (!attrs.contains("list_id")) {
           logger ! Notification("Attribute 'list_id' must be included.")
           return
-         }
-           
+        }
+
         if (!attrs.contains("email_address")) {
           logger ! Notification("Attribute 'email_address' must be included.")
           return
         }
-        
-         if (!attrs.contains("status")) {
+
+        if (!attrs.contains("status")) {
           logger ! Notification("Attribute 'status' must be included.")
           return
         }
-
         val keys = attrs.split(",")
-
         getData(is).foreach(processData(keys, _))
     }
   }
 
   /**
-   * This method does the first part of job for "import recipients" feature.
-   * It gets file content, parses it and splits into smaller chunks to satisfy Sendgrid's limitations.
+   * This method does the first part of job for "import members" feature.
+   * It gets file content, parses it and splits into smaller chunks to satisfy Mailchimp's limitations.
    *
    * @param is InputStream to data file.
    * @return Iterator of valuess data. Valuess are extracted from the file.
-   * @see `Recipients.makeValidJson`
    */
   def getData(is: InputStream): Iterator[Seq[Seq[String]]] = {
-                       fromInputStream(is).getLines()
-                       .toSeq
-                       .flatMap(valuesFromTsv)
-                       .grouped(LINE_LIMIT)
+    fromInputStream(is).getLines()
+      .toSeq
+      .flatMap(valuesFromTsv)
+      .grouped(LINE_LIMIT)
   }
 
   /**
-   * This method does the second part of job for "import recipients" feature.
-   * It handles errors and sends result to Sendgrid.
+   * This method does the second part of job for "import members" feature.
    *
    * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
-   * @param valuess Seq of recipients, where recipient is a seq of attribute values.
+   * @param valuess Seq of members, where member is a seq of attribute values.
    *                Each `values` in `valuess` should have one length with `keys`.
-   * @see `Recipients.makeValidJson`
    */
   def processData(keys: Seq[String], valuess: Seq[Seq[String]]): Unit = {
     val (probablyValid, definitelyInvalid) = valuess.partition(_.length == keys.length)
     // deal with 100% corrupted data
     definitelyInvalid.foreach { invalidValues =>
       logger ! Notification(s"Unable to process [${invalidValues.mkString("\t")}], " +
-                            s"it has only ${invalidValues.length} columns, when ${keys.length} are required.")
+        s"it has only ${invalidValues.length} columns, when ${keys.length} are required.")
     }
 
-    
     val json = MailChimpResponder.makeValidJson(keys, probablyValid)
     mailchimp.uploadToMailChimpRequest(json)
-    
     logger ! Notification("Upload Complete !")
 
     Thread.sleep(WAIT_TIME) // note that for actor all messages come from single queue
-                            // so new `fileAppeared` will be processed after current one
+    // so new `fileAppeared` will be processed after current one
   }
 
-  /**
-   * Used to handle possible errors from Sendgrid's response.
-   * Informs user via logger ! Notification.
-   * Heavily relies to Sendgrid's response json structure.
-   *
-   * @param totalRecordsNumber Sometimes records "disappear".
-   *                           So, originally were 10, error_count = 2, updated_count = 4, new_count = 3.
-   *                           One record was lost. This param is expected total records number.
-   * @param jsonText A json text from Sendgrid.
-   *                 example:
-
-                     {
-                        "error_count":1,
-                        "error_indices":[
-                           2
-                        ],
-                        "errors":[
-                           {
-                              "error_indices":[
-                                 2
-                              ],
-                              "message":"date type conversion error"
-                           }
-                        ],
-                        "new_count":2,
-                        "persisted_recipients":[
-                           "Ym9iQGZvby5jb20=",
-                           "a2FybEBiYXIuZGU="
-                        ],
-                        "updated_count":0
-                     }
-   */
-  def handleErrors(totalRecordsNumber: Int, jsonText: String) = try {
-    val json = Json.parse(jsonText)
-    val errorCount = (json \ "error_count").as[Int]
-    val errorIndices = (json \ "error_indices").as[Seq[Int]]
-    val errorsOpt = (json \ "errors").asOpt[Seq[JsObject]]
-    val newCount = (json \ "new_count").as[Int]
-    val updatedCount = (json \ "updated_count").as[Int]
-
-    // trying to get error explanation
-    for (errorIndex <- errorIndices;
-         errors <- errorsOpt) {
-      errors.map(_.value)
-            .find(_.apply("error_indices")
-                   .as[Seq[Int]]
-                   .contains(errorIndex)) match {
-        case Some(error) =>
-          val reason = error.apply("message")
-                            .as[String]
-          logger ! Notification(s"Error $errorIndex caused due to [$reason].")
-
-        case None =>
-          logger ! Notification(s"Unable to find reason for error $errorIndex.")
-      }
-    }
-
-    if (errorCount + newCount + updatedCount != totalRecordsNumber) {
-      logger ! Notification(s"For some reasons, several records disappeared. " +
-                            s"It's rare Sendgrid's bug double-check you input. ")
-    }
-
-  } catch { case e: Exception =>
-    logger ! Notification(s"Got exception ${e.getMessage} while parsing Sendgrid's response.")
-  }
 }
 
 object MailChimpResponder {
-  val LINE_LIMIT = 1000 // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-a-Single-Recipient-to-a-List-POST
-  val WAIT_TIME = 667L // https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-Recipients-POST
+  val LINE_LIMIT = 1000
+  val WAIT_TIME = 667L
 
+  val whiteListedFields = List("email_type", "status", "interests", "language", "vip", "ip_signup", "timestamp_signup", "ip_opt", "timestamp_opt", "email_address", "location.latitude", "location.longitude", "location.gmtoff", "location.dstoff", "location.country_code", "location.timezone")
   val dateFormatFull = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
   val dateRegexpFull = "^(\\d{1,4}-\\d{1,2}-\\d{1,2} \\d{1,2}:\\d{1,2}:\\d{1,2}\\.\\d{1,3})$".r
   val dateFormatShort = new SimpleDateFormat("yyyy-MM-dd")
   val dateRegexpShort = "^(\\d{1,4}-\\d{1,2}-\\d{1,2})$".r
 
   /**
-   * Constructs a Props for Recipients actor.
+   * Constructs a Props for MailChimpResponder actor.
    *
-   * @param sendgrid Instance of Sendgrid.
+   * @param mailchimp	 Instance of Mailchimp.
    * @param logger Actor with underlying Logger.
    * @return Props for new actor.
    */
@@ -218,73 +143,51 @@ object MailChimpResponder {
     Props(new MailChimpResponder(mailchimp))
 
   /**
-   * Creates a Sendgrid-friendly json from given keys and valuess.
-   *
-   * For example, for `keys` = Seq("name1", "name2"),
-   *                  `valuess` = Seq(Seq("value11", "value12"), Seq("value21", "value22")),
-   * result would be:
-   *
-   * [
-   *   {
-   *     "name1": "value11",
-   *     "name2": "value12"
-   *   },
-   *   {
-   *     "name1": "value21",
-   *     "name2": "value22"
-   *   }
-   * ]
+   * Creates a MailChimp-friendly json from given keys and valuess.
    *
    * @param keys Seq of attribute keys, repeated for each recipient from `valuess`.
    * @param valuess Seq of recipients, where recipient is a seq of attribute values.
    *                Each `values` in `valuess` must already have one length with `keys`.
-   * @return Sendgrid-friendly json.
-   * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
+   * @return MailChimp-friendly json.
+   * @see https://github.com/snowplow/sauna/wiki/MailChimp-responder-user-guide#214-response-algorithm
    */
   def makeValidJson(keys: Seq[String], valuess: Seq[Seq[String]]): String = {
-    var count = 0
-    
-   // val opidToListMap = Map[String,(String,String)]()
-    
-    val recipients = for (values <- valuess;
-                          _ = assert(values.length == keys.length);
-                          correctedValues = values.map(correctTimestamps))
-                       yield {
-                         val recipientsData = keys.zip(correctedValues)
-                         val (listName, bodyList) = fieldsAllowed(recipientsData)
-                         val bodyJson=Json.toJson(bodyList.toMap)
-                         val emailId= (bodyJson \ "email_address").as[String]
-                         val body=bodyJson.toString()
-                             .replaceAll("\"\"", "null") // null should be without quotations
-                             .replaceAll(""""(\d+)"""", "$1") // and positive integers too
-                             val path="lists/"+listName+"/members"
-                             count += 1
-                          
-                           
-                          (Json.obj("method" -> "POST") ++ Json.obj("path" -> path) ++ Json.obj("operation_id" -> (listName+"_"+emailId)) ++ Json.obj("body" -> body) )
-                       }
+    val recipients = for (
+      values <- valuess;
+      _ = assert(values.length == keys.length);
+      correctedValues = values.map(correctTimestamps)
+    ) yield {
+      val recipientsData = keys.zip(correctedValues)
+      val (listName, bodyList) = fieldsAllowed(recipientsData)
+      val bodyJson = Json.toJson(bodyList.toMap)
+      val emailId = (bodyJson \ "email_address").as[String]
+      val body = bodyJson.toString()
+        .replaceAll("\"\"", "null") // null should be without quotations
+        .replaceAll(""""(\d+)"""", "$1") // and positive integers too
+      val path = "lists/" + listName + "/members"
+      (Json.obj("method" -> "POST") ++ Json.obj("path" -> path) ++ Json.obj("operation_id" -> (listName + "_" + emailId)) ++ Json.obj("body" -> body))
+    }
     val mailchimpBatchJson = Json.obj("operations" -> recipients)
     mailchimpBatchJson.toString
   }
 
+  /**
+   * gets the Seq of key value pairs and convert it to a Seq of only whitelisted fields and rest as merge fields
+   * @param data Seq of key value pairs
+   * @return tuple of listId and the Seq of key value pairs with only Mailchimp whitelisted fields and rest as merge fields
+   **/
   
-  def fieldsAllowed(data:Seq[(String,String)]):(String, Seq[(String,String)])={
-    val whiteListedFields = List("email_type","status","interests","language","vip","ip_signup","timestamp_signup","ip_opt","timestamp_opt","email_address","location.latitude","location.longitude","location.gmtoff","location.dstoff","location.country_code","location.timezone")
-    val (list1,list2) = data.partition(x => whiteListedFields.contains(x._1) == true)
-    val (listTuple,mergeList) = list2.partition(x => (x._1=="list_id"))
-    val bodyList = if(mergeList.length > 0){
-      list1 :+ ("merge_fields" -> Json.toJson(mergeList.toMap).toString  )
-    }
-    else
-    {
+  def fieldsAllowed(data: Seq[(String, String)]): (String, Seq[(String, String)]) = { 
+    val (list1, list2) = data.partition(x => whiteListedFields.contains(x._1) == true)
+    val (listTuple, mergeList) = list2.partition(x => (x._1 == "list_id"))
+    val bodyList = if (mergeList.length > 0) {
+      list1 :+ ("merge_fields" -> Json.toJson(mergeList.toMap).toString)
+    } else {
       list1
     }
-    (listTuple(0)._2,bodyList)
+    (listTuple(0)._2, bodyList)
   }
-  
-  
-  
-  
+
   /**
    * Tries to extract values from given tab-separated line.
    *
@@ -296,7 +199,7 @@ object MailChimpResponder {
     try {
       reader.readNext() // get next line, it should be only one
     } catch {
-      
+
       case _: Exception => None
 
     } finally {
@@ -308,19 +211,19 @@ object MailChimpResponder {
    * Corrects a single string according to following rules:
    *   1) change timestamps words to epochs
    *
-   * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
+   * @see https://github.com/snowplow/sauna/wiki/MailChimp-responder-user-guide
    * @param s A string to be corrected.
    * @return Corrected word.
    */
   def correctTimestamps(s: String): String = s match {
     case dateRegexpFull(timestamp) => dateFormatFull.parse(timestamp)
-                                                    .getTime
-                                                    ./(1000) // seems like Sendgrid does not accept milliseconds
-                                                    .toString
+      .getTime
+      ./(1000) // seems like MailChimp does not accept milliseconds
+      .toString
     case dateRegexpShort(timestamp) => dateFormatShort.parse(timestamp)
-                                                      .getTime
-                                                      ./(1000) // seems like Sendgrid does not accept milliseconds
-                                                      .toString
+      .getTime
+      ./(1000) // seems like MailChimp does not accept milliseconds
+      .toString
     case _ => s
   }
 }
