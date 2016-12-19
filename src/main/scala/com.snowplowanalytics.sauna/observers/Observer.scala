@@ -18,6 +18,7 @@ import scala.util.control.NonFatal
 
 // awscala
 import awscala.sqs.SQS
+import com.amazonaws.services.kinesis.model.Record
 
 // akka
 import akka.actor.{ Actor, ActorRef }
@@ -84,6 +85,19 @@ object Observer {
     } catch {
       case NonFatal(e) => None
     }
+  }
+
+
+
+  /**
+   * Record has been received from AWS Kinesis Stream
+   *
+   * @param streamName name of kinesis stream
+   * @param record kinesis record
+   */
+  case class KinesisRecordReceived(streamName: String, record: Record, observer: ActorRef) extends ObserverBatchEvent {
+    def path = streamName
+    def streamContent = None
   }
 
   /**

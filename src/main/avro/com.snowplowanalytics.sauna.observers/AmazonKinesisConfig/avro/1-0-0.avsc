@@ -1,0 +1,46 @@
+{
+  "namespace": "com.snowplowanalytics.sauna.observers",
+  "name": "AmazonKinesisConfig",
+  "type": "record",
+  "fields": [
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "id",
+      "type": "string"
+    },
+    { "name": "parameters",
+      "type": {
+        "name": "AmazonKinesisConfigParameters",
+        "type": "record",
+        "fields": [
+          {
+            "name": "awsRegion",
+            "type": ["null", "string"],
+            "default": null
+          },
+          {
+            "name": "awsAccessKeyId",
+            "type": ["null", "string"],
+            "default": null
+          },
+          {
+            "name": "awsSecretAccessKey",
+            "type": ["null", "string"],
+            "default": null
+          },
+          {
+            "name": "applicationName",
+            "type": "string"
+          },
+          {
+            "name": "kinesisStreamName",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}
