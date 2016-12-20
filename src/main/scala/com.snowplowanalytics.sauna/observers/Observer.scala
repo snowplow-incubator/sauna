@@ -102,7 +102,7 @@ object Observer {
     val byteArray = new Array[Byte](byteBuffer.remaining())
     byteBuffer.get(byteArray)
 
-    def path = s"${streamName}-${seqNr}"
+    def path = s"kinesis-${streamName}-${seqNr}"
     def streamContent = Some(new ByteArrayInputStream(byteArray))
   }
 
