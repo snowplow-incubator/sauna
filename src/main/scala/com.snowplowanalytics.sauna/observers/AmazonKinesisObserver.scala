@@ -57,7 +57,7 @@ class AmazonKinesisObserver(streamName: String, kclConfig: KinesisClientLibConfi
     KCLWorkerRunner(kclConfig).runAsyncSingleRecordProcessor[Record](1 minute) { record: Record =>
       Future {
         notify(s"Got a Kinesis Record from ${streamName}")
-        context.parent ! KinesisRecordReceived(streamName, record, self)
+        context.parent ! KinesisRecordReceived(streamName, record.getSequenceNumber(), record.getData(), self)
 
         record
       }

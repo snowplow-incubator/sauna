@@ -26,6 +26,8 @@ import akka.actor.{ Actor, ActorRef }
 // java
 import java.io.InputStream
 import java.nio.file._
+import java.nio.ByteBuffer
+import java.io.ByteArrayInputStream
 
 // sauna
 import responders.Responder.S3Source
@@ -95,9 +97,13 @@ object Observer {
    * @param streamName name of kinesis stream
    * @param record kinesis record
    */
-  case class KinesisRecordReceived(streamName: String, record: Record, observer: ActorRef) extends ObserverBatchEvent {
-    def path = streamName
-    def streamContent = None
+  case class KinesisRecordReceived(streamName: String, seqNr: String, data: ByteBuffer, observer: ActorRef) extends ObserverBatchEvent {
+    val byteBuffer = data
+    val byteArray = new Array[Byte](byteBuffer.remaining())
+    byteBuffer.get(byteArray)
+
+    def path = s"${streamName}-${seqNr}"
+    def streamContent = Some(new ByteArrayInputStream(byteArray))
   }
 
   /**
