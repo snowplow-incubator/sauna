@@ -142,7 +142,7 @@ object AmazonS3Observer {
   def props(parameters: AmazonS3ConfigParameters): Props = {
     // AWS configuration. Safe to throw exception on initialization
     val region = Region(parameters.awsRegion)
-    val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsAccessKeyId)
+    val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)
     val s3 = S3(credentials)(region)
     val sqs = SQS(credentials)(region)
     val queue = sqs.queue(parameters.sqsQueueName)
