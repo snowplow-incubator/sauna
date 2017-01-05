@@ -18,17 +18,17 @@
         "fields": [
           {
             "name": "awsRegion",
-            "type": ["null", "string"],
+            "type": "string",
             "default": null
           },
           {
             "name": "awsAccessKeyId",
-            "type": ["null", "string"],
+            "type": "string",
             "default": null
           },
           {
             "name": "awsSecretAccessKey",
-            "type": ["null", "string"],
+            "type": "string",
             "default": null
           },
           {
