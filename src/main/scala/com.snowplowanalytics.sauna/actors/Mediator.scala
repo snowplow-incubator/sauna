@@ -146,6 +146,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
               original match {
                 case l: LocalFilePublished => original.observer ! Observer.DeleteLocalFile(l.file)
                 case s: S3FilePublished => original.observer ! Observer.DeleteS3Object(s.path, s.s3Source)
+                case r: KinesisRecordReceived =>
               }
               processedEvents.remove(original)
             case InProcess(stillWorking) =>
