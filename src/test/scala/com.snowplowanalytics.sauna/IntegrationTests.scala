@@ -62,7 +62,7 @@ object IntegrationTests {
   /**
    * Supervisor actor
    */
-  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil)) {
+  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil, Nil)) {
     override val observers = List(context.actorOf(observerProps))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
   }
@@ -91,7 +91,7 @@ object IntegrationTests {
   /**
    * Supervisor actor tracking execution time
    */
-  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil)) {
+  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil, Nil)) {
     override val logger = context.actorOf(Props(new NoopActor))
     override val observers = List(context.actorOf(Props(new NoopActor)))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
@@ -349,9 +349,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "Detected new S3 file"
           if (!message.text.contains(expectedText)) {
             error = s"In step1, [${message.text}] does not contain [$expectedText]"
-          } else { 
+          } else {
             error = "Remain on step1"
-            context.become(step2) 
+            context.become(step2)
           }
 
         case message =>
@@ -363,9 +363,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "Successfully uploaded targeting lists with name"
           if (!message.text.startsWith(expectedText)) {
             error = s"In step2, [${message.text}] does not start with [$expectedText]"
-          } else { 
+          } else {
             error = "Remain on step2"
-            context.become(step3) 
+            context.become(step3)
           }
 
         case message: Manifestation =>
@@ -380,9 +380,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "warehouse.tsv has been successfully published"
           if (!message.text.endsWith(expectedText)) {
             error = s"In step3, [${message.text}] does not end with [$expectedText]"
-          } else { 
+          } else {
             error = "Remain on step3"
-            context.become(step4) 
+            context.become(step4)
           }
 
         case message =>

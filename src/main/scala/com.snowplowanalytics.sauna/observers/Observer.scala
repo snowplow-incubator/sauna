@@ -89,20 +89,20 @@ object Observer {
     }
   }
 
-
-
   /**
    * Record has been received from AWS Kinesis Stream
    *
    * @param streamName name of kinesis stream
-   * @param record kinesis record
+   * @param seqNr unique sequence number assigned to record
+   * @param data buffer containing data carried by record
+   * @param observer observer that witnessed the record receipt
    */
   case class KinesisRecordReceived(streamName: String, seqNr: String, data: ByteBuffer, observer: ActorRef) extends ObserverBatchEvent {
     val byteBuffer = data
     val byteArray = new Array[Byte](byteBuffer.remaining())
     byteBuffer.get(byteArray)
 
-    def path = s"kinesis-${streamName}-${seqNr}"
+    def path = s"kinesis-$streamName-$seqNr"
     def streamContent = Some(new ByteArrayInputStream(byteArray))
   }
 
