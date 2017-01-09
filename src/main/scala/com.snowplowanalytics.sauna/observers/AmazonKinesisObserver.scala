@@ -14,6 +14,7 @@ package com.snowplowanalytics.sauna
 package observers
 
 // scala
+import scala.language.postfixOps
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.Future
 import scala.concurrent.duration._
@@ -22,7 +23,7 @@ import scala.concurrent.duration._
 import akka.actor._
 
 // amazonaws
-import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials, DefaultAWSCredentialsProviderChain}
+import com.amazonaws.auth.{AWSCredentialsProvider, BasicAWSCredentials}
 import com.amazonaws.services.kinesis.clientlibrary.lib.worker.KinesisClientLibConfiguration
 import com.amazonaws.services.kinesis.model.Record
 
@@ -49,8 +50,6 @@ class AmazonKinesisObserver(streamName: String, kclConfig: KinesisClientLibConfi
       Future {
         notify(s"Received Kinesis Record from $streamName")
         context.parent ! KinesisRecordReceived(streamName, record.getSequenceNumber(), record.getData(), self)
-
-        record
       }
     }
   }
@@ -65,37 +64,24 @@ object AmazonKinesisObserver {
     Props(new AmazonKinesisObserver(streamName, kclConfig))
 
   def props(parameters: AmazonKinesisConfigParameters): Props = {
+
     // AWS configuration. Safe to throw exception on initialization
-    val credentialsProvider = if(parameters.awsSecretAccessKey.isEmpty) {
-      new DefaultAWSCredentialsProviderChain()
-    } else {
-      val credentials = new BasicAWSCredentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)
+    val credentials = new BasicAWSCredentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)
 
-      class KinesisCredentialsProvider(credentials: BasicAWSCredentials) extends AWSCredentialsProvider {
-        def refresh() = { }
-        def getCredentials = credentials
-      }
-
-      new KinesisCredentialsProvider(credentials)
+    class KinesisCredentialsProvider(credentials: BasicAWSCredentials) extends AWSCredentialsProvider {
+      def refresh() = { }
+      def getCredentials = credentials
     }
 
-    val kclConfiguration = if(parameters.awsRegion.isEmpty) {
-      KCLConfiguration(
-        parameters.applicationName,
-        parameters.kinesisStreamName,
-        credentialsProvider,
-        credentialsProvider,
-        credentialsProvider
-      )
-    } else {
-      KCLConfiguration(
-        parameters.applicationName,
-        parameters.kinesisStreamName,
-        credentialsProvider,
-        credentialsProvider,
-        credentialsProvider
-      ).withRegionName(parameters.awsRegion)
-    }
+    val credentialsProvider = new KinesisCredentialsProvider(credentials)
+
+    val kclConfiguration = KCLConfiguration(
+      parameters.applicationName,
+      parameters.kinesisStreamName,
+      credentialsProvider,
+      credentialsProvider,
+      credentialsProvider
+    ).withRegionName(parameters.awsRegion)
 
     props(parameters.kinesisStreamName, kclConfiguration)
   }
