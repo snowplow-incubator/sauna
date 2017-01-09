@@ -52,7 +52,8 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[OptimizelyConfig],
       getConfig[SendgridConfig],
       getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config])
+      getConfigs[AmazonS3Config],
+      getConfigs[AmazonKinesisConfig])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,

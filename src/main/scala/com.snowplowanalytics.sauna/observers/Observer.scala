@@ -25,6 +25,8 @@ import akka.actor.{ Actor, ActorRef }
 // java
 import java.io.InputStream
 import java.nio.file._
+import java.nio.ByteBuffer
+import java.io.ByteArrayInputStream
 
 // sauna
 import responders.Responder.S3Source
@@ -84,6 +86,26 @@ object Observer {
     } catch {
       case NonFatal(e) => None
     }
+  }
+
+  /**
+   * Record has been received from AWS Kinesis Stream
+   *
+   * @param streamName name of kinesis stream
+   * @param seqNr unique sequence number assigned to record
+   * @param data buffer containing data carried by record
+   * @param observer observer that witnessed the record receipt
+   */
+  case class KinesisRecordReceived(streamName: String, seqNr: String, data: ByteBuffer, observer: ActorRef) extends ObserverBatchEvent {
+    val byteArray: Array[Byte] = {
+      val bufferDuplicate = data.duplicate
+      val array = new Array[Byte](bufferDuplicate.remaining())
+      bufferDuplicate.get(array)
+      array
+    }
+
+    def path = s"kinesis-$streamName-$seqNr"
+    def streamContent = Some(new ByteArrayInputStream(byteArray))
   }
 
   /**
