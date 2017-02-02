@@ -62,7 +62,7 @@ object IntegrationTests {
   /**
    * Supervisor actor
    */
-  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil)) {
+  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings(None, None, None, None, None, Nil, Nil)) {
     override val observers = List(context.actorOf(observerProps))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
   }
@@ -91,7 +91,7 @@ object IntegrationTests {
   /**
    * Supervisor actor tracking execution time
    */
-  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil)) {
+  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings(None, None, None, None, None, Nil, Nil)) {
     override val logger = context.actorOf(Props(new NoopActor))
     override val observers = List(context.actorOf(Props(new NoopActor)))
     override val responderActors = respondersProps.map(p => context.actorOf(p))

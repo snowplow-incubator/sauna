@@ -15,39 +15,45 @@ import sbt._
 
 object Dependencies {
   object V {
-    val typesafeConfig = "1.3.0"
-    val totoshi = "1.2.2"
-    val awscala = "0.5.7"
-    val nscalaTime = "2.12.0"
-    val scopt = "3.5.0"
-    val avro4s = "1.5.4"
-    val play = "2.4.8"
-    val akka = "2.4.9"
-    val igluCore = "0.1.0"
-    val scalaTest = "2.2.4"
+    val typesafeConfig   = "1.3.0"
+    val totoshi          = "1.2.2"
+    val awscala          = "0.5.7"
+    val nscalaTime       = "2.12.0"
+    val scopt            = "3.5.0"
+    val avro4s           = "1.5.4"
+    val play             = "2.4.8"
+    val akka             = "2.4.9"
+    val igluCore         = "0.1.0"
+    val igluScalaClient  = "0.5.0"
+    val scalaTest        = "2.2.4"
+  }
+
+  object Resolvers {
+    val snowplowRepo     = "Snowplow Repo"    at "http://maven.snplow.com/releases/"
+    val sonatypeRepo     = "Sonatype"         at "https://oss.sonatype.org/content/repositories/releases"
   }
 
   object Libraries {
     // Java
-    val typesafeConfig   = "com.typesafe"           % "config"              % V.typesafeConfig
+    val typesafeConfig   = "com.typesafe"           % "config"                      % V.typesafeConfig
 
     // Scala
-    val totoshi          = "com.github.tototoshi"   %% "scala-csv"          % V.totoshi
-    val awscala          = "com.github.seratch"     %% "awscala"            % V.awscala
-    val nscalaTime       = "com.github.nscala-time" %% "nscala-time"        % V.nscalaTime
-    val scopt            = "com.github.scopt"       %% "scopt"              % V.scopt
-    val avro4s           = "com.sksamuel.avro4s"    %% "avro4s-core"        % V.avro4s
-    val playJson         = "com.typesafe.play"      %% "play-json"          % V.play
-    val playWs           = "com.typesafe.play"      %% "play-ws"            % V.play
-    val akkaActor        = "com.typesafe.akka"      %% "akka-actor"         % V.akka
-    val akkaStreams      = "com.typesafe.akka"      %% "akka-stream"        % V.akka
-    val akkaCluster      = "com.typesafe.akka"      %% "akka-cluster"       % V.akka
-    val akkaClusterTools = "com.typesafe.akka"      %% "akka-cluster-tools" % V.akka
-    val igluCore         = "com.snowplowanalytics"  %% "iglu-core"          % V.igluCore
+    val totoshi          = "com.github.tototoshi"   %% "scala-csv"                  % V.totoshi
+    val awscala          = "com.github.seratch"     %% "awscala"                    % V.awscala
+    val nscalaTime       = "com.github.nscala-time" %% "nscala-time"                % V.nscalaTime
+    val scopt            = "com.github.scopt"       %% "scopt"                      % V.scopt
+    val avro4s           = "com.sksamuel.avro4s"    %% "avro4s-core"                % V.avro4s
+    val playJson         = "com.typesafe.play"      %% "play-json"                  % V.play
+    val playWs           = "com.typesafe.play"      %% "play-ws"                    % V.play
+    val akkaActor        = "com.typesafe.akka"      %% "akka-actor"                 % V.akka
+    val akkaStreams      = "com.typesafe.akka"      %% "akka-stream"                % V.akka
+    val akkaCluster      = "com.typesafe.akka"      %% "akka-cluster"               % V.akka
+    val akkaClusterTools = "com.typesafe.akka"      %% "akka-cluster-tools"         % V.akka
+    val igluCore         = "com.snowplowanalytics"  %% "iglu-core"                  % V.igluCore
+    val igluScalaClient  = "com.snowplowanalytics"  %% "iglu-scala-client"          % V.igluScalaClient
 
     // Test
     val akkaTestkit      = "com.typesafe.akka"      %% "akka-testkit"       % V.akka              // scope to test?
     val scalaTest        = "org.scalatest"          %% "scalatest"          % V.scalaTest         % "test"
   }
-
 }

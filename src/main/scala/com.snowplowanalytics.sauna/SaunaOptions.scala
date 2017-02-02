@@ -30,16 +30,17 @@ import com.sksamuel.avro4s._
 import play.api.libs.json._
 
 // sauna
-import responders._
 import loggers._
 import observers._
+import responders._
 
 /**
  * Options parsed from command line
- * 
+ *
  * @param configurationLocation root to directory with all configuration files
  */
 case class SaunaOptions(configurationLocation: File) {
+
   import SaunaOptions._
 
   /**
@@ -48,16 +49,17 @@ case class SaunaOptions(configurationLocation: File) {
   def extract: SaunaSettings =
     SaunaSettings(
       getConfig[AmazonDynamodbConfig],
-      getConfig[HipchatConfig],
+      getConfig[loggers.HipchatConfig],
       getConfig[OptimizelyConfig],
       getConfig[SendgridConfig],
+      getConfig[responders.HipchatConfig],
       getConfigs[LocalFilesystemConfig],
       getConfigs[AmazonS3Config])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
    * which was valid self-describing Avro
-   * Key - class name, value - map of ids to content of `data` field 
+   * Key - class name, value - map of ids to content of `data` field
    * anything except observers is single-element/no-element list
    */
   private lazy val configMap: Map[String, List[Array[Byte]]] =
@@ -131,7 +133,7 @@ object SaunaOptions {
    * JSON that contains `schema` and `data`
    *
    * @param schema string of SchemaKey
-   * @param data JSON instance with configuration
+   * @param data   JSON instance with configuration
    */
   private[sauna] case class Envelope(schema: SchemaKey, data: JsValue)
 
@@ -145,7 +147,7 @@ object SaunaOptions {
   def buildConfigMap(files: List[File]): Either[String, Map[String, List[Envelope]]] = {
     val enabledConfigs = sequence(files.map(parseSelfDescribing)).right.map { configs =>
       configs.filter(filterEnabled).groupBy(_.schema.name)
-    }.left.map( list => list.mkString(", "))
+    }.left.map(list => list.mkString(", "))
 
     enabledConfigs.right.flatMap { map =>
       getUnique(map)
@@ -165,7 +167,7 @@ object SaunaOptions {
       val json = Json.parse(content)
       val envelope = for {
         schema <- (json \ "schema").asOpt[String].flatMap(SchemaKey.fromUri)
-        data   <- (json \ "data").asOpt[JsObject]
+        data <- (json \ "data").asOpt[JsObject]
       } yield Envelope(schema, data)
       envelope match {
         case Some(e) => Right(e)

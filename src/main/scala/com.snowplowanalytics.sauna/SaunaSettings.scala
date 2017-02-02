@@ -13,29 +13,31 @@
 package com.snowplowanalytics.sauna
 
 // sauna
-import responders._
 import loggers._
 import observers._
+import responders._
 
 /**
  * Global settings-object, required to run whole application,
  * aggregating Avro-generated configuration classes for each entity
  *
- * @param amazonDynamodbConfig optional DynamoDB logger configuration
- * @param hipchatConfig optional Hipchat logger configuration
- * @param optimizelyConfig optional Optimizely responders configuration
- * @param sendgridConfig optional Sendgrid resonder configuration
+ * @param amazonDynamodbConfig   optional DynamoDB logger configuration
+ * @param hipchatLoggerConfig    optional Hipchat logger configuration
+ * @param optimizelyConfig       optional Optimizely responder configuration
+ * @param sendgridConfig         optional Sendgrid responder configuration
+ * @param hipchatResponderConfig optional Hipchat responder configuration
  * @param localFilesystemConfigs list of local roots to observe
- * @param amazonS3Configs list of S3 buckets to observe
+ * @param amazonS3Configs        list of S3 buckets to observe
  */
 case class SaunaSettings(
   // Loggers
   amazonDynamodbConfig: Option[AmazonDynamodbConfig],
-  hipchatConfig: Option[HipchatConfig],
+  hipchatLoggerConfig: Option[loggers.HipchatConfig],
 
   // Responders
   optimizelyConfig: Option[OptimizelyConfig],
   sendgridConfig: Option[SendgridConfig],
+  hipchatResponderConfig: Option[responders.HipchatConfig],
 
   // Observers
   localFilesystemConfigs: List[LocalFilesystemConfig],
