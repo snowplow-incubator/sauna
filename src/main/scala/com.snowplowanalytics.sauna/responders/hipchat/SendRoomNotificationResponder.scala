@@ -41,7 +41,7 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
         val commandJson = Json.parse(Source.fromInputStream(is).mkString)
         Command.extractCommand[RoomNotification](commandJson) match {
           case Right((envelope, data)) =>
-            Command.processEnvelope(envelope) match {
+            Command.validateEnvelope(envelope) match {
               case None =>
                 Some(RoomNotificationReceived(data, observerEvent))
               case Some(error) =>

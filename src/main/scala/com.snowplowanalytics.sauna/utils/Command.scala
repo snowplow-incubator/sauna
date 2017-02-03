@@ -65,7 +65,7 @@ object Command {
   implicit val selfDescribingDataReads: Reads[SelfDescribing] = (
     (JsPath \ "schema").read[SchemaKey] and
       (JsPath \ "data").read[JsValue]
-    ) (SelfDescribing.apply(_, _))
+    ) (SelfDescribing.apply _)
 
   implicit val saunaCommandReads: Reads[SaunaCommand] = (
     (JsPath \ "envelope").read[SelfDescribing] and
@@ -74,14 +74,11 @@ object Command {
 
   sealed trait Semantics
   case object AT_LEAST_ONCE extends Semantics
-  object Semantics {
-    val values = List(AT_LEAST_ONCE)
-  }
 
   implicit val semanticsReads: Reads[Semantics] = Reads {
-    case JsString(s) => Semantics.values.find(value => value.toString == s) match {
-      case Some(value) => JsSuccess(value)
-      case None => JsError(s"Invalid Semantics: $s")
+    case JsString(s) => s match {
+      case "AT_LEAST_ONCE" => JsSuccess(AT_LEAST_ONCE)
+      case _ => JsError(s"Invalid Semantics: $s")
     }
     case _ => JsError("Non-string Semantics")
   }
@@ -120,47 +117,55 @@ object Command {
   implicit val commandEnvelopeReads: Reads[CommandEnvelope] = Json.reads[CommandEnvelope]
 
   /**
-   * Attempts to extract a Sauna command from a [[JsValue]].
+   * Attempts to extract a Sauna command from a [[JsValue]]. If successful,
+   * passes it on to the processing method.
    *
    * @param json The [[JsValue]] to extract a command from.
    * @tparam T The type of the command's data.
    * @return Right containing a tuple of the command's envelope and data
-   *         if the extraction was successful, Left containing an error message
-   *         otherwise.
+   *         if the extraction and processing was successful, Left containing
+   *         an error message otherwise.
    */
   def extractCommand[T](json: JsValue)(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
     json.validate[SelfDescribing] match {
       case JsSuccess(selfDescribing, _) =>
-        val validateRoot = validateSelfDescribing(selfDescribing)
-        if (validateRoot.isDefined)
-          Left(s"Could not validate command JSON: ${validateRoot.get}")
-        else
-          selfDescribing.data.validate[SaunaCommand] match {
-            case JsSuccess(command, _) =>
-              val validateEnvelope = validateSelfDescribing(command.envelope)
-              if (validateEnvelope.isDefined)
-                Left(s"Could not validate command envelope JSON: ${validateEnvelope.get}")
-              else
-                command.envelope.data.validate[CommandEnvelope] match {
-                  case JsSuccess(envelope, _) =>
-                    val validateCommand = validateSelfDescribing(command.command)
-                    if (validateCommand.isDefined)
-                      Left(s"Could not validate command data JSON: ${validateCommand.get}")
-                    else
-                      command.command.data.validate[T] match {
-                        case JsSuccess(data, _) =>
-                          Right((envelope, data))
-                        case JsError(error) =>
-                          Left(s"Encountered an issue while parsing Sauna command data: $error")
-                      }
-                  case JsError(error) =>
-                    Left(s"Encountered an issue while parsing Sauna command envelope: $error")
+        validateSelfDescribing(selfDescribing) match {
+          case None =>
+            selfDescribing.data.validate[SaunaCommand] match {
+              case JsSuccess(command, _) => processCommand[T](command)
+              case JsError(error) => Left(s"Encountered an issue while parsing Sauna command: $error")
+            }
+          case Some(error) => Left(s"Could not validate command JSON: $error")
+        }
+      case JsError(error) => Left(s"Encountered an issue while parsing self-describing JSON: $error")
+    }
+  }
+
+  /**
+   * Processes a Sauna command, validating its' envelope and extracting the data.
+   *
+   * @param command A Sauna commmand.
+   * @tparam T The type of the command's data.
+   * @return Right containing a tuple of the command's envelope and data
+   *         if the processing was successful, Left containing
+   *         an error message otherwise.
+   */
+  def processCommand[T](command: SaunaCommand)(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
+    validateSelfDescribing(command.envelope) match {
+      case None =>
+        command.envelope.data.validate[CommandEnvelope] match {
+          case JsSuccess(envelope, _) =>
+            validateSelfDescribing(command.command) match {
+              case None =>
+                command.command.data.validate[T] match {
+                  case JsSuccess(data, _) => Right((envelope, data))
+                  case JsError(error) => Left(s"Encountered an issue while parsing Sauna command data: $error")
                 }
-            case JsError(error) =>
-              Left(s"Encountered an issue while parsing Sauna command: $error")
-          }
-      case JsError(error) =>
-        Left(s"Encountered an issue while parsing self-describing JSON: $error")
+              case Some(error) => Left(s"Could not validate command data JSON: $error")
+            }
+          case JsError(error) => Left(s"Encountered an issue while parsing Sauna command envelope: $error")
+        }
+      case Some(error) => Left(s"Could not validate command envelope JSON: ${error}")
     }
   }
 
@@ -193,14 +198,14 @@ object Command {
   }
 
   /**
-   * Processes a Sauna command envelope.
+   * Validates a Sauna command envelope.
    *
    * @param envelope A Sauna command envelope.
-   * @return None if the envelope was successfully processed
+   * @return None if the envelope was successfully validated
    *         and the command's data can be executed,
    *         Some containing an error message otherwise.
    */
-  def processEnvelope(envelope: CommandEnvelope): Option[String] = {
+  def validateEnvelope(envelope: CommandEnvelope): Option[String] = {
     for {
       ms <- envelope.execution.timeToLive
       commandLife = envelope.whenCreated.until(LocalDateTime.now(), ChronoUnit.MILLIS)

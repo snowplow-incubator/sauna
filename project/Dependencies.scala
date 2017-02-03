@@ -28,11 +28,6 @@ object Dependencies {
     val scalaTest        = "2.2.4"
   }
 
-  object Resolvers {
-    val snowplowRepo     = "Snowplow Repo"    at "http://maven.snplow.com/releases/"
-    val sonatypeRepo     = "Sonatype"         at "https://oss.sonatype.org/content/repositories/releases"
-  }
-
   object Libraries {
     // Java
     val typesafeConfig   = "com.typesafe"           % "config"                      % V.typesafeConfig

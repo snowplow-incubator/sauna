@@ -24,12 +24,6 @@ lazy val root = (project in file("."))
   .settings(BuildSettings.sbtAssemblySettings)
   .settings(BuildSettings.deploySettings)
   .settings(
-    resolvers ++= Seq(
-      Dependencies.Resolvers.snowplowRepo,
-      Dependencies.Resolvers.sonatypeRepo
-    )
-  )
-  .settings(
     libraryDependencies ++= Seq(
       Dependencies.Libraries.totoshi,
       Dependencies.Libraries.awscala,

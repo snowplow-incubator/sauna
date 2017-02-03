@@ -152,7 +152,7 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         Some(100)
       ),
       null)
-    val result = Command.processEnvelope(envelope)
+    val result = Command.validateEnvelope(envelope)
     assert(result.value.contains("Command has expired"))
   }
 
@@ -165,7 +165,7 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         Some(3600000)
       ),
       null)
-    val result = Command.processEnvelope(envelope)
+    val result = Command.validateEnvelope(envelope)
     assert(result.isEmpty)
   }
 }
