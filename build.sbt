@@ -27,6 +27,8 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       Dependencies.Libraries.totoshi,
       Dependencies.Libraries.awscala,
+      Dependencies.Libraries.gfcAwsKinesis,
+      Dependencies.Libraries.gfcAwsKinesisAkka,
       Dependencies.Libraries.nscalaTime,
       Dependencies.Libraries.scopt,
       Dependencies.Libraries.avro4s,

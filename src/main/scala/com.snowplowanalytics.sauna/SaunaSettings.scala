@@ -28,6 +28,7 @@ import responders._
  * @param hipchatResponderConfig optional Hipchat responder configuration
  * @param localFilesystemConfigs list of local roots to observe
  * @param amazonS3Configs        list of S3 buckets to observe
+ * @param amazonKinesisConfigs   list of Kinesis streams to observe
  */
 case class SaunaSettings(
   // Loggers
@@ -41,5 +42,5 @@ case class SaunaSettings(
 
   // Observers
   localFilesystemConfigs: List[LocalFilesystemConfig],
-  amazonS3Configs: List[AmazonS3Config])
-
+  amazonS3Configs: List[AmazonS3Config],
+  amazonKinesisConfigs: List[AmazonKinesisConfig])

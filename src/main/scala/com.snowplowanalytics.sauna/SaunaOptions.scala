@@ -54,7 +54,8 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[SendgridConfig],
       getConfig[responders.HipchatConfig],
       getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config])
+      getConfigs[AmazonS3Config],
+      getConfigs[AmazonKinesisConfig])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
@@ -146,7 +147,7 @@ object SaunaOptions {
    */
   def buildConfigMap(files: List[File]): Either[String, Map[String, List[Envelope]]] = {
     val enabledConfigs = sequence(files.map(parseSelfDescribing)).right.map { configs =>
-      configs.filter(filterEnabled).groupBy(_.schema.name)
+      configs.filter(filterEnabled).groupBy(_.schema)
     }.left.map(list => list.mkString(", "))
 
     enabledConfigs.right.flatMap { map =>
@@ -226,9 +227,9 @@ object SaunaOptions {
    * @param enabledConfigs configuration enabledConfigs with list of possible enabled configurations
    * @return validated configuration enabledConfigs with
    */
-  private[sauna] def getUnique(enabledConfigs: Map[String, List[Envelope]]): Either[String, Map[String, List[Envelope]]] = {
+  private[sauna] def getUnique(enabledConfigs: Map[SchemaKey, List[Envelope]]): Either[String, Map[String, List[Envelope]]] = {
     val (valid, invalid) = enabledConfigs.partition {
-      case (schema, envelopes) => schema.contains(".observers") || envelopes.size == 1
+      case (schema, envelopes) => schema.vendor.contains(".observers") || envelopes.size == 1
     }
 
     val ids = valid.flatMap {
@@ -240,7 +241,9 @@ object SaunaOptions {
     } else if (invalid.nonEmpty) {
       Left(s"Multiple configurations enabled: [${invalid.keys.mkString(",")}]")
     } else {
-      Right(valid)
+      Right(valid.map {
+        case (schema, envelopes) => (schema.name, envelopes)
+      })
     }
   }
 
