@@ -453,7 +453,7 @@ object Mediator {
   def kinesisObserverCreator(saunaSettings: SaunaSettings): List[(ActorName, Props)] = {
     saunaSettings.amazonKinesisConfigs.flatMap { config =>
       if (config.enabled) {
-        List((config.id, AmazonKinesisObserver.props(config.parameters)))
+        List((config.id, AmazonKinesisObserver.props(config)))
       } else Nil
     }
   }

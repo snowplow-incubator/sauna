@@ -13,15 +13,16 @@
 package com.snowplowanalytics.sauna
 
 // java
-import java.io.ByteArrayInputStream
-import java.io.{File, PrintWriter}
+import java.io.{ByteArrayInputStream, File, PrintWriter}
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 // scala
-import scala.io.Source.fromInputStream
-import scala.concurrent.{ Future, Await }
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.io.Source.fromInputStream
 
 // scalatest
 import org.scalatest._
@@ -37,25 +38,29 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 // amazonaws
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.amazonaws.services.kinesis.model.{GetRecordsRequest, PutRecordRequest}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 
 // awscala
-import awscala.{Credentials, Region}
 import awscala.s3.S3
 import awscala.sqs.SQS
+import awscala.{Credentials, Region}
 
 // sauna
+import IntegrationTests.AnyEvent
 import actors.Mediator
-import apis.{ Optimizely, Sendgrid }
+import apis.{Optimizely, Sendgrid}
 import loggers.Logger
 import loggers.Logger.{Manifestation, Notification}
+import observers.Observer._
 import observers._
-import observers.Observer.{ ObserverBatchEvent, LocalFilePublished }
 import responders.Responder
 import responders.Responder.{ResponderEvent, ResponderResult}
-import responders.sendgrid._
 import responders.optimizely._
-import IntegrationTests.AnyEvent
+import responders.sendgrid._
 
 
 object IntegrationTests {
@@ -142,6 +147,12 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val awsBucketName = sys.env.getOrElse("AWS_BUCKET_NAME", "sauna-integration-test-bucket-staging")  // "sauna-integration-test" for eng-sandbox
   val awsQueueName = sys.env.getOrElse("AWS_QUEUE_NAME", "sauna-integration-test-queue-staging")     // "sauna-integration-test-queue" for eng-sandbox
   val awsRegion = sys.env.getOrElse("AWS_REGION", "us-east-1")
+
+  val kinesisAccessKeyId: Option[String] = sys.env.get("KINESIS_ACCESS_KEY_ID")
+  val kinesisSecretAccessKey: Option[String] = sys.env.get("KINESIS_SECRET_ACCESS_KEY")
+  val kinesisApplicationName = sys.env.getOrElse("KINESIS_APPLICATION_NAME", "sauna-integration-test")
+  val kinesisStreamName = sys.env.getOrElse("KINESIS_STREAM_NAME", "sauna-integration-test")
+  val kinesisRegion = sys.env.getOrElse("KINESIS_REGION", "us-east-1")
 
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
 
@@ -586,5 +597,89 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     assert(end - time > 4000, "file was processed too fast") // 2 x 3000 lines == 4 seconds
     assert(respectLineLimit, "too many lines in a single chunk")
+  }
+
+  test("Kinesis (mock responder)") {
+    assume(kinesisAccessKeyId.isDefined)
+    assume(kinesisSecretAccessKey.isDefined)
+
+    var observerRecord: KinesisRecordReceived = null
+
+    val dummyLogger = system.actorOf(Props(new Actor {
+      override def receive: PartialFunction[Any, Unit] = {
+        case _ =>
+      }
+    }))
+
+
+    val responder = Props(new Responder[AnyEvent] {
+      override def logger: ActorRef = dummyLogger
+
+      override def extractEvent(observerEvent: ObserverBatchEvent): Option[AnyEvent] =
+        Some(AnyEvent(observerEvent))
+
+      override def process(event: AnyEvent): Unit = {
+        event.source match {
+          case r@KinesisRecordReceived(_, _, _, _) =>
+            observerRecord = r
+        }
+      }
+    })
+
+    val kinesisObserver = AmazonKinesisObserver.props(AmazonKinesisConfig(
+      true,
+      kinesisApplicationName,
+      AmazonKinesisObserverParameters(
+        AwsConfigParameters(
+          kinesisAccessKeyId.get,
+          kinesisSecretAccessKey.get
+        ),
+        AmazonKinesisConfigParameters(
+          kinesisRegion,
+          kinesisStreamName,
+          5000,
+          ShardIteratorType.LATEST,
+          None
+        )
+      )
+    ))
+
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), kinesisObserver, dummyLogger)))
+
+    // KCL consumers can take a while to get started - give the observer plenty of time.
+    Thread.sleep(30000)
+
+    val amazonKinesisClient = new AmazonKinesisClient(
+      new BasicAWSCredentials(kinesisAccessKeyId.get, kinesisSecretAccessKey.get))
+    amazonKinesisClient.configureRegion(Regions.fromName(kinesisRegion))
+
+    // Obtain a shard iterator using the API (the test stream uses a single shard, so this works fine).
+    val shardId = amazonKinesisClient
+      .describeStream(kinesisStreamName).getStreamDescription.getShards.get(0).getShardId
+    val iterator = amazonKinesisClient
+      .getShardIterator(kinesisStreamName, shardId, "LATEST").getShardIterator
+
+    // Push some random data to the stream.
+    val charset = "UTF-8"
+    val data = UUID.randomUUID().toString
+    amazonKinesisClient.putRecord(new PutRecordRequest()
+      .withStreamName(kinesisStreamName)
+      .withPartitionKey("partitionKey")
+      .withData(ByteBuffer.wrap(data.getBytes(charset))))
+
+    Thread.sleep(3000)
+
+    // Retrieve the data that was just pushed using a raw client call.
+    val apiRecord = amazonKinesisClient.getRecords(new GetRecordsRequest()
+      .withShardIterator(iterator))
+
+    // Make sure the data was successfully retrieved by the client...
+    assert(apiRecord !== null, "Could not consume the produced record using a raw client call")
+    assert(apiRecord.getRecords.size() === 1)
+    assert(new String(apiRecord.getRecords.get(0).getData.array(), Charset.forName(charset)) === data)
+
+    // ...as well as the observer.
+    assert(observerRecord !== null, "Could not consume the produced record using the observer")
+    assert(new String(observerRecord.data.array(), Charset.forName(charset)) === data)
   }
 }

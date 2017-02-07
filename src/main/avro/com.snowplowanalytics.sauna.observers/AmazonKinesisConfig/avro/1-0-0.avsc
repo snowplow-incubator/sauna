@@ -11,30 +11,83 @@
       "name": "id",
       "type": "string"
     },
-    { "name": "parameters",
+    {
+      "name": "parameters",
       "type": {
-        "name": "AmazonKinesisConfigParameters",
+        "name": "AmazonKinesisObserverParameters",
         "type": "record",
         "fields": [
           {
-            "name": "awsRegion",
-            "type": "string"
+            "name": "aws",
+            "type": {
+              "name": "AwsConfigParameters",
+              "type": "record",
+              "fields": [
+                {
+                  "name": "accessKeyId",
+                  "type": "string"
+                },
+                {
+                  "name": "secretAccessKey",
+                  "type": "string"
+                }
+              ]
+            }
           },
           {
-            "name": "awsAccessKeyId",
-            "type": "string"
-          },
-          {
-            "name": "awsSecretAccessKey",
-            "type": "string"
-          },
-          {
-            "name": "applicationName",
-            "type": "string"
-          },
-          {
-            "name": "kinesisStreamName",
-            "type": "string"
+            "name": "kinesis",
+            "type": {
+              "name": "AmazonKinesisConfigParameters",
+              "type": "record",
+              "fields": [
+                {
+                  "name": "region",
+                  "type": "string"
+                },
+                {
+                  "name": "streamName",
+                  "type": "string"
+                },
+                {
+                  "name": "maxRecords",
+                  "type": "int"
+                },
+                {
+                  "name": "initialPosition",
+                  "type": {
+                    "name": "ShardIteratorType",
+                    "type": "enum",
+                    "symbols": [
+                      "AT_TIMESTAMP",
+                      "LATEST",
+                      "TRIM_HORIZON"
+                    ]
+                  }
+                },
+                {
+                  "name": "initialPositionModifiers",
+                  "type": [
+                    {
+                      "name": "InitialPositionModifiers",
+                      "type": "record",
+                      "fields": [
+                        {
+                          "name": "timestamp",
+                          "type": [
+                            {
+                              "type": "long",
+                              "logicalType": "timestamp-millis"
+                            },
+                            "null"
+                          ]
+                        }
+                      ]
+                    },
+                    "null"
+                  ]
+                }
+              ]
+            }
           }
         ]
       }
