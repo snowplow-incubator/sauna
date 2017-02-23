@@ -53,6 +53,7 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[OptimizelyConfig],
       getConfig[SendgridConfig],
       getConfig[responders.HipchatConfig],
+      getConfig[SlackConfig],
       getConfigs[LocalFilesystemConfig],
       getConfigs[AmazonS3Config],
       getConfigs[AmazonKinesisConfig])

@@ -31,6 +31,7 @@ import responders._
 import responders.hipchat._
 import responders.optimizely._
 import responders.sendgrid._
+import responders.slack._
 
 /**
  * Root user-level (supervisor) actor
@@ -340,7 +341,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -407,6 +408,24 @@ object Mediator {
         val apiWrapper: SaunaLogger => Hipchat = (logger) => new Hipchat(params.authToken, logger)
         if (params.sendRoomNotificationEnabled) {
           ((logger: SaunaLogger) => (id, SendRoomNotificationResponder.props(apiWrapper(logger), logger))) :: Nil
+        } else Nil
+
+      case _ => Nil
+    }
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the Slack responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce Slack responders.
+   */
+  def slackCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.slackConfig match {
+      case Some(responders.SlackConfig(true, id, params)) =>
+        val apiWrapper: SaunaLogger => Slack = (logger) => new Slack(params.webhookUrl, logger)
+        if (params.sendMessageEnabled) {
+          ((logger: SaunaLogger) => (id, SendMessageResponder.props(apiWrapper(logger), logger))) :: Nil
         } else Nil
 
       case _ => Nil

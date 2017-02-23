@@ -26,6 +26,7 @@ import responders._
  * @param optimizelyConfig       optional Optimizely responder configuration
  * @param sendgridConfig         optional Sendgrid responder configuration
  * @param hipchatResponderConfig optional Hipchat responder configuration
+ * @param slackConfig            optional Slack responder configuration
  * @param localFilesystemConfigs list of local roots to observe
  * @param amazonS3Configs        list of S3 buckets to observe
  * @param amazonKinesisConfigs   list of Kinesis streams to observe
@@ -39,6 +40,7 @@ case class SaunaSettings(
   optimizelyConfig: Option[OptimizelyConfig],
   sendgridConfig: Option[SendgridConfig],
   hipchatResponderConfig: Option[responders.HipchatConfig],
+  slackConfig: Option[SlackConfig],
 
   // Observers
   localFilesystemConfigs: List[LocalFilesystemConfig],
