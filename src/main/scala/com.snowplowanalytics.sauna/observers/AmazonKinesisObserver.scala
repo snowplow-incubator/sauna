@@ -64,7 +64,7 @@ object AmazonKinesisObserver {
   def props(streamName: String, kclConfig: KinesisClientLibConfiguration): Props =
     Props(new AmazonKinesisObserver(streamName, kclConfig))
 
-  def props(config: AmazonKinesisConfig): Props = {
+  def props(config: AmazonKinesisConfig_1_0_0): Props = {
 
     // AWS configuration. Safe to throw exception on initialization
     val credentials = new BasicAWSCredentials(
@@ -90,11 +90,11 @@ object AmazonKinesisObserver {
       .withMaxRecords(config.parameters.kinesis.maxRecords)
 
     config.parameters.kinesis.initialPosition match {
-      case ShardIteratorType.LATEST =>
+      case ShardIteratorType_1_0_0.LATEST =>
         kclConfiguration = kclConfiguration.withInitialPositionInStream(InitialPositionInStream.LATEST)
-      case ShardIteratorType.TRIM_HORIZON =>
+      case ShardIteratorType_1_0_0.TRIM_HORIZON =>
         kclConfiguration = kclConfiguration.withInitialPositionInStream(InitialPositionInStream.TRIM_HORIZON)
-      case ShardIteratorType.AT_TIMESTAMP =>
+      case ShardIteratorType_1_0_0.AT_TIMESTAMP =>
         (for {
           modifiers <- config.parameters.kinesis.initialPositionModifiers
           timestamp <- modifiers.timestamp

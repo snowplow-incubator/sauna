@@ -30,6 +30,7 @@ import observers._
 import responders._
 import responders.hipchat._
 import responders.optimizely._
+import responders.pagerduty._
 import responders.sendgrid._
 import responders.slack._
 
@@ -341,7 +342,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -354,27 +355,24 @@ object Mediator {
    * @return list of functions that accept logger and produce optimizely responders
    */
   def optimizelyCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
-    saunaSettings.optimizelyConfig match {
-      case Some(OptimizelyConfig(true, id, params)) =>
+    saunaSettings.optimizelyConfig.collect {
+      case OptimizelyConfig_1_0_0(true, id, params) =>
 
         val apiWrapper: SaunaLogger => Optimizely = (logger) => new Optimizely(params.token, logger)
 
         val targetingProps: List[ActorConstructor] =
-          if (params.targetingListEnabled)
+          if (params.targetingListEnabled) {
             ((logger: SaunaLogger) => (id + "-TargetingList", TargetingListResponder.props(apiWrapper(logger), logger))) :: Nil
-          else
-            Nil
+          } else Nil
 
         val dcpProps: List[ActorConstructor] =
-          if (params.dynamicClientProfilesEnabled)
+          if (params.dynamicClientProfilesEnabled) {
             ((logger: SaunaLogger) => (id + "-Dcp", DcpResponder.props(apiWrapper(logger), params.awsRegion, logger))) :: Nil
-          else
-            Nil
+          } else Nil
 
         targetingProps ++ dcpProps
 
-      case _ => Nil
-    }
+    }.getOrElse(Nil)
   }
 
   /**
@@ -385,15 +383,16 @@ object Mediator {
    * @return list of functions that accept logger and produce sendgrid responders
    */
   def sendgridCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
-    saunaSettings.sendgridConfig match {
-      case Some(SendgridConfig(true, id, params)) =>
+    saunaSettings.sendgridConfig_1_0_0.collect {
+      case SendgridConfig_1_0_0(true, id, params) =>
+
         val apiWrapper: Sendgrid = new Sendgrid(params.apiKeyId)
+
         if (params.recipientsEnabled) {
           ((logger: SaunaLogger) => (id, RecipientsResponder.props(logger, apiWrapper))) :: Nil
         } else Nil
 
-      case _ => Nil
-    }
+    }.getOrElse(Nil)
   }
 
   /**
@@ -403,15 +402,16 @@ object Mediator {
    * @return A list of functions that accept loggers and produce Hipchat responders.
    */
   def hipchatCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
-    saunaSettings.hipchatResponderConfig match {
-      case Some(responders.HipchatConfig(true, id, params)) =>
+    saunaSettings.hipchatResponderConfig.collect {
+      case responders.HipchatConfig_1_0_0(true, id, params) =>
+
         val apiWrapper: SaunaLogger => Hipchat = (logger) => new Hipchat(params.authToken, logger)
+
         if (params.sendRoomNotificationEnabled) {
           ((logger: SaunaLogger) => (id, SendRoomNotificationResponder.props(apiWrapper(logger), logger))) :: Nil
         } else Nil
 
-      case _ => Nil
-    }
+    }.getOrElse(Nil)
   }
 
   /**
@@ -421,15 +421,35 @@ object Mediator {
    * @return A list of functions that accept loggers and produce Slack responders.
    */
   def slackCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
-    saunaSettings.slackConfig match {
-      case Some(responders.SlackConfig(true, id, params)) =>
+    saunaSettings.slackConfig.collect {
+      case responders.SlackConfig_1_0_0(true, id, params) =>
+
         val apiWrapper: SaunaLogger => Slack = (logger) => new Slack(params.webhookUrl, logger)
+
         if (params.sendMessageEnabled) {
           ((logger: SaunaLogger) => (id, SendMessageResponder.props(apiWrapper(logger), logger))) :: Nil
         } else Nil
 
-      case _ => Nil
-    }
+    }.getOrElse(Nil)
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the PagerDuty responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce PagerDuty responders.
+   */
+  def pagerDutyCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.pagerDutyConfig.collect {
+      case responders.PagerDutyConfig_1_0_0(true, id, params) =>
+
+        val apiWrapper: SaunaLogger => PagerDuty = (logger) => new PagerDuty(logger)
+
+        if (params.createEventEnabled) {
+          ((logger: SaunaLogger) => (id, CreateEventResponder.props(apiWrapper(logger), logger))) :: Nil
+        } else Nil
+
+    }.getOrElse(Nil)
   }
 
   /**
@@ -440,10 +460,8 @@ object Mediator {
    *         local observers
    */
   def localObserversCreator(saunaSettings: SaunaSettings): List[(ActorName, Props)] = {
-    saunaSettings.localFilesystemConfigs.flatMap { config =>
-      if (config.enabled) {
-        List((config.id, LocalObserver.props(config.parameters.saunaRoot)))
-      } else Nil
+    saunaSettings.localFilesystemConfigs.filter(_.enabled).map {
+      config => (config.id, LocalObserver.props(config.parameters.saunaRoot))
     }
   }
 
@@ -455,10 +473,8 @@ object Mediator {
    *         S3 observers
    */
   def s3ObserverCreator(saunaSettings: SaunaSettings): List[(ActorName, Props)] = {
-    saunaSettings.amazonS3Configs.flatMap { config =>
-      if (config.enabled) {
-        List((config.id, AmazonS3Observer.props(config.parameters)))
-      } else Nil
+    saunaSettings.amazonS3Configs.filter(_.enabled).map {
+      config => (config.id, AmazonS3Observer.props(config.parameters))
     }
   }
 
@@ -470,10 +486,8 @@ object Mediator {
    *         Kinesis observers
    */
   def kinesisObserverCreator(saunaSettings: SaunaSettings): List[(ActorName, Props)] = {
-    saunaSettings.amazonKinesisConfigs.flatMap { config =>
-      if (config.enabled) {
-        List((config.id, AmazonKinesisObserver.props(config)))
-      } else Nil
+    saunaSettings.amazonKinesisConfigs.filter(_.enabled).map {
+      config => (config.id, AmazonKinesisObserver.props(config))
     }
   }
 
@@ -485,18 +499,16 @@ object Mediator {
    */
   def loggerCreator(saunaSettings: SaunaSettings): Props = {
 
-    val dynamodb = saunaSettings.amazonDynamodbConfig match {
-      case Some(AmazonDynamodbConfig(true, _, dynamodbParams)) =>
+    val dynamodb = saunaSettings.amazonDynamodbConfig collect {
+      case AmazonDynamodbConfig_1_0_0(true, _, dynamodbParams) =>
         val dynamodbProps = DynamodbLogger.props(dynamodbParams)
-        Some(DynamodbProps(dynamodbProps))
-      case _ => None
+        DynamodbProps(dynamodbProps)
     }
 
-    val hipchat = saunaSettings.hipchatLoggerConfig match {
-      case Some(loggers.HipchatConfig(true, _, hipchatParams)) =>
+    val hipchat = saunaSettings.hipchatLoggerConfig collect {
+      case loggers.HipchatConfig_1_0_0(true, _, hipchatParams) =>
         val hipchatProps = HipchatLogger.props(hipchatParams)
-        Some(HipchatProps(hipchatProps))
-      case _ => None
+        HipchatProps(hipchatProps)
     }
 
     Logger.props(dynamodb, hipchat)

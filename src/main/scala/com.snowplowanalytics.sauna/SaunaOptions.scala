@@ -48,15 +48,17 @@ case class SaunaOptions(configurationLocation: File) {
    */
   def extract: SaunaSettings =
     SaunaSettings(
-      getConfig[AmazonDynamodbConfig],
-      getConfig[loggers.HipchatConfig],
-      getConfig[OptimizelyConfig],
-      getConfig[SendgridConfig],
-      getConfig[responders.HipchatConfig],
-      getConfig[SlackConfig],
-      getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config],
-      getConfigs[AmazonKinesisConfig])
+      getConfig[AmazonDynamodbConfig_1_0_0],
+      getConfig[loggers.HipchatConfig_1_0_0],
+      getConfig[OptimizelyConfig_1_0_0],
+      getConfig[SendgridConfig_1_0_0],
+      getConfig[SendgridConfig_1_0_1],
+      getConfig[responders.HipchatConfig_1_0_0],
+      getConfig[SlackConfig_1_0_0],
+      getConfig[PagerDutyConfig_1_0_0],
+      getConfigs[LocalFilesystemConfig_1_0_0],
+      getConfigs[AmazonS3Config_1_0_0],
+      getConfigs[AmazonKinesisConfig_1_0_0])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
@@ -260,6 +262,7 @@ object SaunaOptions {
       val is = AvroInputStream.json[S](content)
       val instances = is.singleEntity.toOption
       is.close()
+      println(instances)
       instances
     } catch {
       case NonFatal(e) => sys.error(s"Cannot parse configuration file [${content.toString}]. Make sure its valid JSON version of Avro instance\n${e.getMessage}")

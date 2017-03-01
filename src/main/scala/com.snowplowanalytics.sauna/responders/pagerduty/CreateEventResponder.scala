@@ -12,7 +12,7 @@
  */
 package com.snowplowanalytics.sauna
 package responders
-package slack
+package pagerduty
 
 // scala
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,25 +25,25 @@ import akka.actor.{ActorRef, Props}
 // play
 import play.api.libs.json.Json
 
-// Sauna
-import Responder.{ResponderEvent, ResponderResult}
-import SendMessageResponder._
-import apis.Slack
-import apis.Slack._
+// sauna
+import CreateEventResponder._
+import Responder._
+import apis.PagerDuty
+import apis.PagerDuty.PagerDutyEvent
 import loggers.Logger.Notification
 import observers.Observer.ObserverBatchEvent
 import utils.Command
 
-class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder[WebhookMessageReceived] {
-  override def extractEvent(observerEvent: ObserverBatchEvent): Option[WebhookMessageReceived] = {
+class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends Responder[PagerDutyEventReceived] {
+  override def extractEvent(observerEvent: ObserverBatchEvent): Option[PagerDutyEventReceived] = {
     observerEvent.streamContent match {
       case Some(is) =>
         val commandJson = Json.parse(Source.fromInputStream(is).mkString)
-        Command.extractCommand[WebhookMessage](commandJson) match {
+        Command.extractCommand[PagerDutyEvent](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
               case None =>
-                Some(WebhookMessageReceived(data, observerEvent))
+                Some(PagerDutyEventReceived(data, observerEvent))
               case Some(error) =>
                 logger ! Notification(error)
                 None
@@ -58,34 +58,34 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
     }
   }
 
-  override def process(event: WebhookMessageReceived): Unit =
-    slack.sendMessage(event.data).onComplete {
+  override def process(event: PagerDutyEventReceived): Unit =
+    pagerDuty.createEvent(event.data).onComplete {
       case Success(message) =>
         if (message.status == 200)
-          context.parent ! WebhookMessageSent(event, s"Successfully sent Slack message: $message")
+          context.parent ! PagerDutyEventSent(event, s"Successfully created PagerDuty event: ${message.body}")
         else
-          logger ! Notification(s"Slack message sent but got unexpected response: $message")
-      case Failure(error) => logger ! Notification(s"Error while sending Slack message: $error")
+          logger ! Notification(s"Unexpected response from PagerDuty: ${message.body}")
+      case Failure(error) => logger ! Notification(s"Error while creating PagerDuty event: $error")
     }
 }
 
-object SendMessageResponder {
-  case class WebhookMessageReceived(
-    data: WebhookMessage,
+object CreateEventResponder {
+  case class PagerDutyEventReceived(
+    data: PagerDutyEvent,
     source: ObserverBatchEvent
   ) extends ResponderEvent[ObserverBatchEvent]
 
-  case class WebhookMessageSent(
-    source: WebhookMessageReceived,
+  case class PagerDutyEventSent(
+    source: PagerDutyEventReceived,
     message: String) extends ResponderResult
 
   /**
-   * Constructs a [[Props]] for a [[SendMessageResponder]] actor.
+   * Constructs a [[Props]] for a [[CreateEventResponder]] actor.
    *
-   * @param slack  The Slack API wrapper.
-   * @param logger A logger actor.
+   * @param pagerDuty The PagerDuty API wrapper.
+   * @param logger    A logger actor.
    * @return [[Props]] for the new actor.
    */
-  def props(slack: Slack, logger: ActorRef): Props =
-    Props(new SendMessageResponder(slack, logger))
+  def props(pagerDuty: PagerDuty, logger: ActorRef): Props =
+    Props(new CreateEventResponder(pagerDuty, logger))
 }

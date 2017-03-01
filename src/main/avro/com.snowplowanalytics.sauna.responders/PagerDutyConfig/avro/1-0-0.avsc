@@ -1,6 +1,6 @@
 {
-  "namespace": "com.snowplowanalytics.sauna.observers",
-  "name": "LocalFilesystemConfig_1_0_0",
+  "namespace": "com.snowplowanalytics.sauna.responders",
+  "name": "PagerDutyConfig_1_0_0",
   "type": "record",
   "fields": [
     {
@@ -11,14 +11,15 @@
       "name": "id",
       "type": "string"
     },
-    { "name": "parameters",
+    {
+      "name": "parameters",
       "type": {
-        "name": "LocalFilesystemConfigParameters_1_0_0",
+        "name": "PagerDutyConfigParameters_1_0_0",
         "type": "record",
         "fields": [
           {
-            "name": "saunaRoot",
-            "type": "string"
+            "name": "createEventEnabled",
+            "type": "boolean"
           }
         ]
       }

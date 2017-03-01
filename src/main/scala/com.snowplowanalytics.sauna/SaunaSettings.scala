@@ -24,25 +24,33 @@ import responders._
  * @param amazonDynamodbConfig   optional DynamoDB logger configuration
  * @param hipchatLoggerConfig    optional Hipchat logger configuration
  * @param optimizelyConfig       optional Optimizely responder configuration
- * @param sendgridConfig         optional Sendgrid responder configuration
+ * @param sendgridConfig_1_0_0   optional Sendgrid 1-0-0 responder configuration
+ * @param sendgridConfig_1_0_1   optional Sendgrid 1-0-1 responder configuration
  * @param hipchatResponderConfig optional Hipchat responder configuration
  * @param slackConfig            optional Slack responder configuration
+ * @param pagerDutyConfig        optional PagerDuty responder configuration
  * @param localFilesystemConfigs list of local roots to observe
  * @param amazonS3Configs        list of S3 buckets to observe
  * @param amazonKinesisConfigs   list of Kinesis streams to observe
  */
 case class SaunaSettings(
   // Loggers
-  amazonDynamodbConfig: Option[AmazonDynamodbConfig],
-  hipchatLoggerConfig: Option[loggers.HipchatConfig],
+  amazonDynamodbConfig: Option[AmazonDynamodbConfig_1_0_0],
+  hipchatLoggerConfig: Option[loggers.HipchatConfig_1_0_0],
 
   // Responders
-  optimizelyConfig: Option[OptimizelyConfig],
-  sendgridConfig: Option[SendgridConfig],
-  hipchatResponderConfig: Option[responders.HipchatConfig],
-  slackConfig: Option[SlackConfig],
+  optimizelyConfig: Option[OptimizelyConfig_1_0_0],
+  sendgridConfig_1_0_0: Option[SendgridConfig_1_0_0],
+  sendgridConfig_1_0_1: Option[SendgridConfig_1_0_1],
+  hipchatResponderConfig: Option[responders.HipchatConfig_1_0_0],
+  slackConfig: Option[SlackConfig_1_0_0],
+  pagerDutyConfig: Option[PagerDutyConfig_1_0_0],
 
   // Observers
-  localFilesystemConfigs: List[LocalFilesystemConfig],
-  amazonS3Configs: List[AmazonS3Config],
-  amazonKinesisConfigs: List[AmazonKinesisConfig])
+  localFilesystemConfigs: List[LocalFilesystemConfig_1_0_0],
+  amazonS3Configs: List[AmazonS3Config_1_0_0],
+  amazonKinesisConfigs: List[AmazonKinesisConfig_1_0_0])
+
+object SaunaSettings {
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil)
+}
