@@ -177,7 +177,7 @@ object Command {
    *         Some with an error message otherwise.
    */
   def validateSelfDescribing(selfDescribing: SelfDescribing): Option[String] = {
-    val igluCentral = RepositoryRefConfig("Iglu central", 0, List("com.snowplowanalytics"))
+    None/*val igluCentral = RepositoryRefConfig("Iglu central", 0, List("com.snowplowanalytics"))
     val httpRepository = HttpRepositoryRef(igluCentral, "http://iglucentral.com")
     val resolver = Resolver(500, List(httpRepository))
     resolver.lookupSchema(selfDescribing.schema) match {
@@ -194,7 +194,7 @@ object Command {
           case JsError(error) => Some(error.toString())
         }
       case Failure(error) => Some(error.toString())
-    }
+    }*/
   }
 
   /**

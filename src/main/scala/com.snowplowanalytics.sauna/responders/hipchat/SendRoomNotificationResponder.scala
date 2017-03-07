@@ -31,19 +31,19 @@ import SendRoomNotificationResponder._
 import apis.Hipchat
 import apis.Hipchat._
 import loggers.Logger.Notification
-import observers.Observer.ObserverBatchEvent
+import observers.Observer._
 import utils.Command
 
-class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) extends Responder[RoomNotificationReceived] {
-  override def extractEvent(observerEvent: ObserverBatchEvent): Option[RoomNotificationReceived] = {
-    observerEvent.streamContent match {
-      case Some(is) =>
-        val commandJson = Json.parse(Source.fromInputStream(is).mkString)
+class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) extends Responder[ObserverCommandEvent, RoomNotificationReceived] {
+  override def extractEvent(observerEvent: ObserverEvent): Option[RoomNotificationReceived] = {
+    observerEvent match {
+      case e: ObserverCommandEvent =>
+        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
         Command.extractCommand[RoomNotification](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
               case None =>
-                Some(RoomNotificationReceived(data, observerEvent))
+                Some(RoomNotificationReceived(data, e))
               case Some(error) =>
                 logger ! Notification(error)
                 None
@@ -52,9 +52,7 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
             logger ! Notification(error)
             None
         }
-      case None =>
-        logger ! Notification("No stream present, cannot parse command")
-        None
+      case _ => None
     }
   }
 
@@ -73,8 +71,8 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
 object SendRoomNotificationResponder {
   case class RoomNotificationReceived(
     data: RoomNotification,
-    source: ObserverBatchEvent
-  ) extends ResponderEvent[ObserverBatchEvent]
+    source: ObserverCommandEvent
+  ) extends ResponderEvent
 
   /**
    * A responder result denoting that a HipChat room notification was successfully sent

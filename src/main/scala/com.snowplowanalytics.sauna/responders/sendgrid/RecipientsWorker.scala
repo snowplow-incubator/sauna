@@ -18,20 +18,20 @@ package sendgrid
 import akka.actor._
 
 // scala
-import scala.concurrent.duration._
 import scala.collection.mutable
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
-import scala.util.{ Try, Success, Failure }
+import scala.util.{Failure, Success}
 
 // play json
 import play.api.libs.json._
-import play.api.libs.functional.syntax._
 
 // sauna
-import apis.Sendgrid
-import loggers.Logger.Notification
 import RecipientsResponder._
 import Responder._
+import apis.Sendgrid
+import loggers.Logger.Notification
+import observers.Observer._
 import utils._
 
 
@@ -43,7 +43,6 @@ import utils._
  */
 class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
   import RecipientsWorker._
-
   import context.dispatcher
 
   /**
@@ -97,7 +96,7 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
           processData(chunks.customFields.get.customTypes, chunks.chunkIterator.next())
         case Some(empty) =>
           currentChunks = None
-          context.parent ! RecipientsProcessed(empty.source, s"Recipients from [${empty.source.source.path}] have been processed")
+          context.parent ! RecipientsProcessed(empty.source, s"Recipients from [${empty.source.source.id}] have been processed")
         case None if chunksQueue.nonEmpty =>
           currentChunks = Some(chunksQueue.dequeue())
         case None => ()

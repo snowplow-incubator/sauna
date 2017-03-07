@@ -18,20 +18,18 @@ import scala.util.control.NonFatal
 
 // awscala
 import awscala.sqs.SQS
-import com.amazonaws.services.kinesis.model.Record
 
 // akka
-import akka.actor.{ Actor, ActorRef }
+import akka.actor.{Actor, ActorRef}
 
 // java
-import java.io.InputStream
-import java.nio.file._
+import java.io.{ByteArrayInputStream, InputStream}
 import java.nio.ByteBuffer
-import java.io.ByteArrayInputStream
+import java.nio.file._
 
 // sauna
-import responders.Responder.S3Source
 import loggers.Logger.Notification
+import responders.Responder.S3Source
 
 /**
  * Observers are entities responsible for keeping eye on some source source of
@@ -52,27 +50,43 @@ trait Observer { self: Actor =>
 object Observer {
 
   /**
-   * Common trait for file-published event, which can provide access
-   * to file path (so responders can decided whether handle it or not)
-   * and to content stream (so responders can read it)
+   * Common trait for observer events.
    */
-  sealed trait ObserverBatchEvent extends Product with Serializable {
+  trait ObserverEvent extends Product with Serializable {
     /**
-     * Full string representation of published file
+     * A full string representation of the event.
      */
-    def path: String
+    def id: String
 
     /**
-     * File's content stream. It can be streamed from local FS or from S3
-     * None if file cannot be streamed
-     * This should never be a part of object and wouldn't affect equality check
-     */
-    def streamContent: Option[InputStream]
-
-    /**
-     * Observer emitted event
+     * The observer that emitted this event.
      */
     def observer: ActorRef
+  }
+
+  /**
+   * Common trait for file-published events. Its' identifier is the path
+   * to the file (so responders can decided whether handle it or not)
+   * and it contains a content stream (so responders can read it)
+   */
+  sealed trait ObserverFileEvent extends ObserverEvent {
+    /**
+     * A file's content stream - can be streamed from a local filesystem, S3 etc.
+     * None if the file cannot be streamed.
+     *
+     * This should never be a part of an object and shouldn't affect equality checks.
+     */
+    def streamContent: Option[InputStream]
+  }
+
+  /**
+   * Common trait for command-based events. Always contains a content stream.
+   */
+  sealed trait ObserverCommandEvent extends ObserverEvent {
+    /**
+     * A stream containing the contents of the command.
+     */
+    def streamContent: InputStream
   }
 
   /**
@@ -80,9 +94,10 @@ object Observer {
    *
    * @param file full root of file
    */
-  case class LocalFilePublished(file: Path, observer: ActorRef) extends ObserverBatchEvent {
-    def path = file.toAbsolutePath.toString
-    def streamContent = try {
+  case class LocalFilePublished(file: Path, observer: ActorRef) extends ObserverFileEvent {
+    override def id: String = file.toAbsolutePath.toString
+
+    override def streamContent: Option[InputStream] = try {
       Some(Files.newInputStream(file))
     } catch {
       case NonFatal(e) => None
@@ -90,30 +105,31 @@ object Observer {
   }
 
   /**
+   * File has been published on AWS S3
+   *
+   * @param id       full path on S3 bucket
+   * @param s3Source AWS S3 credentials to access bucket and object
+   */
+  case class S3FilePublished(id: String, s3Source: S3Source, observer: ActorRef) extends ObserverFileEvent {
+    override def streamContent: Option[InputStream] = s3Source.s3.get(s3Source.bucket, id).map(_.content)
+  }
+
+  /**
    * Record has been received from AWS Kinesis Stream
    *
    * @param streamName name of kinesis stream
-   * @param seqNr unique sequence number assigned to record
-   * @param data buffer containing data carried by record
-   * @param observer observer that witnessed the record receipt
+   * @param seqNr      unique sequence number assigned to record
+   * @param data       buffer containing data carried by record
+   * @param observer   observer that witnessed the record receipt
    */
-  case class KinesisRecordReceived(streamName: String, seqNr: String, data: ByteBuffer, observer: ActorRef) extends ObserverBatchEvent {
+  case class KinesisRecordReceived(streamName: String, seqNr: String, data: ByteBuffer, observer: ActorRef) extends ObserverCommandEvent {
     val byteBuffer = data
     val byteArray = new Array[Byte](byteBuffer.remaining())
     byteBuffer.get(byteArray)
 
-    def path = s"kinesis-$streamName-$seqNr"
-    def streamContent = Some(new ByteArrayInputStream(byteArray))
-  }
+    override def id: String = s"kinesis-$streamName-$seqNr"
 
-  /**
-   * File has been published on AWS S3
-   *
-   * @param path full path on S3 bucket
-   * @param s3Source AWS S3 credentials to access bucket and object
-   */
-  case class S3FilePublished(path: String, s3Source: S3Source, observer: ActorRef) extends ObserverBatchEvent {
-    def streamContent = s3Source.s3.get(s3Source.bucket, path).map(_.content)
+    override def streamContent: ByteArrayInputStream = new ByteArrayInputStream(byteArray)
   }
 
   /**

@@ -31,19 +31,19 @@ import SendMessageResponder._
 import apis.Slack
 import apis.Slack._
 import loggers.Logger.Notification
-import observers.Observer.ObserverBatchEvent
+import observers.Observer._
 import utils.Command
 
-class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder[WebhookMessageReceived] {
-  override def extractEvent(observerEvent: ObserverBatchEvent): Option[WebhookMessageReceived] = {
-    observerEvent.streamContent match {
-      case Some(is) =>
-        val commandJson = Json.parse(Source.fromInputStream(is).mkString)
+class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder[ObserverCommandEvent, WebhookMessageReceived] {
+  override def extractEvent(observerEvent: ObserverEvent): Option[WebhookMessageReceived] = {
+    observerEvent match {
+      case e: ObserverCommandEvent =>
+        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
         Command.extractCommand[WebhookMessage](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
               case None =>
-                Some(WebhookMessageReceived(data, observerEvent))
+                Some(WebhookMessageReceived(data, e))
               case Some(error) =>
                 logger ! Notification(error)
                 None
@@ -52,9 +52,7 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
             logger ! Notification(error)
             None
         }
-      case None =>
-        logger ! Notification("No stream present, cannot parse command")
-        None
+      case _ => None
     }
   }
 
@@ -72,8 +70,8 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
 object SendMessageResponder {
   case class WebhookMessageReceived(
     data: WebhookMessage,
-    source: ObserverBatchEvent
-  ) extends ResponderEvent[ObserverBatchEvent]
+    source: ObserverCommandEvent
+  ) extends ResponderEvent
 
   case class WebhookMessageSent(
     source: WebhookMessageReceived,

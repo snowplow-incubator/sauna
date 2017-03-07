@@ -31,19 +31,19 @@ import Responder._
 import apis.PagerDuty
 import apis.PagerDuty.PagerDutyEvent
 import loggers.Logger.Notification
-import observers.Observer.ObserverBatchEvent
+import observers.Observer._
 import utils.Command
 
-class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends Responder[PagerDutyEventReceived] {
-  override def extractEvent(observerEvent: ObserverBatchEvent): Option[PagerDutyEventReceived] = {
-    observerEvent.streamContent match {
-      case Some(is) =>
-        val commandJson = Json.parse(Source.fromInputStream(is).mkString)
+class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends Responder[ObserverCommandEvent, PagerDutyEventReceived] {
+  override def extractEvent(observerEvent: ObserverEvent): Option[PagerDutyEventReceived] = {
+    observerEvent match {
+      case e: ObserverCommandEvent =>
+        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
         Command.extractCommand[PagerDutyEvent](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
               case None =>
-                Some(PagerDutyEventReceived(data, observerEvent))
+                Some(PagerDutyEventReceived(data, e))
               case Some(error) =>
                 logger ! Notification(error)
                 None
@@ -52,9 +52,7 @@ class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends R
             logger ! Notification(error)
             None
         }
-      case None =>
-        logger ! Notification("No stream present, cannot parse command")
-        None
+      case _ => None
     }
   }
 
@@ -72,8 +70,8 @@ class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends R
 object CreateEventResponder {
   case class PagerDutyEventReceived(
     data: PagerDutyEvent,
-    source: ObserverBatchEvent
-  ) extends ResponderEvent[ObserverBatchEvent]
+    source: ObserverCommandEvent
+  ) extends ResponderEvent
 
   case class PagerDutyEventSent(
     source: PagerDutyEventReceived,

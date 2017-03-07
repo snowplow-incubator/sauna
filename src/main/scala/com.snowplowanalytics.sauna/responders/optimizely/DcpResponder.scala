@@ -25,7 +25,7 @@ import com.github.nscala_time.time.StaticDateTimeFormat
 import scala.concurrent.Future
 import scala.io.Source.fromInputStream
 import scala.util.control.NonFatal
-import scala.util.{Success, Failure}
+import scala.util.{Failure, Success}
 
 // akka
 import akka.actor.{ActorRef, Props}
@@ -38,22 +38,22 @@ import awscala.s3.{Bucket, S3}
 import com.github.tototoshi.csv._
 
 // sauna
-import apis.Optimizely
-import responders.Responder._
-import observers.Observer.ObserverBatchEvent
-import utils._
 import DcpResponder._
+import apis.Optimizely
+import observers.Observer._
+import responders.Responder._
+import utils._
 
 
 /**
  * Does stuff for Optimizely Dynamic Customer Profiles feature.
  *
  * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#dcp-batch
- * @param optimizely instance of Optimizely API Wrapper
+ * @param optimizely   instance of Optimizely API Wrapper
  * @param importRegion AWS region for Optimizely S3 bucket
- * @param logger A logger actor
+ * @param logger       A logger actor
  */
-class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: ActorRef) extends Responder[CustomersProfilesPublished] {
+class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: ActorRef) extends Responder[ObserverFileEvent, CustomersProfilesPublished] {
 
   import context.dispatcher
 
@@ -66,15 +66,19 @@ class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: Act
    * @return Some [[CustomersProfilesPublished]] if this observer-event need to be
    *         processed by this responder, None if event need to be skept
    */
-  def extractEvent(observerEvent: ObserverBatchEvent): Option[CustomersProfilesPublished] = {
-    extractCustomerPublished(observerEvent) match {
-      case Right(event) => Some(event)
-      case Left(Some(error)) =>
-        // TODO: cases where path is only partly correct should be handled differently, without deleting source file
-        notify(error)
-        None
-      case Left(None) =>
-        None
+  def extractEvent(observerEvent: ObserverEvent): Option[CustomersProfilesPublished] = {
+    observerEvent match {
+      case e: ObserverFileEvent =>
+        extractCustomerPublished(e) match {
+          case Right(event) => Some(event)
+          case Left(Some(error)) =>
+            // TODO: cases where path is only partly correct should be handled differently, without deleting source file
+            notify(error)
+            None
+          case Left(None) =>
+            None
+        }
+      case _ => None
     }
   }
 
@@ -90,7 +94,7 @@ class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: Act
           val s3 = S3(accessKey, secretKey)(Region(importRegion))
           prepareFile(event) match {
             case Some(prepared) => publishFile(prepared, s3)
-            case None => Future.failed(new RuntimeException(s"Cannot read file [${event.source.path}]"))
+            case None => Future.failed(new RuntimeException(s"Cannot read file [${event.source.id}]"))
           }
         case None => Future.failed(new RuntimeException(s"Cannot get AWS credentials for datasource [${event.datasource}]"))
       }
@@ -105,7 +109,7 @@ class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: Act
    * Optimizely to import profiles. When upload finishers - delete file
    *
    * @param resultFile corrected file with S3 path and content
-   * @param s3 client object with credentials and region
+   * @param s3         client object with credentials and region
    * @return message about successful upload. S3 throws exceptions, so on
    *         failed upload - it will be failed `Future`
    */
@@ -141,25 +145,28 @@ object DcpResponder {
   /**
    * Responder event, denoting that Dynamic Customer Profiles TSV file were published
    *
-   * @param service DCP Service Id. A DCP Service collects, stores, and processes the customer data
+   * @param service    DCP Service Id. A DCP Service collects, stores, and processes the customer data
    * @param datasource DCP datasource Id. A datasource stores a set of related customer attributes under a common ID space
-   * @param attrs comma-separated DCP attributes
-   * @param source observer event triggered this responder event
+   * @param attrs      comma-separated DCP attributes
+   * @param source     observer event triggered this responder event
    */
   case class CustomersProfilesPublished(
-      service: String,
-      datasource: String,
-      attrs: String,
-      source: ObserverBatchEvent
-  ) extends ResponderEvent[ObserverBatchEvent]
+    service: String,
+    datasource: String,
+    attrs: String,
+    source: ObserverFileEvent
+  ) extends ResponderEvent
 
-  case class CustomersProfilesUploaded(source: CustomersProfilesPublished, message: String) extends ResponderResult
+  case class CustomersProfilesUploaded(
+    source: CustomersProfilesPublished,
+    message: String
+  ) extends ResponderResult
 
   /**
    * Result file that has been corrected, transformed and reaady to be
    * uploaded into S3 bucket
    *
-   * @param key path on S3
+   * @param key  path on S3
    * @param file content of file
    */
   case class ResultFile(key: String, file: File)
@@ -189,7 +196,7 @@ object DcpResponder {
    * @return corrected file path
    */
   def correctName(source: CustomersProfilesPublished): String = {
-    val original = source.source.path.substring(source.source.path.indexOf(source.attrs) + source.attrs.length + 1)
+    val original = source.source.id.substring(source.source.id.indexOf(source.attrs) + source.attrs.length + 1)
     if (original.endsWith(".tsv")) {
       original.stripSuffix(".tsv") + ".csv"
     } else {
@@ -214,7 +221,8 @@ object DcpResponder {
 
     val tmpfile = new File(tmpdir, "correct-" + UUID.randomUUID().toString)
 
-    new PrintWriter(tmpfile) { writer =>
+    new PrintWriter(tmpfile) {
+      writer =>
       writer.write(sb.toString)
       writer.close()
     }
@@ -244,9 +252,9 @@ object DcpResponder {
 
   /**
    * Corrects a single word according to following rules:
-   *   1) Change "t" to "true"
-   *   2) Change "f" to "false"
-   *   3) Change timestamp to epoch
+   * 1) Change "t" to "true"
+   * 2) Change "f" to "false"
+   * 3) Change timestamp to epoch
    *
    * @see https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#2241-reformatting-for-the-bulk-upload-api
    * @param word A word to be corrected.
@@ -272,12 +280,12 @@ object DcpResponder {
    *         left some error if path is correct only partly
    *         left none if file shouldn't be handled by responder
    */
-  def extractCustomerPublished(observerEvent: ObserverBatchEvent): Either[Option[String], CustomersProfilesPublished] = {
-    observerEvent.path match {
+  def extractCustomerPublished(observerEvent: ObserverFileEvent): Either[Option[String], CustomersProfilesPublished] = {
+    observerEvent.id match {
       case pathRegexp(service, datasource, attrs) if attrs.contains("customerId") =>
         Right(CustomersProfilesPublished(service, datasource, attrs, observerEvent))
       case pathRegexp(_, _, _) =>
-        Left(Some(s"DcpResponder: attribute 'customerId' for [${observerEvent.path}] must be included"))
+        Left(Some(s"DcpResponder: attribute 'customerId' for [${observerEvent.id}] must be included"))
       case _ => Left(None)
     }
   }
@@ -285,9 +293,9 @@ object DcpResponder {
   /**
    * Constructs a Props for DcpResponder actor.
    *
-   * @param optimizely Instance of Optimizely
+   * @param optimizely             Instance of Optimizely
    * @param optimizelyImportRegion what region uses Optimizely S3 bucket
-   * @param logger Actor with underlying Logger
+   * @param logger                 Actor with underlying Logger
    * @return Props for new actor
    */
   def props(optimizely: Optimizely, optimizelyImportRegion: String, logger: ActorRef): Props =

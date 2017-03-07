@@ -53,7 +53,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
 
   def receive: Receive = {
     case filePublished: S3FilePublished =>
-      notify(s"Detected new S3 file [${filePublished.path}]")
+      notify(s"Detected new S3 file [${filePublished.id}]")
       context.parent ! filePublished
 
     case deleteFile: DeleteS3Object =>

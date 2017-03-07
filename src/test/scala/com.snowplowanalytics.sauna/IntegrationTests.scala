@@ -81,7 +81,7 @@ object IntegrationTests {
     }
   }
 
-  case class AnyEvent(source: ObserverBatchEvent) extends Responder.ResponderEvent[ObserverBatchEvent]
+  case class AnyEvent(source: ObserverEvent) extends Responder.ResponderEvent
 
   val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
   class MockLocalFilePublished(data: String, observer: ActorRef) extends LocalFilePublished(java.nio.file.Paths.get(filePath), observer) {
@@ -91,8 +91,8 @@ object IntegrationTests {
   /**
    * Dummy responder ignoring all observer event
    */
-  class DummyResponder(val logger: ActorRef) extends Responder[AnyEvent] {
-    def extractEvent(observerEvent: ObserverBatchEvent): Option[AnyEvent] = None
+  class DummyResponder(val logger: ActorRef) extends Responder[ObserverEvent, AnyEvent] {
+    def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] = None
     def process(observerEvent: AnyEvent) = ???
   }
 
@@ -136,7 +136,7 @@ object IntegrationTests {
 
   class MockRealTimeObserver extends Actor with Observer {
     override def receive: Receive = {
-      case data: String => context.parent ! new MockLocalFilePublished(data, self)
+      case data: String => context.parent ! new KinesisRecordReceived("", "", ByteBuffer.wrap(data.getBytes()), self)
     }
   }
 }
@@ -197,20 +197,31 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     var expectedLines: Seq[String] = Seq()
 
     val responders =
-      Props(new Responder[AnyEvent] {
+      Props(new Responder[ObserverEvent, AnyEvent] {
         val logger: ActorRef = null
 
-        def extractEvent(event: ObserverBatchEvent): Option[AnyEvent] = {
+        def extractEvent(event: ObserverEvent): Option[AnyEvent] = {
           Some(AnyEvent(event))
         }
 
         val pathPattern: String = ".*"
 
         def process(event: AnyEvent): Unit = {
-          expectedLines = fromInputStream(event.source.streamContent.get).getLines().toSeq
-          self ! new ResponderResult {
-            override def source: ResponderEvent[ObserverBatchEvent] = event
-            override def message: String = "OK!"
+          event.source match {
+            case e: ObserverFileEvent =>
+              expectedLines = fromInputStream(e.streamContent.get).getLines().toSeq
+              self ! new ResponderResult {
+                override def source: ResponderEvent = event
+
+                override def message: String = "OK!"
+              }
+            case e: ObserverCommandEvent =>
+              expectedLines = fromInputStream(e.streamContent).getLines().toSeq
+              self ! new ResponderResult {
+                override def source: ResponderEvent = event
+
+                override def message: String = "OK!"
+              }
           }
         }
       })
@@ -630,10 +641,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     }))
 
 
-    val responder = Props(new Responder[AnyEvent] {
+    val responder = Props(new Responder[ObserverEvent, AnyEvent] {
       override def logger: ActorRef = dummyLogger
 
-      override def extractEvent(observerEvent: ObserverBatchEvent): Option[AnyEvent] =
+      override def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] =
         Some(AnyEvent(observerEvent))
 
       override def process(event: AnyEvent): Unit = {
