@@ -14,21 +14,25 @@
       }
     },
     "command": {
-      "schema": "iglu:com.pagerduty.sauna.commands/create_event/jsonschema/1-0-0",
+      "schema": "iglu:com.sendgrid.sauna.commands/send_email/jsonschema/1-0-0",
       "data": {
-        "service_key": "PAGERDUTY_SERVICE_KEY",
-        "event_type": "trigger",
-        "description": "Sauna integration test completed successfully!",
-        "client": "Sauna RT",
-        "client_url": "https://example.com",
-        "details": {
-          "project": "Sauna RT"
-        },
-        "contexts": [
+        "personalizations": [
           {
-            "type": "link",
-            "href": "https://example.com/",
-            "text": "Example"
+            "to": [
+              {
+                "email": "POSTMARK_INBOUND_EMAIL"
+              }
+            ],
+            "subject": "RANDOM_UUID"
+          }
+        ],
+        "from": {
+          "email": "staging@saunatests.com"
+        },
+        "content": [
+          {
+            "type": "text/plain",
+            "value": "Sauna integration test completed successfully!"
           }
         ]
       }

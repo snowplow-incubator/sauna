@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -120,22 +120,26 @@ object Command {
    * Attempts to extract a Sauna command from a [[JsValue]]. If successful,
    * passes it on to the processing method.
    *
-   * @param json The [[JsValue]] to extract a command from.
+   * @param json         The [[JsValue]] to extract a command from.
+   * @param igluResolver Optional [[Resolver]] containing info about Iglu repositories.
    * @tparam T The type of the command's data.
    * @return Right containing a tuple of the command's envelope and data
    *         if the extraction and processing was successful, Left containing
    *         an error message otherwise.
    */
-  def extractCommand[T](json: JsValue)(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
+  def extractCommand[T](json: JsValue,
+    igluResolver: Resolver = Resolver(500, List(
+      HttpRepositoryRef(RepositoryRefConfig("Iglu central", 0, List("com.snowplowanalytics")), "http://iglucentral.com")))
+  )(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
     json.validate[SelfDescribing] match {
       case JsSuccess(selfDescribing, _) =>
-        validateSelfDescribing(selfDescribing) match {
-          case None =>
+        validateSelfDescribing(selfDescribing, igluResolver) match {
+          case Right(_) =>
             selfDescribing.data.validate[SaunaCommand] match {
               case JsSuccess(command, _) => processCommand[T](command)
               case JsError(error) => Left(s"Encountered an issue while parsing Sauna command: $error")
             }
-          case Some(error) => Left(s"Could not validate command JSON: $error")
+          case Left(error) => Left(s"Could not validate command JSON: $error")
         }
       case JsError(error) => Left(s"Encountered an issue while parsing self-describing JSON: $error")
     }
@@ -144,28 +148,32 @@ object Command {
   /**
    * Processes a Sauna command, validating its' envelope and extracting the data.
    *
-   * @param command A Sauna commmand.
+   * @param command      A Sauna command.
+   * @param igluResolver Optional [[Resolver]] containing info about Iglu repositories.
    * @tparam T The type of the command's data.
    * @return Right containing a tuple of the command's envelope and data
    *         if the processing was successful, Left containing
    *         an error message otherwise.
    */
-  def processCommand[T](command: SaunaCommand)(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
-    validateSelfDescribing(command.envelope) match {
-      case None =>
+  def processCommand[T](command: SaunaCommand,
+    igluResolver: Resolver = Resolver(500, List(
+      HttpRepositoryRef(RepositoryRefConfig("Iglu central", 0, List("com.snowplowanalytics")), "http://iglucentral.com")))
+  )(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
+    validateSelfDescribing(command.envelope, igluResolver) match {
+      case Right(_) =>
         command.envelope.data.validate[CommandEnvelope] match {
           case JsSuccess(envelope, _) =>
-            validateSelfDescribing(command.command) match {
-              case None =>
+            validateSelfDescribing(command.command, igluResolver) match {
+              case Right(_) =>
                 command.command.data.validate[T] match {
                   case JsSuccess(data, _) => Right((envelope, data))
                   case JsError(error) => Left(s"Encountered an issue while parsing Sauna command data: $error")
                 }
-              case Some(error) => Left(s"Could not validate command data JSON: $error")
+              case Left(error) => Left(s"Could not validate command data JSON: $error")
             }
           case JsError(error) => Left(s"Encountered an issue while parsing Sauna command envelope: $error")
         }
-      case Some(error) => Left(s"Could not validate command envelope JSON: ${error}")
+      case Left(error) => Left(s"Could not validate command envelope JSON: ${error}")
     }
   }
 
@@ -173,27 +181,25 @@ object Command {
    * Validates self-describing data against its' schema.
    *
    * @param selfDescribing The self-describing data to validate.
-   * @return None if the data was successfully validated against the schema,
-   *         Some with an error message otherwise.
+   * @param igluResolver   [[Resolver]] containing info about Iglu repositories.
+   * @return Right if the data was successfully validated against the schema,
+   *         Left with an error message otherwise.
    */
-  def validateSelfDescribing(selfDescribing: SelfDescribing): Option[String] = {
-    None/*val igluCentral = RepositoryRefConfig("Iglu central", 0, List("com.snowplowanalytics"))
-    val httpRepository = HttpRepositoryRef(igluCentral, "http://iglucentral.com")
-    val resolver = Resolver(500, List(httpRepository))
-    resolver.lookupSchema(selfDescribing.schema) match {
+  def validateSelfDescribing(selfDescribing: SelfDescribing, igluResolver: Resolver): Either[String, Unit] = {
+    Right()/*igluResolver.lookupSchema(selfDescribing.schema) match {
       case Success(schema) =>
         Json.fromJson[JsonNode](selfDescribing.data) match {
           case JsSuccess(jsonNodeData, _) =>
             val jsonSchema = JsonSchemaFactory.byDefault().getJsonSchema(schema)
             val processingReport = jsonSchema.validate(jsonNodeData)
             if (processingReport.isSuccess) {
-              None
+              Right()
             } else {
-              Some(processingReport.toString)
+              Left(processingReport.toString)
             }
-          case JsError(error) => Some(error.toString())
+          case JsError(error) => Left(error.toString())
         }
-      case Failure(error) => Some(error.toString())
+      case Failure(error) => Left(error.toString())
     }*/
   }
 

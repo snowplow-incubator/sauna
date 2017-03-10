@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -62,13 +62,13 @@ object Slack {
     text: Option[String],
     username: Option[String],
     channel: Option[String],
-    icon_url: Option[String],
-    icon_emoji: Option[String],
-    link_names: Option[Boolean],
+    iconUrl: Option[String],
+    iconEmoji: Option[String],
+    linkNames: Option[Boolean],
     mrkdwn: Option[Boolean],
-    unfurl_media: Option[Boolean],
-    unfurl_links: Option[Boolean],
-    attachments: Option[Array[WebhookAttachment]]
+    unfurlMedia: Option[Boolean],
+    unfurlLinks: Option[Boolean],
+    attachments: Option[Vector[WebhookAttachment]]
   )
 
   /**
@@ -80,16 +80,16 @@ object Slack {
     fallback: String,
     color: Option[String],
     pretext: Option[String],
-    author_name: Option[String],
-    author_link: Option[String],
+    authorName: Option[String],
+    authorLink: Option[String],
     title: Option[String],
-    title_link: Option[String],
+    titleLink: Option[String],
     text: Option[String],
-    fields: Option[Array[WebhookAttachmentField]],
-    image_url: Option[String],
-    thumb_url: Option[String],
+    fields: Option[Vector[WebhookAttachmentField]],
+    imageUrl: Option[String],
+    thumbUrl: Option[String],
     footer: Option[String],
-    footer_icon: Option[String],
+    footerIcon: Option[String],
     ts: Option[Int]
   )
 
@@ -120,7 +120,7 @@ object Slack {
       (JsPath \ "title").readNullable[String] and
       (JsPath \ "title_link").readNullable[String] and
       (JsPath \ "text").readNullable[String] and
-      (JsPath \ "fields").readNullable[Array[WebhookAttachmentField]] and
+      (JsPath \ "fields").readNullable[Vector[WebhookAttachmentField]] and
       (JsPath \ "image_url").readNullable[String] and
       (JsPath \ "thumb_url").readNullable[String] and
       (JsPath \ "footer").readNullable[String] and
@@ -138,10 +138,42 @@ object Slack {
       (JsPath \ "mrkdwn").readNullable[Boolean] and
       (JsPath \ "unfurl_media").readNullable[Boolean] and
       (JsPath \ "unfurl_links").readNullable[Boolean] and
-      (JsPath \ "attachments").readNullable[Array[WebhookAttachment]]
+      (JsPath \ "attachments").readNullable[Vector[WebhookAttachment]]
     ) (WebhookMessage.apply _)
 
-  implicit val webhookAttachmentFieldWrites: Writes[WebhookAttachmentField] = Json.writes[WebhookAttachmentField]
-  implicit val webhookAttachmentWrites: Writes[WebhookAttachment] = Json.writes[WebhookAttachment]
-  implicit val webhookMessageWrites: Writes[WebhookMessage] = Json.writes[WebhookMessage]
+  implicit val webhookAttachmentFieldWrites: Writes[WebhookAttachmentField] = (
+    (JsPath \ "title").writeNullable[String] and
+      (JsPath \ "value").writeNullable[String] and
+      (JsPath \ "short").writeNullable[Boolean]
+    ) (unlift(WebhookAttachmentField.unapply))
+
+  implicit val webhookAttachmentWrites: Writes[WebhookAttachment] = (
+    (JsPath \ "fallback").write[String] and
+      (JsPath \ "color").writeNullable[String] and
+      (JsPath \ "pretext").writeNullable[String] and
+      (JsPath \ "author_name").writeNullable[String] and
+      (JsPath \ "author_link").writeNullable[String] and
+      (JsPath \ "title").writeNullable[String] and
+      (JsPath \ "title_link").writeNullable[String] and
+      (JsPath \ "text").writeNullable[String] and
+      (JsPath \ "fields").writeNullable[Vector[WebhookAttachmentField]] and
+      (JsPath \ "image_url").writeNullable[String] and
+      (JsPath \ "thumb_url").writeNullable[String] and
+      (JsPath \ "footer").writeNullable[String] and
+      (JsPath \ "footer_icon").writeNullable[String] and
+      (JsPath \ "ts").writeNullable[Int]
+    ) (unlift(WebhookAttachment.unapply))
+
+  implicit val webhookMessageWrites: Writes[WebhookMessage] = (
+    (JsPath \ "text").writeNullable[String] and
+      (JsPath \ "username").writeNullable[String] and
+      (JsPath \ "channel").writeNullable[String] and
+      (JsPath \ "icon_url").writeNullable[String] and
+      (JsPath \ "icon_emoji").writeNullable[String] and
+      (JsPath \ "link_names").writeNullable[Boolean] and
+      (JsPath \ "mrkdwn").writeNullable[Boolean] and
+      (JsPath \ "unfurl_media").writeNullable[Boolean] and
+      (JsPath \ "unfurl_links").writeNullable[Boolean] and
+      (JsPath \ "attachments").writeNullable[Vector[WebhookAttachment]]
+    ) (unlift(WebhookMessage.unapply))
 }

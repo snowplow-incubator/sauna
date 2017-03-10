@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -95,9 +95,9 @@ object Observer {
    * @param file full root of file
    */
   case class LocalFilePublished(file: Path, observer: ActorRef) extends ObserverFileEvent {
-    override def id: String = file.toAbsolutePath.toString
+    def id: String = file.toAbsolutePath.toString
 
-    override def streamContent: Option[InputStream] = try {
+    def streamContent: Option[InputStream] = try {
       Some(Files.newInputStream(file))
     } catch {
       case NonFatal(e) => None
@@ -111,7 +111,7 @@ object Observer {
    * @param s3Source AWS S3 credentials to access bucket and object
    */
   case class S3FilePublished(id: String, s3Source: S3Source, observer: ActorRef) extends ObserverFileEvent {
-    override def streamContent: Option[InputStream] = s3Source.s3.get(s3Source.bucket, id).map(_.content)
+    def streamContent: Option[InputStream] = s3Source.s3.get(s3Source.bucket, id).map(_.content)
   }
 
   /**
@@ -127,9 +127,9 @@ object Observer {
     val byteArray = new Array[Byte](byteBuffer.remaining())
     byteBuffer.get(byteArray)
 
-    override def id: String = s"kinesis-$streamName-$seqNr"
+    def id: String = s"kinesis-$streamName-$seqNr"
 
-    override def streamContent: ByteArrayInputStream = new ByteArrayInputStream(byteArray)
+    def streamContent: ByteArrayInputStream = new ByteArrayInputStream(byteArray)
   }
 
   /**

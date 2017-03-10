@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -35,7 +35,7 @@ import observers.Observer._
 import utils.Command
 
 class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) extends Responder[ObserverCommandEvent, RoomNotificationReceived] {
-  override def extractEvent(observerEvent: ObserverEvent): Option[RoomNotificationReceived] = {
+  def extractEvent(observerEvent: ObserverEvent): Option[RoomNotificationReceived] = {
     observerEvent match {
       case e: ObserverCommandEvent =>
         val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
@@ -61,7 +61,7 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
    *
    * @param event The event containing a room notification.
    */
-  override def process(event: RoomNotificationReceived): Unit =
+  def process(event: RoomNotificationReceived): Unit =
     hipchat.sendRoomNotification(event.data).onComplete {
       case Success(message) => context.parent ! RoomNotificationSent(event, s"Successfully sent HipChat notification: $message")
       case Failure(error) => logger ! Notification(s"Error while sending HipChat notification: $error")

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -35,21 +35,21 @@ import responders._
  */
 case class SaunaSettings(
   // Loggers
-  amazonDynamodbConfig: Option[AmazonDynamodbConfig_1_0_0],
+  amazonDynamodbConfig: Option[loggers.AmazonDynamodbConfig_1_0_0],
   hipchatLoggerConfig: Option[loggers.HipchatConfig_1_0_0],
 
   // Responders
-  optimizelyConfig: Option[OptimizelyConfig_1_0_0],
-  sendgridConfig_1_0_0: Option[SendgridConfig_1_0_0],
-  sendgridConfig_1_0_1: Option[SendgridConfig_1_0_1],
+  optimizelyConfig: Option[responders.OptimizelyConfig_1_0_0],
+  sendgridConfig_1_0_0: Option[responders.SendgridConfig_1_0_0],
+  sendgridConfig_1_0_1: Option[responders.SendgridConfig_1_0_1],
   hipchatResponderConfig: Option[responders.HipchatConfig_1_0_0],
-  slackConfig: Option[SlackConfig_1_0_0],
-  pagerDutyConfig: Option[PagerDutyConfig_1_0_0],
+  slackConfig: Option[responders.SlackConfig_1_0_0],
+  pagerDutyConfig: Option[responders.PagerDutyConfig_1_0_0],
 
   // Observers
-  localFilesystemConfigs: List[LocalFilesystemConfig_1_0_0],
-  amazonS3Configs: List[AmazonS3Config_1_0_0],
-  amazonKinesisConfigs: List[AmazonKinesisConfig_1_0_0])
+  localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],
+  amazonS3Configs: List[observers.AmazonS3Config_1_0_0],
+  amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0])
 
 object SaunaSettings {
   def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil)

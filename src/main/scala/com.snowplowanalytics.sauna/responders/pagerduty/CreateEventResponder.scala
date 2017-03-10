@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -35,7 +35,7 @@ import observers.Observer._
 import utils.Command
 
 class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends Responder[ObserverCommandEvent, PagerDutyEventReceived] {
-  override def extractEvent(observerEvent: ObserverEvent): Option[PagerDutyEventReceived] = {
+  def extractEvent(observerEvent: ObserverEvent): Option[PagerDutyEventReceived] = {
     observerEvent match {
       case e: ObserverCommandEvent =>
         val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
@@ -56,7 +56,7 @@ class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends R
     }
   }
 
-  override def process(event: PagerDutyEventReceived): Unit =
+  def process(event: PagerDutyEventReceived): Unit =
     pagerDuty.createEvent(event.data).onComplete {
       case Success(message) =>
         if (message.status == 200)

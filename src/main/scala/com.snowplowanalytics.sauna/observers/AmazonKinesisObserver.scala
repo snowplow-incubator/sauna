@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -41,12 +41,20 @@ class AmazonKinesisObserver(streamName: String, kclConfig: KinesisClientLibConfi
     super.preStart()
     notify("Started Kinesis Observer")
 
+    /**
+     * [[KinesisRecordReader]] instance that will return processed records
+     * without any transformation.
+     */
     implicit object ARecordReader extends KinesisRecordReader[Record] {
       override def apply(r: Record): Record = {
         r
       }
     }
 
+    /**
+     * Start a worker thread that will notify the mediator about processed
+     * Kinesis records.
+     */
     KCLWorkerRunner(kclConfig).runAsyncSingleRecordProcessor[Record](1 minute) { record: Record =>
       Future {
         notify(s"Received Kinesis Record from $streamName")
@@ -55,7 +63,7 @@ class AmazonKinesisObserver(streamName: String, kclConfig: KinesisClientLibConfi
     }
   }
 
-  override def receive: PartialFunction[Any, Unit] = {
+  def receive: Receive = {
     case _ =>
   }
 }
@@ -72,9 +80,9 @@ object AmazonKinesisObserver {
       config.parameters.aws.secretAccessKey)
 
     class KinesisCredentialsProvider(credentials: BasicAWSCredentials) extends AWSCredentialsProvider {
-      override def refresh(): Unit = {}
+      def refresh(): Unit = {}
 
-      override def getCredentials: BasicAWSCredentials = credentials
+      def getCredentials: BasicAWSCredentials = credentials
     }
 
     val credentialsProvider = new KinesisCredentialsProvider(credentials)

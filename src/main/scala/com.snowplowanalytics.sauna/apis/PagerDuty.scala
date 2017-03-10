@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -43,7 +43,6 @@ class PagerDuty(logger: ActorRef) {
    * @return Future WSResponse.
    */
   def createEvent(event: PagerDutyEvent): Future[WSResponse] = {
-    println(Json.toJson(event))
     wsClient.url(url)
       .withHeaders("Content-Type" -> "application/json")
       .post(Json.toJson(event))
@@ -61,14 +60,14 @@ object PagerDuty {
    * @see [[https://v2.developer.pagerduty.com/docs/trigger-events PagerDuty API reference]]
    */
   case class PagerDutyEvent(
-    service_key: String,
-    event_type: String,
-    incident_key: Option[String],
+    serviceKey: String,
+    eventType: String,
+    incidentKey: Option[String],
     description: Option[String],
     details: Option[JsValue],
     client: Option[String],
-    client_url: Option[String],
-    contexts: Option[Array[PagerDutyEventContext]]
+    clientUrl: Option[String],
+    contexts: Option[Vector[PagerDutyEventContext]]
   )
 
   /**
@@ -100,9 +99,19 @@ object PagerDuty {
       (JsPath \ "details").readNullable[JsValue] and
       (JsPath \ "client").readNullable[String] and
       (JsPath \ "client_url").readNullable[String] and
-      (JsPath \ "context").readNullable[Array[PagerDutyEventContext]]
+      (JsPath \ "context").readNullable[Vector[PagerDutyEventContext]]
     ) (PagerDutyEvent.apply _)
 
   implicit val eventContextWrites: Writes[PagerDutyEventContext] = Json.writes[PagerDutyEventContext]
-  implicit val eventWrites: Writes[PagerDutyEvent] = Json.writes[PagerDutyEvent]
+
+  implicit val eventWrites: Writes[PagerDutyEvent] = (
+    (JsPath \ "service_key").write[String] and
+      (JsPath \ "event_type").write[String] and
+      (JsPath \ "incident_key").writeNullable[String] and
+      (JsPath \ "description").writeNullable[String] and
+      (JsPath \ "details").writeNullable[JsValue] and
+      (JsPath \ "client").writeNullable[String] and
+      (JsPath \ "client_url").writeNullable[String] and
+      (JsPath \ "context").writeNullable[Vector[PagerDutyEventContext]]
+    ) (unlift(PagerDutyEvent.unapply))
 }

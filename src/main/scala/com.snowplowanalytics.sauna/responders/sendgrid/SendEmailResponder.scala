@@ -12,7 +12,7 @@
  */
 package com.snowplowanalytics.sauna
 package responders
-package slack
+package sendgrid
 
 // scala
 import scala.concurrent.ExecutionContext.Implicits.global
@@ -25,25 +25,25 @@ import akka.actor.{ActorRef, Props}
 // play
 import play.api.libs.json.Json
 
-// Sauna
+// sauna
 import Responder.{ResponderEvent, ResponderResult}
-import SendMessageResponder._
-import apis.Slack
-import apis.Slack._
+import SendEmailResponder._
+import apis.Sendgrid
+import apis.Sendgrid.SendgridEmail
 import loggers.Logger.Notification
-import observers.Observer._
+import observers.Observer.{ObserverCommandEvent, ObserverEvent}
 import utils.Command
 
-class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder[ObserverCommandEvent, WebhookMessageReceived] {
-  def extractEvent(observerEvent: ObserverEvent): Option[WebhookMessageReceived] = {
+class SendEmailResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Responder[ObserverCommandEvent, SendgridEmailReceived] {
+  def extractEvent(observerEvent: ObserverEvent): Option[SendgridEmailReceived] = {
     observerEvent match {
       case e: ObserverCommandEvent =>
         val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
-        Command.extractCommand[WebhookMessage](commandJson) match {
+        Command.extractCommand[SendgridEmail](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
               case None =>
-                Some(WebhookMessageReceived(data, e))
+                Some(SendgridEmailReceived(data, e))
               case Some(error) =>
                 logger ! Notification(error)
                 None
@@ -56,34 +56,34 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
     }
   }
 
-  def process(event: WebhookMessageReceived): Unit =
-    slack.sendMessage(event.data).onComplete {
+  def process(event: SendgridEmailReceived): Unit =
+    sendgrid.sendEmail(event.data).onComplete {
       case Success(message) =>
-        if (message.status == 200)
-          context.parent ! WebhookMessageSent(event, s"Successfully sent Slack message: $message")
+        if (message.status >= 200 && message.status <= 299)
+          context.parent ! SendgridEmailSent(event, s"Successfully sent Sendgrid email!")
         else
-          logger ! Notification(s"Slack message sent but got unexpected response: $message")
-      case Failure(error) => logger ! Notification(s"Error while sending Slack message: $error")
+          logger ! Notification(s"Unexpected response from Sendgrid: ${message.body}")
+      case Failure(error) => logger ! Notification(s"Error while sending Sendgrid message: $error")
     }
 }
 
-object SendMessageResponder {
-  case class WebhookMessageReceived(
-    data: WebhookMessage,
+object SendEmailResponder {
+  case class SendgridEmailReceived(
+    data: SendgridEmail,
     source: ObserverCommandEvent
   ) extends ResponderEvent
 
-  case class WebhookMessageSent(
-    source: WebhookMessageReceived,
+  case class SendgridEmailSent(
+    source: SendgridEmailReceived,
     message: String) extends ResponderResult
 
   /**
-   * Constructs a [[Props]] for a [[SendMessageResponder]] actor.
+   * Constructs a [[Props]] for a [[SendEmailResponder]] actor.
    *
-   * @param slack  The Slack API wrapper.
-   * @param logger A logger actor.
+   * @param sendgrid The SendGrid API wrapper.
+   * @param logger   A logger actor.
    * @return [[Props]] for the new actor.
    */
-  def props(slack: Slack, logger: ActorRef): Props =
-    Props(new SendMessageResponder(slack, logger))
+  def props(sendgrid: Sendgrid, logger: ActorRef): Props =
+    Props(new SendEmailResponder(sendgrid, logger))
 }
