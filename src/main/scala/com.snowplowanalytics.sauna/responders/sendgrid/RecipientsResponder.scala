@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -28,11 +28,11 @@ import akka.actor.{ActorRef, Props}
 import com.github.tototoshi.csv._
 
 // sauna
-import apis.Sendgrid
-import responders.Responder._
 import RecipientsResponder._
-import observers.Observer.ObserverBatchEvent
 import RecipientsWorker.Delegate
+import apis.Sendgrid
+import observers.Observer._
+import responders.Responder._
 import utils._
 
 
@@ -43,9 +43,9 @@ import utils._
  * @see https://sendgrid.com/docs/User_Guide/Marketing_Campaigns/contacts.html
  * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide
  * @param sendgrid Sendgrid API Wrapper
- * @param logger A logger actor.
+ * @param logger   A logger actor.
  */
-class RecipientsResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Responder[RecipientsPublished] {
+class RecipientsResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Responder[ObserverFileEvent, RecipientsPublished] {
 
   /**
    * Worker actor doing all posting
@@ -61,13 +61,17 @@ class RecipientsResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Resp
    * @return Some [[RecipientsPublished]] if this observer-event need to be
    *         processed by this responder, None if event need to be skept
    */
-  def extractEvent(observerEvent: ObserverBatchEvent): Option[RecipientsPublished] = {
-    observerEvent.path match {
-      case pathRegexp(attrs) if attrs.split(",").contains("email") =>
-        Some(RecipientsPublished(attrs.split(",").toList, observerEvent))
-      case pathRegexp(_) =>
-        notify(s"RecipientsResponder: attribute 'email' for [${observerEvent.path}] must be included")
-        None
+  def extractEvent(observerEvent: ObserverEvent): Option[RecipientsPublished] = {
+    observerEvent match {
+      case e: ObserverFileEvent =>
+        e.id match {
+          case pathRegexp(attrs) if attrs.split(",").contains("email") =>
+            Some(RecipientsPublished(attrs.split(",").toList, e))
+          case pathRegexp(_) =>
+            notify(s"RecipientsResponder: attribute 'email' for [${observerEvent.id}] must be included")
+            None
+          case _ => None
+        }
       case _ => None
     }
   }
@@ -80,7 +84,7 @@ class RecipientsResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Resp
       case Some(content) =>
         worker ! Delegate(RecipientsChunks.parse(content, event, notify _))
       case None =>
-        notify(s"FAILURE: event's [${event.source.path}] source doesn't exist")
+        notify(s"FAILURE: event's [${event.source.id}] source doesn't exist")
     }
   }
 }
@@ -89,6 +93,7 @@ object RecipientsResponder {
   /**
    * Sendgrid limitation for amount of individual recipient per HTTP request.
    * Basis for chunking
+   *
    * @see https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-a-Single-Recipient-to-a-List-POST
    */
   val LINE_LIMIT = 1000
@@ -119,16 +124,19 @@ object RecipientsResponder {
   /**
    * Recipients-file published event
    *
-   * @param attrs list of attributes extracted from filepath
+   * @param attrs  list of attributes extracted from filepath
    * @param source underlying observer event
    */
-  case class RecipientsPublished(attrs: List[String], source: ObserverBatchEvent) extends ResponderEvent[ObserverBatchEvent]
+  case class RecipientsPublished(
+    attrs: List[String],
+    source: ObserverFileEvent
+  ) extends ResponderEvent
 
   /**
    * Constructs a Props for RecipientsResponder actor
    *
    * @param sendgrid Instance of Sendgrid
-   * @param logger Actor with underlying Logger
+   * @param logger   Actor with underlying Logger
    * @return Props for new actor
    */
   def props(logger: ActorRef, sendgrid: Sendgrid): Props =
@@ -151,10 +159,10 @@ object RecipientsResponder {
    * TSV data grouped into chunks because Sendgrid can accept payloads limited
    * to `LINE_LIMIT`
    *
-   * @param source immutable responder event responsible for this chunks
+   * @param source        immutable responder event responsible for this chunks
    * @param chunkIterator mutable iterator of chunks (according to `MAX_LINES`)
    */
-  private[sendgrid] class RecipientsChunks private (
+  private[sendgrid] class RecipientsChunks private(
     val source: RecipientsPublished,
     val chunkIterator: TsvChunks
   ) extends Serializable {
@@ -170,7 +178,6 @@ object RecipientsResponder {
      * `attributes` they will be thrown away
      *
      * @param ct Sendgrid information about field types
-     *
      * @return successfully reordered `CustomTypes` if all columns in `attribtues`
      *         are known. Error if `attributes` has unknown fields
      */
@@ -199,8 +206,8 @@ object RecipientsResponder {
      * we can be sure that underlying iterator always produces lines with
      * correct amount of columns
      *
-     * @param is stream of bytes for underlying source of data (file or S3 object)
-     * @param event responder event containing all information, including attributes
+     * @param is        stream of bytes for underlying source of data (file or S3 object)
+     * @param event     responder event containing all information, including attributes
      * @param onInvalid callback to notify system about unexpected line
      * @return `RecipientsChunks` with underlying iterator containing only valid lines
      */

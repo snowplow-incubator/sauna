@@ -1,6 +1,6 @@
 {
   "namespace": "com.snowplowanalytics.sauna.responders",
-  "name": "OptimizelyConfig_1_0_0",
+  "name": "HipchatConfig_1_0_0",
   "type": "record",
   "fields": [
     {
@@ -11,25 +11,18 @@
       "name": "id",
       "type": "string"
     },
-    { "name": "parameters",
+    {
+      "name": "parameters",
       "type": {
-        "name": "OptimizelyConfigParameters_1_0_0",
+        "name": "HipchatConfigParameters_1_0_0",
         "type": "record",
         "fields": [
           {
-            "name": "targetingListEnabled",
+            "name": "sendRoomNotificationEnabled",
             "type": "boolean"
           },
           {
-            "name": "dynamicClientProfilesEnabled",
-            "type": "boolean"
-          },
-          {
-            "name": "token",
-            "type": "string"
-          },
-          {
-            "name": "awsRegion",
+            "name": "authToken",
             "type": "string"
           }
         ]

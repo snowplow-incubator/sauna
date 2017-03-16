@@ -1,6 +1,6 @@
 {
   "namespace": "com.snowplowanalytics.sauna.responders",
-  "name": "OptimizelyConfig_1_0_0",
+  "name": "SendgridConfig_1_0_1",
   "type": "record",
   "fields": [
     {
@@ -13,23 +13,20 @@
     },
     { "name": "parameters",
       "type": {
-        "name": "OptimizelyConfigParameters_1_0_0",
+        "name": "SendgridConfigParameters_1_0_1",
         "type": "record",
         "fields": [
           {
-            "name": "targetingListEnabled",
+            "name": "recipientsEnabled",
             "type": "boolean"
           },
           {
-            "name": "dynamicClientProfilesEnabled",
-            "type": "boolean"
+            "name": "emailsEnabled",
+            "type": "boolean",
+            "default": false
           },
           {
-            "name": "token",
-            "type": "string"
-          },
-          {
-            "name": "awsRegion",
+            "name": "apiKeyId",
             "type": "string"
           }
         ]

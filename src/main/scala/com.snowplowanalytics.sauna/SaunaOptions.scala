@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -30,16 +30,17 @@ import com.sksamuel.avro4s._
 import play.api.libs.json._
 
 // sauna
-import responders._
 import loggers._
 import observers._
+import responders._
 
 /**
  * Options parsed from command line
- * 
+ *
  * @param configurationLocation root to directory with all configuration files
  */
 case class SaunaOptions(configurationLocation: File) {
+
   import SaunaOptions._
 
   /**
@@ -47,17 +48,22 @@ case class SaunaOptions(configurationLocation: File) {
    */
   def extract: SaunaSettings =
     SaunaSettings(
-      getConfig[AmazonDynamodbConfig],
-      getConfig[HipchatConfig],
-      getConfig[OptimizelyConfig],
-      getConfig[SendgridConfig],
-      getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config])
+      getConfig[loggers.AmazonDynamodbConfig_1_0_0],
+      getConfig[loggers.HipchatConfig_1_0_0],
+      getConfig[responders.OptimizelyConfig_1_0_0],
+      getConfig[responders.SendgridConfig_1_0_0],
+      getConfig[responders.SendgridConfig_1_0_1],
+      getConfig[responders.HipchatConfig_1_0_0],
+      getConfig[responders.SlackConfig_1_0_0],
+      getConfig[responders.PagerDutyConfig_1_0_0],
+      getConfigs[observers.LocalFilesystemConfig_1_0_0],
+      getConfigs[observers.AmazonS3Config_1_0_0],
+      getConfigs[observers.AmazonKinesisConfig_1_0_0])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
    * which was valid self-describing Avro
-   * Key - class name, value - map of ids to content of `data` field 
+   * Key - class name, value - map of ids to content of `data` field
    * anything except observers is single-element/no-element list
    */
   private lazy val configMap: Map[String, List[Array[Byte]]] =
@@ -131,7 +137,7 @@ object SaunaOptions {
    * JSON that contains `schema` and `data`
    *
    * @param schema string of SchemaKey
-   * @param data JSON instance with configuration
+   * @param data   JSON instance with configuration
    */
   private[sauna] case class Envelope(schema: SchemaKey, data: JsValue)
 
@@ -144,8 +150,8 @@ object SaunaOptions {
    */
   def buildConfigMap(files: List[File]): Either[String, Map[String, List[Envelope]]] = {
     val enabledConfigs = sequence(files.map(parseSelfDescribing)).right.map { configs =>
-      configs.filter(filterEnabled).groupBy(_.schema.name)
-    }.left.map( list => list.mkString(", "))
+      configs.filter(filterEnabled).groupBy(_.schema)
+    }.left.map(list => list.mkString(", "))
 
     enabledConfigs.right.flatMap { map =>
       getUnique(map)
@@ -165,7 +171,7 @@ object SaunaOptions {
       val json = Json.parse(content)
       val envelope = for {
         schema <- (json \ "schema").asOpt[String].flatMap(SchemaKey.fromUri)
-        data   <- (json \ "data").asOpt[JsObject]
+        data <- (json \ "data").asOpt[JsObject]
       } yield Envelope(schema, data)
       envelope match {
         case Some(e) => Right(e)
@@ -224,9 +230,9 @@ object SaunaOptions {
    * @param enabledConfigs configuration enabledConfigs with list of possible enabled configurations
    * @return validated configuration enabledConfigs with
    */
-  private[sauna] def getUnique(enabledConfigs: Map[String, List[Envelope]]): Either[String, Map[String, List[Envelope]]] = {
+  private[sauna] def getUnique(enabledConfigs: Map[SchemaKey, List[Envelope]]): Either[String, Map[String, List[Envelope]]] = {
     val (valid, invalid) = enabledConfigs.partition {
-      case (schema, envelopes) => schema.contains(".observers") || envelopes.size == 1
+      case (schema, envelopes) => schema.vendor.contains(".observers") || envelopes.size == 1
     }
 
     val ids = valid.flatMap {
@@ -238,7 +244,9 @@ object SaunaOptions {
     } else if (invalid.nonEmpty) {
       Left(s"Multiple configurations enabled: [${invalid.keys.mkString(",")}]")
     } else {
-      Right(valid)
+      Right(valid.map {
+        case (schema, envelopes) => (schema.name, envelopes)
+      })
     }
   }
 

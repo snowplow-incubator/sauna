@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -49,7 +49,7 @@ class DynamodbLogger(ddbTable: Table, ddb: DynamoDB) extends Actor {
 }
 
 object DynamodbLogger {
-  def props(parameters: AmazonDynamodbConfigParameters): Props = {
+  def props(parameters: AmazonDynamodbConfigParameters_1_0_0): Props = {
     // AWS credentials
     implicit val region = Region(parameters.awsRegion)
     val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)

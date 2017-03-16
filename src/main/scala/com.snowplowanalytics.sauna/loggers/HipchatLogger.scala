@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -46,6 +46,6 @@ class HipchatLogger(token: String, roomId: String) extends Actor {
 object HipchatLogger {
   val urlPrefix = "https://api.hipchat.com/v2/"
 
-  def props(parameters: HipchatConfigParameters): Props =
+  def props(parameters: HipchatConfigParameters_1_0_0): Props =
     Props(new HipchatLogger(parameters.token, parameters.roomId))
 }

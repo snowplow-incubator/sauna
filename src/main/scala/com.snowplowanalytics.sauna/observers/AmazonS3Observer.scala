@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -53,7 +53,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
 
   def receive: Receive = {
     case filePublished: S3FilePublished =>
-      notify(s"Detected new S3 file [${filePublished.path}]")
+      notify(s"Detected new S3 file [${filePublished.id}]")
       context.parent ! filePublished
 
     case deleteFile: DeleteS3Object =>
@@ -139,10 +139,10 @@ object AmazonS3Observer {
   def props(s3: S3, sqs: SQS, queue: Queue): Props =
     Props(new AmazonS3Observer(s3, sqs, queue))
 
-  def props(parameters: AmazonS3ConfigParameters): Props = {
+  def props(parameters: AmazonS3ConfigParameters_1_0_0): Props = {
     // AWS configuration. Safe to throw exception on initialization
     val region = Region(parameters.awsRegion)
-    val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsAccessKeyId)
+    val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)
     val s3 = S3(credentials)(region)
     val sqs = SQS(credentials)(region)
     val queue = sqs.queue(parameters.sqsQueueName)
