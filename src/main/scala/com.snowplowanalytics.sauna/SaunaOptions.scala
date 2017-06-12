@@ -81,7 +81,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
   private[sauna] def getConfig[S: SchemaFor: FromRecord: ClassTag]: Option[S] = {
-    val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
+    val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName.takeWhile(_ != '_')
     for {
       configs <- configMap.get(className).map(_.headOption)
       config <- configs
@@ -97,7 +97,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
   private[sauna] def getConfigs[S: SchemaFor: FromRecord: ClassTag]: List[S] = {
-    val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
+    val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName.takeWhile( _ != '_')
     for {
       configs <- List(configMap.get(className))
       config <- configs.toList
