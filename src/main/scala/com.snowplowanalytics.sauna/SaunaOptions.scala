@@ -54,6 +54,7 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[responders.SlackConfig_1_0_0],
       getConfig[responders.PagerDutyConfig_1_0_0],
       getConfig[responders.OpsGenieConfig_1_0_0],
+      getConfig[responders.PusherConfig_1_0_0],
       getConfigs[observers.LocalFilesystemConfig_1_0_0],
       getConfigs[observers.AmazonS3Config_1_0_0],
       getConfigs[observers.AmazonKinesisConfig_1_0_0])
@@ -78,7 +79,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @tparam S class of configuration with defined Avro schema
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
-  private[sauna] def getConfig[S: SchemaFor : FromRecord : ClassTag]: Option[S] = {
+  private[sauna] def getConfig[S: SchemaFor: FromRecord: ClassTag]: Option[S] = {
     val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
     for {
       configs <- configMap.get(className).map(_.headOption)
@@ -94,7 +95,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @tparam S class of configuration with defined Avro schema
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
-  private[sauna] def getConfigs[S: SchemaFor : FromRecord : ClassTag]: List[S] = {
+  private[sauna] def getConfigs[S: SchemaFor: FromRecord: ClassTag]: List[S] = {
     val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
     for {
       configs <- List(configMap.get(className))

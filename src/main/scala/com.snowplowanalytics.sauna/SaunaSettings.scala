@@ -41,6 +41,7 @@ case class SaunaSettings(
   slackConfig: Option[responders.SlackConfig_1_0_0],
   pagerDutyConfig: Option[responders.PagerDutyConfig_1_0_0],
   opsGenieConfig:  Option[responders.OpsGenieConfig_1_0_0],
+  pusherConfig:   Option[responders.PusherConfig_1_0_0],
 
   // Observers
   localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],

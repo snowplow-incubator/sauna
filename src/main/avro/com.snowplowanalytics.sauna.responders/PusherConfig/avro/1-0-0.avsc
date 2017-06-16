@@ -1,0 +1,44 @@
+{
+  "namespace": "com.snowplowanalytics.sauna.responders",
+  "name": "PusherConfig_1_0_0",
+  "type": "record",
+  "fields": [
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "parameters",
+      "type": {
+        "name": "PusherConfigParameters_1_0_0",
+        "type": "record",
+        "fields": [
+          {
+            "name": "triggerEventEnabled",
+            "type": "boolean"
+          },
+          {
+            "name": "appId",
+            "type": "string"
+          },
+          {
+            "name": "key",
+            "type": "string"
+          },
+          {
+            "name": "secret",
+            "type": "string"
+          },
+          {
+            "name": "cluster",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -34,6 +34,7 @@ import responders.pagerduty._
 import responders.sendgrid._
 import responders.slack._
 import responders.opsgenie._
+import responders.pusher._
 
 /**
  * Root user-level (supervisor) actor
@@ -358,7 +359,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _, opsGenieCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _, opsGenieCreator _, pusherCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -505,6 +506,24 @@ object Mediator {
           ((logger: SaunaLogger) => (id, CreateEventResponder.props(apiWrapper(logger), logger))) :: Nil
         } else Nil
 
+    }.getOrElse(Nil)
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the Pusher responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce Pusher responders.
+   */
+  def pusherCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.pusherConfig.collect {
+      case responders.PusherConfig_1_0_0(true, id, params)  =>
+      if (params.triggerEventEnabled){
+          val cluster = if(params.cluster.isEmpty) None else Some(params.cluster)
+          val apiWrapper: SaunaLogger => Pusher = (logger) => new Pusher(params.appId: String, params.key, params.secret, cluster, logger)
+          ((logger: SaunaLogger) => (id, PublishEventResponder.props(apiWrapper(logger), logger))) :: Nil
+      }
+      else Nil
     }.getOrElse(Nil)
   }
 
