@@ -28,11 +28,13 @@ object Dependencies {
     val igluCore          = "0.1.0"
     val igluScalaClient   = "0.5.0"
     val scalaTest         = "2.2.4"
+    val pusher 		  = "1.0.0"
   }
 
   object Libraries {
     // Java
     val typesafeConfig    = "com.typesafe"           % "config"                % V.typesafeConfig
+    val pusher           = "com.pusher"             % "pusher-http-java"    % V.pusher
 
     // Scala
     val totoshi           = "com.github.tototoshi"   %% "scala-csv"            % V.totoshi
