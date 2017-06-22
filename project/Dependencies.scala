@@ -28,6 +28,7 @@ object Dependencies {
     val igluCore          = "0.1.0"
     val igluScalaClient   = "0.5.0"
     val scalaTest         = "2.2.4"
+    val opsGenie          = "2.8.1"
   }
 
   object Libraries {
@@ -50,6 +51,7 @@ object Dependencies {
     val akkaClusterTools  = "com.typesafe.akka"      %% "akka-cluster-tools"   % V.akka
     val igluCore          = "com.snowplowanalytics"  %% "iglu-core"            % V.igluCore
     val igluScalaClient   = "com.snowplowanalytics"  %% "iglu-scala-client"    % V.igluScalaClient
+    val opsGenieSDK       = "com.opsgenie.integration" % "sdk-shaded"                % V.opsGenie
 
     // Test
     val akkaTestkit       = "com.typesafe.akka"      %% "akka-testkit"         % V.akka              % "test"
