@@ -45,6 +45,7 @@ case class SaunaSettings(
   hipchatResponderConfig: Option[responders.HipchatConfig_1_0_0],
   slackConfig: Option[responders.SlackConfig_1_0_0],
   pagerDutyConfig: Option[responders.PagerDutyConfig_1_0_0],
+  opsGenieConfig:  Option[responders.OpsGenieConfig_1_0_0],
 
   // Observers
   localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],
@@ -52,5 +53,5 @@ case class SaunaSettings(
   amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0])
 
 object SaunaSettings {
-  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil)
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, None, Nil, Nil, Nil)
 }

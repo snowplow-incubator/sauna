@@ -33,6 +33,7 @@ import responders.optimizely._
 import responders.pagerduty._
 import responders.sendgrid._
 import responders.slack._
+import responders.opsgenie._
 
 /**
  * Root user-level (supervisor) actor
@@ -342,7 +343,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _, opsGenieCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -447,6 +448,25 @@ object Mediator {
 
         if (params.sendMessageEnabled) {
           ((logger: SaunaLogger) => (id, SendMessageResponder.props(apiWrapper(logger), logger))) :: Nil
+        } else Nil
+
+    }.getOrElse(Nil)
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the OpsGenie responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce OpsGenie responders.
+   */
+  def opsGenieCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.opsGenieConfig.collect {
+      case responders.OpsGenieConfig_1_0_0(true, id, params) =>
+
+        val apiWrapper: SaunaLogger => OpsGenie = (logger) => new OpsGenie(params.apiKey, logger)
+
+        if (params.createAlertEnabled) {
+          ((logger: SaunaLogger) => (id, CreateAlertResponder.props(apiWrapper(logger), logger))) :: Nil
         } else Nil
 
     }.getOrElse(Nil)
