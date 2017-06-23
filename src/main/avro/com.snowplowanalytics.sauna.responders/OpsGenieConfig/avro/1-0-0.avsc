@@ -1,0 +1,31 @@
+{
+  "namespace": "com.snowplowanalytics.sauna.responders",
+  "name": "OpsGenieConfig_1_0_0",
+  "type": "record",
+  "fields": [
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "id",
+      "type": "string"
+    },
+    { "name": "parameters",
+      "type": {
+        "name": "OpsGenieConfigParameters_1_0_0",
+        "type": "record",
+        "fields": [
+          {
+            "name": "createAlertEnabled",
+            "type": "boolean"
+          },
+          {
+            "name": "apiKey",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

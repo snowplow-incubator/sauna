@@ -21,8 +21,8 @@ import scala.concurrent.Future
 import akka.actor.ActorRef
 
 // play
+import play.api.libs.functional.syntax._
 import play.api.libs.json._
-import play.api.libs.ws.WSResponse
 
 // jackson
 import com.fasterxml.jackson.core.JsonParseException
@@ -60,6 +60,7 @@ object OpsGenie {
   import com.ifountain.opsgenie.client.swagger.model.{CreateAlertRequest => POJOCreateAlertRequest, TeamRecipient}
   import com.ifountain.opsgenie.client.swagger.model.{SuccessResponse => POJOSuccessResponse}
   import scala.util.{Try, Success, Failure}
+  import scala.language.postfixOps
   
   type Alias = String
   type Description = String
@@ -80,18 +81,18 @@ object OpsGenie {
   }
 
   case class Alert(
-    val message: Message,
-    val teams: Seq[Team] = Nil,
-    val alias: Option[Alias] = None,
+    val message:     Message,
+    val teams:       Option[Seq[Team]] = None,
+    val alias:       Option[Alias] = None,
     val description: Option[Description] = None,
-    val recipients: Seq[Recipient] = Nil,
-    val actions:    Seq[Action] = Nil,
-    val source:     Option[Source] = None,
-    val tags:       Seq[Tag] = Nil,
-    val details: Map[String, String] = Map(),
-    val entity:     Option[Entity],
-    val user:       Option[User],
-    val note:       Option[Note]){
+    val recipients:  Option[Seq[Recipient]] = None,
+    val actions:     Option[Seq[Action]] = None,
+    val source:      Option[Source] = None,
+    val tags:        Option[Seq[Tag]] = None,
+    val details:     Option[Map[String, String]] = None,
+    val entity:      Option[Entity] = None,
+    val user:        Option[User] = None,
+    val note:        Option[Note] = None){
 
     lazy val request: POJOCreateAlertRequest = {
       val request: POJOCreateAlertRequest =  new POJOCreateAlertRequest();
@@ -102,15 +103,32 @@ object OpsGenie {
       if(user.isDefined) request.setUser(user.get)
       if(note.isDefined) request.setNote(note.get)
         
-      teams.foreach{t => request.addTeamsItem(new TeamRecipient().name(t))}
-      recipients.foreach{r => request.addTeamsItem(new TeamRecipient().name(r))}
-      actions.foreach{a => request.addActionsItem(a)} 
-      tags.foreach{t => request.addTagsItem(t)}
+      if(teams.isDefined) teams.get.foreach{t => request.addTeamsItem(new TeamRecipient().name(t))}
+      if(recipients.isDefined) recipients.get.foreach{r => request.addTeamsItem(new TeamRecipient().name(r))}
+      if(actions.isDefined) actions.get.foreach{a => request.addActionsItem(a)}
+      if(tags.isDefined) tags.get.foreach{t => request.addTagsItem(t)}
       
       request  
     }
-
   }
+
+  /**
+   * Custom reader for an Alert instance.
+   */
+  implicit val alertReads: Reads[Alert] = (
+      (JsPath \ "message").read[Message] and
+      (JsPath \ "teams").readNullable[Seq[Team]] and
+      (JsPath \ "alias").readNullable[Alias] and
+      (JsPath \ "description").readNullable[Description] and
+      (JsPath \ "recipients").readNullable[Seq[Recipient]] and
+      (JsPath \ "actions").readNullable[Seq[Action]] and
+      (JsPath \ "source").readNullable[Source] and
+      (JsPath \ "tags").readNullable[Seq[Tag]] and
+      (JsPath \ "details").readNullable[Map[String, String]] and
+      (JsPath \ "entity").readNullable[Entity] and
+      (JsPath \ "user").readNullable[User] and
+      (JsPath \ "note").readNullable[Note]
+    ) (Alert.apply _)
 
   trait CreateAlertResponse{
     val response: POJOSuccessResponse
@@ -133,5 +151,4 @@ object OpsGenie {
   case class CreateAlertRequest(val alert: Alert)(implicit val client: OpsGenieClient){
     def toResponse: CreateAlertResponse = CreateAlertResponse.apply(Try(client.alertV2().createAlert(alert.request)))
   }
-
 }
