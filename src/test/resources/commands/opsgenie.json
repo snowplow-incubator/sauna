@@ -1,0 +1,23 @@
+{
+  "schema": "iglu:com.snowplowanalytics.sauna.commands/command/jsonschema/1-0-0",
+  "data": {
+    "envelope": {
+      "schema": "iglu:com.snowplowanalytics.sauna.commands/envelope/jsonschema/1-0-0",
+      "data": {
+        "commandId": "9dadfc92-9311-43c7-9cee-61ab590a6e81",
+        "whenCreated": "2017-01-02T19:14:42Z",
+        "execution": {
+          "semantics": "AT_LEAST_ONCE",
+          "timeToLive": null
+        },
+        "tags": {}
+      }
+    },
+    "command": {
+      "schema": "iglu:com.opsgenie.sauna.commands/create_alert/jsonschema/1-0-0",
+      "data": {
+        "message": "Hello from sauna RT Opsgenie "
+      }
+    }
+  }
+}
