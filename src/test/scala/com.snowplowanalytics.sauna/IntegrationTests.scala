@@ -66,6 +66,7 @@ import responders.optimizely._
 import responders.pagerduty._
 import responders.sendgrid._
 import responders.slack._
+import responders.opsgenie._
 
 
 object IntegrationTests {
@@ -186,6 +187,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
   val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
+  val opsgenieToken: Option[String] = sys.env.get("OPSGENIE_API_KEY")
   val slackWebhookUrl: Option[String] = sys.env.get("SLACK_WEBHOOK_URL")
   val pagerDutyServiceKey: Option[String] = sys.env.get("PAGERDUTY_SERVICE_KEY")
 
@@ -794,6 +796,38 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val apiWrapper = new Hipchat(hipchatToken.get, dummyLogger)
     val dummyObserver = Props(new MockRealTimeObserver())
     val responder = SendRoomNotificationResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(10000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }
+
+  test("OpsGenie responder") {
+    assume(opsgenieToken.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/opsgenie.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Failed to create new OpsGenie alert"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      override def receive: Receive = {
+        case status: OpsGenie.CreateAlertSuccess => error = null
+        case alertError: OpsGenie.CreateAlertError => error = alertError.message
+      }
+    }))
+
+    // Define other actors.
+    val apiWrapper = new OpsGenie(opsgenieToken.get, dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = CreateAlertResponder.props(apiWrapper, dummyLogger)
     val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
 
     Thread.sleep(3000)

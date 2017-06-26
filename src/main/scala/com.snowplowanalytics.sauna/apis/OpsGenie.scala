@@ -130,16 +130,28 @@ object OpsGenie {
       (JsPath \ "note").readNullable[Note]
     ) (Alert.apply _)
 
-  trait CreateAlertResponse{
-    val response: POJOSuccessResponse
+  implicit val alertWrites: Writes[Alert] = (
+      (JsPath \ "message").write[Message] and
+      (JsPath \ "teams").writeNullable[Seq[Team]] and
+      (JsPath \ "alias").writeNullable[Alias] and
+      (JsPath \ "description").writeNullable[Description] and
+      (JsPath \ "recipients").writeNullable[Seq[Recipient]] and
+      (JsPath \ "actions").writeNullable[Seq[Action]] and
+      (JsPath \ "source").writeNullable[Source] and
+      (JsPath \ "tags").writeNullable[Seq[Tag]] and
+      (JsPath \ "details").writeNullable[Map[String, String]] and
+      (JsPath \ "entity").writeNullable[Entity] and
+      (JsPath \ "user").writeNullable[User] and
+      (JsPath \ "note").writeNullable[Note]
+    ) (unlift(Alert.unapply))
+
+  trait CreateAlertResponse
+  case class CreateAlertSuccess(val response: POJOSuccessResponse) extends CreateAlertResponse{
     lazy val id = response.getRequestId()
     lazy val data = response.getData()
     lazy val took = response.getTook()
   }
-  case class CreateAlertSuccess(val response: POJOSuccessResponse) extends CreateAlertResponse
-  case class CreateAlertError(val msg: String) extends java.lang.Exception(msg) with CreateAlertResponse{
-    val response: POJOSuccessResponse = throw new Exception(msg)
-  }
+  case class CreateAlertError(val message: String) extends java.lang.Exception(message) with CreateAlertResponse
 
   object CreateAlertResponse{
     def apply(response: Try[POJOSuccessResponse]) = response match{
