@@ -67,7 +67,7 @@ import responders.pagerduty._
 import responders.sendgrid._
 import responders.slack._
 import responders.opsgenie._
-
+import responders.pusher._
 
 object IntegrationTests {
 
@@ -190,6 +190,8 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val opsgenieToken: Option[String] = sys.env.get("OPSGENIE_API_KEY")
   val slackWebhookUrl: Option[String] = sys.env.get("SLACK_WEBHOOK_URL")
   val pagerDutyServiceKey: Option[String] = sys.env.get("PAGERDUTY_SERVICE_KEY")
+  val Seq(pusherAppId, pusherKey, pusherSecret, pusherCluster) =
+    Seq("APPID", "SECRET", "KEY", "CLUSTER").map{k=>sys.env.get(s"PUSHER_$k")}
 
   val postmarkApiToken: Option[String] = sys.env.get("POSTMARK_API_TOKEN")
   val postmarkInboundEmail: Option[String] = sys.env.get("POSTMARK_INBOUND_EMAIL")
@@ -828,6 +830,42 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val apiWrapper = new OpsGenie(opsgenieToken.get, dummyLogger)
     val dummyObserver = Props(new MockRealTimeObserver())
     val responder = CreateAlertResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(10000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }    
+
+  test("Pusher responder") {
+    assume(pusherAppId.isDefined)
+    assume(pusherKey.isDefined)
+    assume(pusherSecret.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/pusher.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Did not publish Pusher event"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      import PublishEventResponder._
+      override def receive: Receive = {
+        case e: EventSent => error = null
+        case message: Notification => error = message.text
+      }
+
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Pusher(pusherAppId.get, pusherKey.get, pusherSecret.get, pusherCluster, dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = PublishEventResponder.props(apiWrapper, dummyLogger)
     val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
 
     Thread.sleep(3000)
