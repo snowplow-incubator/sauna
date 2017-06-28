@@ -16,15 +16,21 @@ package responders
 // akka
 import akka.actor.{Actor, ActorRef}
 
+// Play
+import play.api.libs.json.Reads
+
 // awscala
 import awscala.s3.{Bucket, S3}
 import awscala.sqs.Message
 
+// Iglu
+import com.snowplowanalytics.iglu.client.SchemaCriterion
+
 // sauna
 import loggers.Logger.Notification
-import observers.Observer.ObserverBatchEvent
-import Responder._
-
+import observers.Observer._
+import responders.Responder._
+import utils.Command
 
 /**
  * Responder actors are responsible for extracting events designated for them
@@ -41,6 +47,9 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
    */
   def logger: ActorRef
 
+  /**
+    * All responders check if observer's message is addressed to them
+    */
   def receive = {
     // Check if message should be handled by responder and actually process it
     // Mediator awaits for `ResponderAck`
@@ -72,6 +81,43 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
    *         processed by this responder, None if event need to be skept
    */
   def extractEvent(observerEvent: ObserverBatchEvent): Option[RE]
+
+  /**
+    * Try to extract responder-specific event from `ObserverCommandEvent`
+    * and **log** error if extraction was not successful
+    *
+    * @param observerEvent
+    * @param criterion
+    * @param constructor
+    * @tparam P
+    * @return
+    */
+  def extractEventFromCommand[P: Reads](
+    observerEvent: ObserverEvent,
+    criterion: SchemaCriterion,
+    constructor: (P, ObserverCommandEvent) => RE
+  ): Option[RE] = {
+    observerEvent match {
+      case e: ObserverCommandEvent =>
+        val result = for {
+          commandJson <- Command.parseJson(e.streamContent)
+          pair <- Command.extractCommand[P](commandJson, criterion)
+          (envelope, data) = pair
+          _ <- Command.validateEnvelope(envelope)
+        } yield constructor(data, e)
+
+        result match {
+          case Right(event) => Some(event)
+          case Left(Command.ExtractionError(message)) =>
+            notifyLogger(message)
+            None
+          case Left(Command.ExtractionSkip) =>
+            None
+        }
+      case _ => None
+    }
+
+  }
 
   /**
    * Primary responder's method. Process file or delegate job to worker actor.
