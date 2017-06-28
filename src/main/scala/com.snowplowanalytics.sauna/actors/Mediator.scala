@@ -28,6 +28,7 @@ import loggers._
 import observers.Observer._
 import observers._
 import responders._
+import responders.hipchat._
 import responders.optimizely._
 import responders.sendgrid._
 
@@ -341,7 +342,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -394,6 +395,25 @@ object Mediator {
 
       case _ => Nil
     }
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the Hipchat responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce Hipchat responders.
+   */
+  def hipchatCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.hipchatResponderConfig.collect {
+      case responders.HipchatConfig_1_0_0(true, id, params) =>
+
+        val apiWrapper: SaunaLogger => Hipchat = (logger) => new Hipchat(params.authToken, logger)
+
+        if (params.sendRoomNotificationEnabled) {
+          ((logger: SaunaLogger) => (id, SendRoomNotificationResponder.props(apiWrapper(logger), logger))) :: Nil
+        } else Nil
+
+    }.getOrElse(Nil)
   }
 
   /**
@@ -456,8 +476,8 @@ object Mediator {
       case _ => None
     }
 
-    val hipchat = saunaSettings.hipchatConfig match {
-      case Some(HipchatConfig_1_0_0(true, _, hipchatParams)) =>
+    val hipchat = saunaSettings.hipchatLoggerConfig match {
+      case Some(loggers.HipchatConfig_1_0_0(true, _, hipchatParams)) =>
         val hipchatProps = HipchatLogger.props(hipchatParams)
         Some(HipchatProps(hipchatProps))
       case _ => None
