@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -72,7 +72,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
    * Map of currently processing events from all observers
    * Primary mediator's state
    */
-  val processedEvents = new mutable.HashMap[ObserverBatchEvent, MessageState]()
+  val processedEvents = new mutable.HashMap[ObserverEvent, MessageState]()
 
   /**
    * List of responder actors, communicating with 3rd-party APIs
@@ -93,13 +93,13 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
         case InProcess(timings) =>
           val delayed = timings.filter(currentTime - _._2 > 60000)
           delayed.map { case (actor, time) =>
-            s"Delay warning: message from [${event.path}] was sent to responder [$actor] and no respond was received for ${(currentTime - time) / 1000} seconds"
+            s"Delay warning: message from [${event.id}] was sent to responder [$actor] and no respond was received for ${(currentTime - time) / 1000} seconds"
           }
         case AllFinished(finishers) =>
           val timestamps = finishers.map(_._2)
           if (timestamps.nonEmpty) {
             val last = timestamps.max
-            List(s"Delay warning: message from [${event.path}] was processed by all [${finishers.size}] actors [${(currentTime - last) / 1000} seconds ago] and still wasn't deleted from internal state")
+            List(s"Delay warning: message from [${event.id}] was processed by all [${finishers.size}] actors [${(currentTime - last) / 1000} seconds ago] and still wasn't deleted from internal state")
           } else Nil
       }
     }.toList
@@ -108,7 +108,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
   def receive = {
 
     // Broadcast observer event to all responders
-    case observerEvent: Observer.ObserverBatchEvent =>
+    case observerEvent: Observer.ObserverEvent =>
       responderActors.map { responder => responder ! observerEvent }
 
     // Track what responders accepted broadcast
@@ -127,12 +127,12 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
           val updatedState = state.addRejecter(rejecter)
           processedEvents.put(event, updatedState)
           if (updatedState.rejecters.size == responderActors.size) {
-            notify(s"Warning: observer event from [${event.path}] was rejected by all responders")
+            notify(s"Warning: observer event from [${event.id}] was rejected by all responders")
           }
         case None =>
           processedEvents.put(event, MessageState.empty.addRejecter(rejecter))
           if (responderActors.size == 1) {
-            notify(s"Warning: observer event from [${event.path}] was rejected by single running responder")
+            notify(s"Warning: observer event from [${event.id}] was rejected by single running responder")
           }
       }
 
@@ -145,15 +145,15 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
           val updatedState = state.addFinisher(sender())
           updatedState.check match {
             case AllFinished(actorStamps) =>
-              notify(s"All actors finished processing message [${original.path}]. Deleting")
+              notify(s"All actors finished processing message [${original.id}]. Deleting")
               original match {
                 case l: LocalFilePublished => original.observer ! Observer.DeleteLocalFile(l.file)
-                case s: S3FilePublished => original.observer ! Observer.DeleteS3Object(s.path, s.s3Source)
+                case s: S3FilePublished => original.observer ! Observer.DeleteS3Object(s.id, s.s3Source)
                 case r: KinesisRecordReceived => ()
               }
               processedEvents.remove(original)
             case InProcess(stillWorking) =>
-              notify(s"Some actors still processing message [${original.path}]")
+              notify(s"Some actors still processing message [${original.id}]")
               processedEvents.put(original, updatedState)
           }
         case None =>

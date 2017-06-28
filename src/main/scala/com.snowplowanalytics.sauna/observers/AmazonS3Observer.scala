@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -14,6 +14,7 @@ package com.snowplowanalytics.sauna
 package observers
 
 // scala
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 // java
@@ -45,6 +46,8 @@ import responders.Responder._
  */
 class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observer {
 
+  implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("singleton-dispatcher")
+
   import AmazonS3Observer._
 
   val monitor: AmazonSqsMonitor = new AmazonSqsMonitor(sqs, queue, forwardFilePublished, stopNotify)
@@ -54,7 +57,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
 
   def receive: Receive = {
     case filePublished: S3FilePublished =>
-      notify(s"Detected new S3 file [${filePublished.path}]")
+      notify(s"Detected new S3 file [${filePublished.id}]")
       context.parent ! filePublished
 
     case deleteFile: DeleteS3Object =>
