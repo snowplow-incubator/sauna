@@ -13,32 +13,32 @@
 package com.snowplowanalytics.sauna
 
 // sauna
-import responders._
 import loggers._
 import observers._
+import responders._
 
 /**
  * Global settings-object, required to run whole application,
  * aggregating Avro-generated configuration classes for each entity
  *
- * @param amazonDynamodbConfig optional DynamoDB logger configuration
- * @param hipchatConfig optional Hipchat logger configuration
- * @param optimizelyConfig optional Optimizely responders configuration
- * @param sendgridConfig optional Sendgrid resonder configuration
+ * @param amazonDynamodbConfig   optional DynamoDB logger configuration
+ * @param hipchatConfig          optional Hipchat logger configuration
+ * @param optimizelyConfig       optional Optimizely responders configuration
+ * @param sendgridConfig         optional Sendgrid resonder configuration
  * @param localFilesystemConfigs list of local roots to observe
- * @param amazonS3Configs list of S3 buckets to observe
- * @param amazonKinesisConfigs list of Kinesis streams to observe
+ * @param amazonS3Configs        list of S3 buckets to observe
+ * @param amazonKinesisConfigs   list of Kinesis streams to observe
  */
 case class SaunaSettings(
   // Loggers
-  amazonDynamodbConfig: Option[AmazonDynamodbConfig],
-  hipchatConfig: Option[HipchatConfig],
+  amazonDynamodbConfig: Option[AmazonDynamodbConfig_1_0_0],
+  hipchatConfig: Option[HipchatConfig_1_0_0],
 
   // Responders
-  optimizelyConfig: Option[OptimizelyConfig],
-  sendgridConfig: Option[SendgridConfig],
+  optimizelyConfig: Option[OptimizelyConfig_1_0_0],
+  sendgridConfig: Option[SendgridConfig_1_0_0],
 
   // Observers
-  localFilesystemConfigs: List[LocalFilesystemConfig],
-  amazonS3Configs: List[AmazonS3Config],
-  amazonKinesisConfigs: List[AmazonKinesisConfig])
+  localFilesystemConfigs: List[LocalFilesystemConfig_1_0_0],
+  amazonS3Configs: List[AmazonS3Config_1_0_0],
+  amazonKinesisConfigs: List[AmazonKinesisConfig_1_0_0])
