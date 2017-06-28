@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -22,18 +22,20 @@ import awscala.sqs.Message
 
 // sauna
 import loggers.Logger.Notification
-import observers.Observer.ObserverBatchEvent
-import Responder._
-
+import observers.Observer._
+import responders.Responder._
 
 /**
  * Responder actors are responsible for extracting events designated for them
  * from observer-events. After event extracted, responder can delegate it
  * to dedicated worker
  *
- * @tparam RE responder event, which responder supposed to process
+ * @tparam OE observer event (input),
+ *            this is aux type to mark what events could be accepted
+ * @tparam RE responder event (output),
+ *            which responder supposed to process
  */
-trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
+trait Responder[OE <: ObserverEvent, RE <: ResponderEvent] extends Actor {
 
   /**
    * Common for all responders actor logger to dump errors and warnings
@@ -44,7 +46,7 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
   def receive = {
     // Check if message should be handled by responder and actually process it
     // Mediator awaits for `ResponderAck`
-    case message: ObserverBatchEvent =>
+    case message: ObserverEvent =>
       extractEvent(message) match {
         case Some(event) =>
           sender() ! Accepted(message, self)
@@ -71,7 +73,7 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
    * @return Some responder-specific event if this observer-event need to be
    *         processed by this responder, None if event need to be skept
    */
-  def extractEvent(observerEvent: ObserverBatchEvent): Option[RE]
+  def extractEvent(observerEvent: ObserverEvent): Option[RE]
 
   /**
    * Primary responder's method. Process file or delegate job to worker actor.
@@ -103,23 +105,23 @@ object Responder {
    * This is the only message that root actor can safely ask about
    */
   sealed trait ResponderAck extends Product with Serializable
-  case class Rejected(observerEvent: ObserverBatchEvent, responder: ActorRef) extends ResponderAck
-  case class Accepted(observerEvent: ObserverBatchEvent, responder: ActorRef) extends ResponderAck
+
+  case class Rejected(observerEvent: ObserverEvent, responder: ActorRef) extends ResponderAck
+
+  case class Accepted(observerEvent: ObserverEvent, responder: ActorRef) extends ResponderAck
 
   /**
    * Every responder must be able to process some specific type of event
    * This event must contain a source, which in turn is always observer-event,
-   * which can be used to obtain full picture and so far is always
-   * `ObserverBatchEvent` event, but in future it can be anything that can
+   * which can be used to obtain full picture and can be anything that can
    * provide full event's data
    */
-  trait ResponderEvent[I <: ObserverBatchEvent] {
+  trait ResponderEvent {
     /**
      * Each responder event need to include reference to some source from
-     * which whole event data can be extracted, usually this is `ObserverBatchEvent`
-     * Responder can extract `ResponderEvent` from `I`
+     * which whole event data (`ResponderEvent`) can be extracted.
      */
-    def source: I
+    def source: ObserverEvent
   }
 
   /**
@@ -128,13 +130,14 @@ object Responder {
    */
   trait ResponderResult {
     def message: String
-    def source: ResponderEvent[ObserverBatchEvent]
+
+    def source: ResponderEvent
   }
 
   /**
    * Helper class to represent a bucket from which published file can streamed
    *
-   * @param s3 AWS S3 credentials
+   * @param s3     AWS S3 credentials
    * @param bucket AWS S3 bucket
    */
   case class S3Source(s3: S3, bucket: Bucket, message: Message)
