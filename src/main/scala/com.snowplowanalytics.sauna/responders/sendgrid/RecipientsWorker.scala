@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2012-2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -18,20 +18,19 @@ package sendgrid
 import akka.actor._
 
 // scala
-import scala.concurrent.duration._
 import scala.collection.mutable
+import scala.concurrent.duration._
 import scala.util.control.NonFatal
-import scala.util.{ Try, Success, Failure }
+import scala.util.{Failure, Success}
 
 // play json
 import play.api.libs.json._
-import play.api.libs.functional.syntax._
 
 // sauna
 import apis.Sendgrid
 import loggers.Logger.Notification
-import RecipientsResponder._
-import Responder._
+import responders.Responder._
+import responders.sendgrid.RecipientsResponder._
 import utils._
 
 
@@ -42,8 +41,8 @@ import utils._
  * @param apiWrapper Sendgrid API Wrapper
  */
 class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
-  import RecipientsWorker._
 
+  import RecipientsWorker._
   import context.dispatcher
 
   /**
@@ -97,7 +96,7 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
           processData(chunks.customFields.get.customTypes, chunks.chunkIterator.next())
         case Some(empty) =>
           currentChunks = None
-          context.parent ! RecipientsProcessed(empty.source, s"Recipients from [${empty.source.source.path}] have been processed")
+          context.parent ! RecipientsProcessed(empty.source, s"Recipients from [${empty.source.source.id}] have been processed")
         case None if chunksQueue.nonEmpty =>
           currentChunks = Some(chunksQueue.dequeue())
         case None => ()
@@ -109,9 +108,9 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
   /**
    * It handles errors and sends result to Sendgrid.
    *
-   * @param keys attribute keys, repeated for each recipient from `chunk`
+   * @param keys  attribute keys, repeated for each recipient from `chunk`
    * @param chunk Seq of recipients, where recipient is a seq of attribute values.
-   *                Each `values` in `chunk` should have one length with `keys`
+   *              Each `values` in `chunk` should have one length with `keys`
    */
   def processData(keys: List[Sendgrid.CustomType], chunk: Lines[TSV]): Unit = {
     val json = makeValidJson(keys, chunk)
@@ -131,7 +130,7 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
    * @param totalRecordsNumber Sometimes records "disappear".
    *                           So, originally were 10, error_count = 2, updated_count = 4, new_count = 3.
    *                           One record was lost. This param is expected total records number.
-   * @param jsonText A json text from Sendgrid. Example:
+   * @param jsonText           A json text from Sendgrid. Example:
    * @see https://sendgrid.com/docs/API_Reference/Web_API_v3/Marketing_Campaigns/contactdb.html#Add-Single-Recipient-POST
    */
   def processResponse(totalRecordsNumber: => Int, jsonText: String): Unit = {
@@ -148,7 +147,7 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
       // trying to get error explanation
       for {
         errorIndex <- errorIndices
-        errors     <- errorsOpt
+        errors <- errorsOpt
       } {
         errors.map(_.value).find(_.apply("error_indices").as[Seq[Int]].contains(errorIndex)) match {
           case Some(error) =>
@@ -180,6 +179,7 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
 
 
 object RecipientsWorker {
+
   import RecipientsResponder._
 
   /**
@@ -204,7 +204,7 @@ object RecipientsWorker {
   /**
    * Message denoting that recipients file processed successfully
    *
-   * @param source responder event
+   * @param source  responder event
    * @param message string message to log
    */
   case class RecipientsProcessed(source: RecipientsPublished, message: String) extends ResponderResult
@@ -218,30 +218,30 @@ object RecipientsWorker {
    * Length of `keys` **MUST** be equal to amount of length of inner Seq
    *
    * For example, for `keys` = Seq("name1", "name2"),
-   *                  `values` = Seq(Seq("value11", "value12"), Seq("value21", "value22")),
+   * `values` = Seq(Seq("value11", "value12"), Seq("value21", "value22")),
    * result would be:
    *
    * [
-   *   {
-   *     "name1": "value11",
-   *     "name2": "value12"
-   *   },
-   *   {
-   *     "name1": "value21",
-   *     "name2": "value22"
-   *   }
+   * {
+   * "name1": "value11",
+   * "name2": "value12"
+   * },
+   * {
+   * "name1": "value21",
+   * "name2": "value22"
+   * }
    * ]
    *
-   * @param keys Seq of attribute keys, repeated for each recipient from `chunk`
+   * @param keys     Seq of attribute keys, repeated for each recipient from `chunk`
    * @param tsvLines Seq of recipients, where recipient is a seq of attribute values.
-   *                Each `values` in `chunk` must already have one length with `keys`
+   *                 Each `values` in `chunk` must already have one length with `keys`
    * @return Sendgrid-friendly JSON
    * @see https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#214-response-algorithm
    */
   private[sendgrid] def makeValidJson(keys: List[Sendgrid.CustomType], tsvLines: Lines[TSV]): JsArray = {
     val recipients = for {
-      tsvLine         <- tsvLines
-      correctedValues  = keys.zip(tsvLine).map { case (k, v) => (k.name, k.`type`.correct(v)) }
+      tsvLine <- tsvLines
+      correctedValues = keys.zip(tsvLine).map { case (k, v) => (k.name, k.`type`.correct(v)) }
     } yield correctedValues
 
     JsArray(recipients.map(pairs => JsObject(pairs.toMap)))

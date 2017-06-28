@@ -63,6 +63,7 @@ import responders.optimizely._
 import responders.sendgrid._
 
 object IntegrationTests {
+
   /**
    * Supervisor actor
    */
@@ -71,9 +72,10 @@ object IntegrationTests {
     override val responderActors = respondersProps.map(p => context.actorOf(p))
   }
 
-  case class AnyEvent(source: ObserverBatchEvent) extends Responder.ResponderEvent[ObserverBatchEvent]
+  case class AnyEvent(source: ObserverEvent) extends Responder.ResponderEvent
 
   val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
+
   class MockLocalFilePublished(data: String, observer: ActorRef) extends LocalFilePublished(java.nio.file.Paths.get(filePath), observer) {
     override def streamContent = Some(new ByteArrayInputStream(data.getBytes("UTF-8")))
   }
@@ -81,8 +83,9 @@ object IntegrationTests {
   /**
    * Dummy responder ignoring all observer event
    */
-  class DummyResponder(val logger: ActorRef) extends Responder[AnyEvent] {
-    def extractEvent(observerEvent: ObserverBatchEvent): Option[AnyEvent] = None
+  class DummyResponder(val logger: ActorRef) extends Responder[ObserverEvent, AnyEvent] {
+    def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] = None
+
     def process(observerEvent: AnyEvent) = ???
   }
 
@@ -103,7 +106,9 @@ object IntegrationTests {
     var results = 0
     var finished: Long = 0L
 
-    def readyToAnswer: Receive = { case WhenFinished => sender() ! finished }
+    def readyToAnswer: Receive = {
+      case WhenFinished => sender() ! finished
+    }
 
     def receiveResults: Receive = {
       case result: ResponderResult =>
@@ -117,12 +122,19 @@ object IntegrationTests {
     override def receive = {
       case mock: MockLocalFilePublished =>
         mocksSent = mocksSent + 1
-        responderActors.foreach { _ ! mock }
+        responderActors.foreach {
+          _ ! mock
+        }
         if (mocksSent == 2) context.become(receiveResults)
     }
   }
 
-  class NoopActor extends Actor { def receive = { case _ => () } }
+  class NoopActor extends Actor {
+    def receive = {
+      case _ => ()
+    }
+  }
+
 }
 
 /**
@@ -143,8 +155,8 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
   val awsAccessKeyId: Option[String] = sys.env.get("AWS_ACCESS_KEY_ID")
   val secretAccessKey: Option[String] = sys.env.get("AWS_SECRET_ACCESS_KEY")
-  val awsBucketName = sys.env.getOrElse("AWS_BUCKET_NAME", "sauna-integration-test-bucket-staging")  // "sauna-integration-test" for eng-sandbox
-  val awsQueueName = sys.env.getOrElse("AWS_QUEUE_NAME", "sauna-integration-test-queue-staging")     // "sauna-integration-test-queue" for eng-sandbox
+  val awsBucketName = sys.env.getOrElse("AWS_BUCKET_NAME", "sauna-integration-test-bucket-staging") // "sauna-integration-test" for eng-sandbox
+  val awsQueueName = sys.env.getOrElse("AWS_QUEUE_NAME", "sauna-integration-test-queue-staging") // "sauna-integration-test-queue" for eng-sandbox
   val awsRegion = sys.env.getOrElse("AWS_REGION", "us-east-1")
 
   val kinesisApplicationName = sys.env.getOrElse("KINESIS_APPLICATION_NAME", "sauna-integration-test")
@@ -176,20 +188,31 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     var expectedLines: Seq[String] = Seq()
 
     val responders =
-      Props(new Responder[AnyEvent] {
+      Props(new Responder[ObserverEvent, AnyEvent] {
         val logger: ActorRef = null
 
-        def extractEvent(event: ObserverBatchEvent): Option[AnyEvent] = {
+        def extractEvent(event: ObserverEvent): Option[AnyEvent] = {
           Some(AnyEvent(event))
         }
 
         val pathPattern: String = ".*"
 
         def process(event: AnyEvent): Unit = {
-          expectedLines = fromInputStream(event.source.streamContent.get).getLines().toSeq
-          self ! new ResponderResult {
-            override def source: ResponderEvent[ObserverBatchEvent] = event
-            override def message: String = "OK!"
+          event.source match {
+            case e: ObserverFileEvent =>
+              expectedLines = fromInputStream(e.streamContent.get).getLines().toSeq
+              self ! new ResponderResult {
+                override def source: ResponderEvent = event
+
+                override def message: String = "OK!"
+              }
+            case e: ObserverCommandEvent =>
+              expectedLines = fromInputStream(e.streamContent).getLines().toSeq
+              self ! new ResponderResult {
+                override def source: ResponderEvent = event
+
+                override def message: String = "OK!"
+              }
           }
         }
       })
@@ -250,7 +273,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "Detected new local file"
           if (!message.text.contains(expectedText)) {
             error = s"In step1, [${message.text}] does not contain [$expectedText]"
-          } else { context.become(step2) }
+          } else {
+            context.become(step2)
+          }
 
         case message =>
           error = s"In step1, got unexpected message $message"
@@ -261,7 +286,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "Successfully uploaded targeting lists with name"
           if (!message.text.startsWith(expectedText)) {
             error = s"In step2, [${message.text}] does not start with [$expectedText]"
-          } else { context.become(step3) }
+          } else {
+            context.become(step3)
+          }
 
         case message: Manifestation =>
           id = message.uid
@@ -275,7 +302,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "new-lists.tsv has been successfully published"
           if (!message.text.endsWith(expectedText)) {
             error = s"In step3, [${message.text}] does not end with [$expectedText]"
-          } else { context.become(step4) }
+          } else {
+            context.become(step4)
+          }
 
         case message =>
           error = s"in step3, got unexpected message [$message]"
@@ -302,7 +331,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // Cleanup
     apiWrapper.deleteTargetingList(optimizelyProjectId, "dec_ab_group")
 
-    system.actorOf(Props(new IntegrationTests.RootActor(List(responderProps), localObserver, logger)))  // TODO: try different names
+    system.actorOf(Props(new IntegrationTests.RootActor(List(responderProps), localObserver, logger))) // TODO: try different names
 
     // wait
     Thread.sleep(3000)
@@ -336,7 +365,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val s3 = S3(credentials)
     val sqs = SQS(credentials)
     val queue = sqs.queue(awsQueueName)
-                   .getOrElse(throw new Exception("No queue with that name found"))
+      .getOrElse(throw new Exception("No queue with that name found"))
 
     // clean up, if object does not exist, Amazon S3 returns a success message instead of an error message
     s3.deleteObject(awsBucketName, destination)
@@ -403,7 +432,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           if (!message.text.startsWith(expectedText)) {
             error = s"In step4, [${message.text}] does not start with [$expectedText]"
           } else {
-            error = null  // Success
+            error = null // Success
           }
 
         case message =>
@@ -447,7 +476,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       assert(false, "processed file should have been deleted")
     } catch {
       case e: AmazonS3Exception if e.getMessage.contains("The specified key does not exist") =>
-        // do nothing, it was expected exception
+      // do nothing, it was expected exception
     }
   }
 
@@ -457,7 +486,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // prepare for start, define some variables
     val source = Paths.get("src/test/resources/dynamic_client_profiles.tsv")
     val destinationPath = s"$saunaRoot/com.optimizely.dcp/datasource/v1/$optimizelyServiceId/$optimizelyDatasourceId/tsv:isVip,customerId,spendSegment,birth/ua-team/joe"
-    val destinationName = "warehouse"   // It will be uploaded with `.csv` extension
+    val destinationName = "warehouse" // It will be uploaded with `.csv` extension
     val destination = Paths.get(s"$destinationPath/$destinationName")
 
     new File(destinationPath).mkdirs()
@@ -526,7 +555,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   }
 
   test("local recipients") {
-    assume(sendgridToken.isDefined)   // Or this should be moved into integration tests
+    assume(sendgridToken.isDefined) // Or this should be moved into integration tests
 
     val data = List(
       "\"bob@foo.com1980-06-21\"\t\"Al\"\t\"13\"\t\"a2013-12-15 14:05:06.789\"",
@@ -547,7 +576,11 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     val sendgrid = new Sendgrid(sendgridToken.get)
     val recipients = system.actorOf(RecipientsResponder.props(logger, sendgrid))
-    val noopRef = system.actorOf(Props(new Actor { def receive = { case _ => () }}))
+    val noopRef = system.actorOf(Props(new Actor {
+      def receive = {
+        case _ => ()
+      }
+    }))
 
     // send a message, get a Future notification that it was processed
     recipients ! new IntegrationTests.MockLocalFilePublished(data, noopRef)
@@ -610,10 +643,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     }))
 
 
-    val responder = Props(new Responder[AnyEvent] {
+    val responder = Props(new Responder[ObserverEvent, AnyEvent] {
       override def logger: ActorRef = dummyLogger
 
-      override def extractEvent(observerEvent: ObserverBatchEvent): Option[AnyEvent] =
+      override def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] =
         Some(AnyEvent(observerEvent))
 
       override def process(event: AnyEvent): Unit = {
