@@ -50,26 +50,36 @@ import awscala.sqs.SQS
 import awscala.{Credentials, Region}
 
 // sauna
-import IntegrationTests.AnyEvent
+import IntegrationTests._
 import actors.Mediator
-import apis.{Optimizely, Sendgrid}
+import apis._
 import loggers.Logger
 import loggers.Logger.{Manifestation, Notification}
 import observers.Observer._
 import observers._
 import responders.Responder
 import responders.Responder.{ResponderEvent, ResponderResult}
+import responders.hipchat.SendRoomNotificationResponder
 import responders.optimizely._
 import responders.sendgrid._
 
 object IntegrationTests {
 
+  case class ObserverTrigger(data: Any)
+
   /**
    * Supervisor actor
    */
-  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil, Nil)) {
+  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings()) {
     override val observers = List(context.actorOf(observerProps))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
+
+    override def receive: Receive = super.receive orElse {
+      case ot: ObserverTrigger =>
+        observers.foreach {
+          _ ! ot.data
+        }
+    }
   }
 
   case class AnyEvent(source: ObserverEvent) extends Responder.ResponderEvent
@@ -98,7 +108,7 @@ object IntegrationTests {
   /**
    * Supervisor actor tracking execution time
    */
-  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil, Nil)) {
+  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings()) {
     override val logger = context.actorOf(Props(new NoopActor))
     override val observers = List(context.actorOf(Props(new NoopActor)))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
@@ -135,6 +145,12 @@ object IntegrationTests {
     }
   }
 
+  class MockRealTimeObserver extends Actor with Observer {
+    override def receive: Receive = {
+      case data: String => context.parent ! new KinesisRecordReceived("", "", ByteBuffer.wrap(data.getBytes()), self)
+    }
+  }
+
 }
 
 /**
@@ -164,6 +180,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val kinesisRegion = sys.env.getOrElse("KINESIS_REGION", "us-east-1")
 
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
+  val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
 
   val saunaRoot = System.getProperty("java.io.tmpdir", "/tmp") + "/saunaRoot"
 
@@ -712,5 +729,60 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // ...as well as the observer.
     assert(observerRecord !== null, "Could not consume the produced record using the observer")
     assert(new String(observerRecord.data.array(), Charset.forName(charset)) === data)
+  }
+
+  test("HipChat responder") {
+    assume(hipchatToken.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/hipchat.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Did not send HipChat notification"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Successfully sent HipChat notification"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Hipchat(hipchatToken.get, dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = SendRoomNotificationResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(10000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
   }
 }

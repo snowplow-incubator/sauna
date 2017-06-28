@@ -29,11 +29,6 @@ import com.sksamuel.avro4s._
 // play-json
 import play.api.libs.json._
 
-// sauna
-import loggers._
-import observers._
-import responders._
-
 /**
  * Options parsed from command line
  *
@@ -48,13 +43,14 @@ case class SaunaOptions(configurationLocation: File) {
    */
   def extract: SaunaSettings =
     SaunaSettings(
-      getConfig[AmazonDynamodbConfig_1_0_0],
-      getConfig[HipchatConfig_1_0_0],
-      getConfig[OptimizelyConfig_1_0_0],
-      getConfig[SendgridConfig_1_0_0],
-      getConfigs[LocalFilesystemConfig_1_0_0],
-      getConfigs[AmazonS3Config_1_0_0],
-      getConfigs[AmazonKinesisConfig_1_0_0])
+      getConfig[loggers.AmazonDynamodbConfig_1_0_0],
+      getConfig[loggers.HipchatConfig_1_0_0],
+      getConfig[responders.OptimizelyConfig_1_0_0],
+      getConfig[responders.SendgridConfig_1_0_0],
+      getConfig[responders.HipchatConfig_1_0_0],
+      getConfigs[observers.LocalFilesystemConfig_1_0_0],
+      getConfigs[observers.AmazonS3Config_1_0_0],
+      getConfigs[observers.AmazonKinesisConfig_1_0_0])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
