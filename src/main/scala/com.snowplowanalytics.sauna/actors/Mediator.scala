@@ -15,18 +15,18 @@ package actors
 
 // scala
 import scala.collection.mutable
-import scala.concurrent.{Await, TimeoutException}
 import scala.concurrent.duration._
+import scala.concurrent.{Await, TimeoutException}
 
 // akka
 import akka.actor._
 
 // sauna
 import apis._
-import loggers._
 import loggers.Logger._
-import observers._
+import loggers._
 import observers.Observer._
+import observers._
 import responders._
 import responders.optimizely._
 import responders.sendgrid._
@@ -37,6 +37,7 @@ import responders.sendgrid._
  * and perform central role in coordinating work
  */
 class Mediator(saunaSettings: SaunaSettings) extends Actor {
+
   import Mediator._
 
   // For tick
@@ -52,12 +53,14 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
    */
   val observers: List[ActorRef] =
     localObserversCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
-    s3ObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
-    kinesisObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) }
+      s3ObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
+      kinesisObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) }
 
   // Terminate application if none observer were configured
   // null is valid value when overriding observers in tests
-  if (observers != null && observers.isEmpty) { stop(Some("At least one observer must be configured")) }
+  if (observers != null && observers.isEmpty) {
+    stop(Some("At least one observer must be configured"))
+  }
 
   /**
    * Single system logger, accepting all Notifications and Manifestations
@@ -219,7 +222,7 @@ object Mediator {
    * @param receivers list of actor and timestamp, denoting when each
    *                  received message
    * @param finishers list of actor and timestamp, denoting when each
-   *                 finishers processing message
+   *                  finishers processing message
    */
   // This internal class was introduced to avoid extremely long `ask` on responders,
   // handling big files. Using it, we can be sure what files have been processed,
@@ -294,7 +297,9 @@ object Mediator {
    * all responders
    */
   sealed trait ProcessingState extends Product with Serializable
+
   case class AllFinished(timings: List[ActorStamp]) extends ProcessingState
+
   case class InProcess(stillWorking: Timings) extends ProcessingState
 
   // Below is primitive version of Reader monad (called Creator for simplicity)
@@ -350,7 +355,7 @@ object Mediator {
    */
   def optimizelyCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     saunaSettings.optimizelyConfig match {
-      case Some(OptimizelyConfig(true, id, params)) =>
+      case Some(OptimizelyConfig_1_0_0(true, id, params)) =>
 
         val apiWrapper: SaunaLogger => Optimizely = (logger) => new Optimizely(params.token, logger)
 
@@ -381,7 +386,7 @@ object Mediator {
    */
   def sendgridCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     saunaSettings.sendgridConfig match {
-      case Some(SendgridConfig(true, id, params)) =>
+      case Some(SendgridConfig_1_0_0(true, id, params)) =>
         val apiWrapper: Sendgrid = new Sendgrid(params.apiKeyId)
         if (params.recipientsEnabled) {
           ((logger: SaunaLogger) => (id, RecipientsResponder.props(logger, apiWrapper))) :: Nil
@@ -445,14 +450,14 @@ object Mediator {
   def loggerCreator(saunaSettings: SaunaSettings): Props = {
 
     val dynamodb = saunaSettings.amazonDynamodbConfig match {
-      case Some(AmazonDynamodbConfig(true, _, dynamodbParams)) =>
+      case Some(AmazonDynamodbConfig_1_0_0(true, _, dynamodbParams)) =>
         val dynamodbProps = DynamodbLogger.props(dynamodbParams)
         Some(DynamodbProps(dynamodbProps))
       case _ => None
     }
 
     val hipchat = saunaSettings.hipchatConfig match {
-      case Some(HipchatConfig(true, _, hipchatParams)) =>
+      case Some(HipchatConfig_1_0_0(true, _, hipchatParams)) =>
         val hipchatProps = HipchatLogger.props(hipchatParams)
         Some(HipchatProps(hipchatProps))
       case _ => None
