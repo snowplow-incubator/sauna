@@ -1,6 +1,6 @@
 {
   "namespace": "com.snowplowanalytics.sauna.observers",
-  "name": "LocalFilesystemConfig",
+  "name": "LocalFilesystemConfig_1_0_0",
   "type": "record",
   "fields": [
     {
@@ -11,9 +11,10 @@
       "name": "id",
       "type": "string"
     },
-    { "name": "parameters",
+    {
+      "name": "parameters",
       "type": {
-        "name": "LocalFilesystemConfigParameters",
+        "name": "LocalFilesystemConfigParameters_1_0_0",
         "type": "record",
         "fields": [
           {

@@ -30,9 +30,9 @@ import com.sksamuel.avro4s._
 import play.api.libs.json._
 
 // sauna
-import responders._
 import loggers._
 import observers._
+import responders._
 
 /**
  * Options parsed from command line
@@ -40,6 +40,7 @@ import observers._
  * @param configurationLocation root to directory with all configuration files
  */
 case class SaunaOptions(configurationLocation: File) {
+
   import SaunaOptions._
 
   /**
@@ -47,13 +48,13 @@ case class SaunaOptions(configurationLocation: File) {
    */
   def extract: SaunaSettings =
     SaunaSettings(
-      getConfig[AmazonDynamodbConfig],
-      getConfig[HipchatConfig],
-      getConfig[OptimizelyConfig],
-      getConfig[SendgridConfig],
-      getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config],
-      getConfigs[AmazonKinesisConfig])
+      getConfig[AmazonDynamodbConfig_1_0_0],
+      getConfig[HipchatConfig_1_0_0],
+      getConfig[OptimizelyConfig_1_0_0],
+      getConfig[SendgridConfig_1_0_0],
+      getConfigs[LocalFilesystemConfig_1_0_0],
+      getConfigs[AmazonS3Config_1_0_0],
+      getConfigs[AmazonKinesisConfig_1_0_0])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
@@ -75,7 +76,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @tparam S class of configuration with defined Avro schema
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
-  private[sauna] def getConfig[S: SchemaFor: FromRecord: ClassTag]: Option[S] = {
+  private[sauna] def getConfig[S: SchemaFor : FromRecord : ClassTag]: Option[S] = {
     val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
     for {
       configs <- configMap.get(className).map(_.headOption)
@@ -91,7 +92,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @tparam S class of configuration with defined Avro schema
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
-  private[sauna] def getConfigs[S: SchemaFor: FromRecord: ClassTag]: List[S] = {
+  private[sauna] def getConfigs[S: SchemaFor : FromRecord : ClassTag]: List[S] = {
     val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
     for {
       configs <- List(configMap.get(className))
@@ -132,7 +133,7 @@ object SaunaOptions {
    * JSON that contains `schema` and `data`
    *
    * @param schema string of SchemaKey
-   * @param data JSON instance with configuration
+   * @param data   JSON instance with configuration
    */
   private[sauna] case class Envelope(schema: SchemaKey, data: JsValue)
 
@@ -146,7 +147,7 @@ object SaunaOptions {
   def buildConfigMap(files: List[File]): Either[String, Map[String, List[Envelope]]] = {
     val enabledConfigs = sequence(files.map(parseSelfDescribing)).right.map { configs =>
       configs.filter(filterEnabled).groupBy(_.schema)
-    }.left.map( list => list.mkString(", "))
+    }.left.map(list => list.mkString(", "))
 
     enabledConfigs.right.flatMap { map =>
       getUnique(map)
@@ -166,7 +167,7 @@ object SaunaOptions {
       val json = Json.parse(content)
       val envelope = for {
         schema <- (json \ "schema").asOpt[String].flatMap(SchemaKey.fromUri)
-        data   <- (json \ "data").asOpt[JsObject]
+        data <- (json \ "data").asOpt[JsObject]
       } yield Envelope(schema, data)
       envelope match {
         case Some(e) => Right(e)
@@ -240,7 +241,7 @@ object SaunaOptions {
       Left(s"Multiple configurations enabled: [${invalid.keys.mkString(",")}]")
     } else {
       Right(valid.map {
-        case (schema, envelopes) => (schema.name, envelopes)
+        case (schema, envelopes) => (s"${schema.name}_${schema.version.model}_${schema.version.revision}_${schema.version.addition}", envelopes)
       })
     }
   }
@@ -252,7 +253,7 @@ object SaunaOptions {
    * @tparam S one of configuration types with defined Avro schemas
    * @return some configuration if `content` conforms class
    */
-  private[sauna] def parseConfig[S: SchemaFor: FromRecord](content: Array[Byte]): Option[S] =
+  private[sauna] def parseConfig[S: SchemaFor : FromRecord](content: Array[Byte]): Option[S] =
     try {
       val is = AvroInputStream.json[S](content)
       val instances = is.singleEntity.toOption

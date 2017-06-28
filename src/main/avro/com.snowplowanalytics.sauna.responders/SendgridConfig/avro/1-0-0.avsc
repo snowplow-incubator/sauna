@@ -1,6 +1,6 @@
 {
   "namespace": "com.snowplowanalytics.sauna.responders",
-  "name": "SendgridConfig",
+  "name": "SendgridConfig_1_0_0",
   "type": "record",
   "fields": [
     {
@@ -11,9 +11,10 @@
       "name": "id",
       "type": "string"
     },
-    { "name": "parameters",
+    {
+      "name": "parameters",
       "type": {
-        "name": "SendgridConfigParameters",
+        "name": "SendgridConfigParameters_1_0_0",
         "type": "record",
         "fields": [
           {
