@@ -49,7 +49,7 @@ class DynamodbLogger(ddbTable: Table, ddb: DynamoDB) extends Actor {
 }
 
 object DynamodbLogger {
-  def props(parameters: AmazonDynamodbConfigParameters): Props = {
+  def props(parameters: AmazonDynamodbConfigParameters_1_0_0): Props = {
     // AWS credentials
     implicit val region = Region(parameters.awsRegion)
     val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)

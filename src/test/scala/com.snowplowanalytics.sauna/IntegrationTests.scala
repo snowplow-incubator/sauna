@@ -624,19 +624,19 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       }
     })
 
-    val kinesisObserver = AmazonKinesisObserver.props(AmazonKinesisConfig(
+    val kinesisObserver = AmazonKinesisObserver.props(AmazonKinesisConfig_1_0_0(
       true,
       kinesisApplicationName,
-      AmazonKinesisObserverParameters(
-        AwsConfigParameters(
+      AmazonKinesisObserverParameters_1_0_0(
+        AwsConfigParameters_1_0_0(
           awsAccessKeyId.get,
           secretAccessKey.get
         ),
-        AmazonKinesisConfigParameters(
+        AmazonKinesisConfigParameters_1_0_0(
           kinesisRegion,
           kinesisStreamName,
           5000,
-          ShardIteratorType.LATEST,
+          ShardIteratorType_1_0_0.LATEST,
           None
         )
       )
