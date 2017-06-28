@@ -1,0 +1,27 @@
+{
+  "schema": "iglu:com.snowplowanalytics.sauna.commands/command/jsonschema/1-0-0",
+  "data": {
+    "envelope": {
+      "schema": "iglu:com.snowplowanalytics.sauna.commands/envelope/jsonschema/1-0-0",
+      "data": {
+        "commandId": "9dadfc92-9311-43c7-9cee-61ab590a6e81",
+        "whenCreated": "2017-01-02T19:14:42Z",
+        "execution": {
+          "semantics": "AT_LEAST_ONCE",
+          "timeToLive": null
+        },
+        "tags": {}
+      }
+    },
+    "command": {
+      "schema": "iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-0-0",
+      "data": {
+        "roomIdOrName": "Sauna - Staging",
+        "color": "YELLOW",
+        "message": "Sent from an integration test!",
+        "notify": false,
+        "messageFormat": "TEXT"
+      }
+    }
+  }
+}
