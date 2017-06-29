@@ -1,0 +1,44 @@
+{
+  "schema": "iglu:com.snowplowanalytics.sauna.commands/command/jsonschema/1-0-0",
+  "data": {
+    "envelope": {
+      "schema": "iglu:com.snowplowanalytics.sauna.commands/envelope/jsonschema/1-0-0",
+      "data": {
+        "commandId": "9dadfc92-9311-43c7-9cee-61ab590a6e81",
+        "whenCreated": "2017-01-02T19:14:42Z",
+        "execution": {
+          "semantics": "AT_LEAST_ONCE",
+          "timeToLive": null
+        },
+        "tags": {}
+      }
+    },
+    "command": {
+      "schema": "iglu:com.slack.sauna.commands/send_message/jsonschema/1-0-0",
+      "data": {
+        "username": "sauna-bot",
+        "icon_emoji": ":rocket:",
+        "attachments": [
+          {
+            "fallback": "Awesome Project build failing! [ReferenceError - UI is not defined]",
+            "color": "danger",
+            "title": "Build failing!",
+            "text": "<https://example.com|ReferenceError> - UI is not defined",
+            "fields": [
+              {
+                "title": "Project",
+                "value": "Awesome Project",
+                "short": true
+              },
+              {
+                "title": "Changeset",
+                "value": "<https://example.com|d190bf4>",
+                "short": true
+              }
+            ]
+          }
+        ]
+      }
+    }
+  }
+}

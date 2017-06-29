@@ -21,6 +21,7 @@ package com.snowplowanalytics.sauna
  * @param optimizelyConfig       optional Optimizely responders configuration
  * @param sendgridConfig         optional Sendgrid resonder configuration
  * @param hipchatResponderConfig optional Hipchat responder configuration
+ * @param slackConfig            optional Slack responder configuration
  * @param localFilesystemConfigs list of local roots to observe
  * @param amazonS3Configs        list of S3 buckets to observe
  * @param amazonKinesisConfigs   list of Kinesis streams to observe
@@ -34,6 +35,7 @@ case class SaunaSettings(
   optimizelyConfig: Option[responders.OptimizelyConfig_1_0_0],
   sendgridConfig: Option[responders.SendgridConfig_1_0_0],
   hipchatResponderConfig: Option[responders.HipchatConfig_1_0_0],
+  slackConfig: Option[responders.SlackConfig_1_0_0],
 
   // Observers
   localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],
@@ -41,5 +43,5 @@ case class SaunaSettings(
   amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0])
 
 object SaunaSettings {
-  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, Nil, Nil, Nil)
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, Nil, Nil, Nil)
 }
