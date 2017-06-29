@@ -59,9 +59,11 @@ import observers.Observer._
 import observers._
 import responders.Responder
 import responders.Responder.{ResponderEvent, ResponderResult}
-import responders.hipchat.SendRoomNotificationResponder
+import responders.hipchat._
 import responders.optimizely._
 import responders.sendgrid._
+import responders.slack._
+
 
 object IntegrationTests {
 
@@ -181,6 +183,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
   val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
+  val slackWebhookUrl: Option[String] = sys.env.get("SLACK_WEBHOOK_URL")
 
   val saunaRoot = System.getProperty("java.io.tmpdir", "/tmp") + "/saunaRoot"
 
@@ -781,6 +784,61 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     root ! ObserverTrigger(command)
 
     Thread.sleep(10000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }
+
+  test("Slack responder") {
+    assume(slackWebhookUrl.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/slack.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Did not send Slack message"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Sent Slack message"
+          if (!message.text.contains(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Slack(slackWebhookUrl.get, dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = SendMessageResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(5000)
 
     // Assert that nothing went wrong.
     assert(error == null)
