@@ -30,6 +30,7 @@ import observers._
 import responders._
 import responders.hipchat._
 import responders.optimizely._
+import responders.pagerduty._
 import responders.sendgrid._
 import responders.slack._
 
@@ -343,7 +344,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -431,6 +432,25 @@ object Mediator {
 
         if (params.sendMessageEnabled) {
           ((logger: SaunaLogger) => (id, SendMessageResponder.props(apiWrapper(logger), logger))) :: Nil
+        } else Nil
+
+    }.getOrElse(Nil)
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the PagerDuty responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce PagerDuty responders.
+   */
+  def pagerDutyCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.pagerDutyConfig.collect {
+      case responders.PagerDutyConfig_1_0_0(true, id, params) =>
+
+        val apiWrapper: SaunaLogger => PagerDuty = (logger) => new PagerDuty(logger)
+
+        if (params.createEventEnabled) {
+          ((logger: SaunaLogger) => (id, CreateEventResponder.props(apiWrapper(logger), logger))) :: Nil
         } else Nil
 
     }.getOrElse(Nil)
