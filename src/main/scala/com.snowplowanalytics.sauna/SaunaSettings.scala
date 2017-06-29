@@ -19,7 +19,8 @@ package com.snowplowanalytics.sauna
  * @param amazonDynamodbConfig   optional DynamoDB logger configuration
  * @param hipchatLoggerConfig    optional Hipchat logger configuration
  * @param optimizelyConfig       optional Optimizely responders configuration
- * @param sendgridConfig         optional Sendgrid resonder configuration
+ * @param sendgridConfig_1_0_0   optional Sendgrid responder configuration (schema ver. 1-0-0)
+ * @param sendgridConfig_1_0_1   optional Sendgrid responder configuration (schema ver. 1-0-1)
  * @param hipchatResponderConfig optional Hipchat responder configuration
  * @param slackConfig            optional Slack responder configuration
  * @param pagerDutyConfig        optional PagerDuty responder configuration
@@ -34,7 +35,8 @@ case class SaunaSettings(
 
   // Responders
   optimizelyConfig: Option[responders.OptimizelyConfig_1_0_0],
-  sendgridConfig: Option[responders.SendgridConfig_1_0_0],
+  sendgridConfig_1_0_0: Option[responders.SendgridConfig_1_0_0],
+  sendgridConfig_1_0_1: Option[responders.SendgridConfig_1_0_1],
   hipchatResponderConfig: Option[responders.HipchatConfig_1_0_0],
   slackConfig: Option[responders.SlackConfig_1_0_0],
   pagerDutyConfig: Option[responders.PagerDutyConfig_1_0_0],
@@ -45,5 +47,5 @@ case class SaunaSettings(
   amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0])
 
 object SaunaSettings {
-  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, Nil, Nil, Nil)
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil)
 }
