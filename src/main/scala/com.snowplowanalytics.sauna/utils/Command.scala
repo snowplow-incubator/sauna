@@ -29,6 +29,7 @@ import scalaz.{Failure, Success}
 // play
 import play.api.libs.functional.syntax._
 import play.api.libs.json._
+import play.api.data.validation.ValidationError
 
 // jsonschema
 import com.fasterxml.jackson.databind.JsonNode
@@ -40,7 +41,30 @@ import com.snowplowanalytics.iglu.client.{SchemaKey, _}
 
 object Command {
 
+  /**
+    * Sauna command
+    * @see https://github.com/snowplow-incubator/sauna/wiki/Commands-for-analysts#anatomy-of-a-command
+    */
+  val rootCommand = SchemaCriterion("com.snowplowanalytics.sauna.commands", "command", "jsonschema", 1, 0)
+
+  /** Sauna command envelope with aux data */
+  val envelope = SchemaCriterion("com.snowplowanalytics.sauna.commands", "envelope", "jsonschema", 1, 0)
+
   lazy val igluCentralResolver: Resolver = Resolver(500, List(HttpRepositoryRef(RepositoryRefConfig("Iglu central", 0, List("com.snowplowanalytics")), "http://iglucentral.com")))
+
+  /** Helper ADT supposed to make `Either` isomorphic to EitherT[Option, String, A],
+    * e.g. `ExtractionSkip` is `None`
+    * TODO: replace with actual `EitherT` when cats used
+    */
+  sealed trait ExtractionResult
+  case class ExtractionError(message: String) extends ExtractionResult
+  case object ExtractionSkip extends ExtractionResult
+
+  object ExtractionResult {
+    def error(message: String): ExtractionResult = ExtractionError(message)
+    def error(messages: ProcessingMessageNel): ExtractionResult =
+      ExtractionError(s"JSON Validation Errors: ${messages.list.mkString(", ")}")
+  }
 
   /**
    * Self-describing data.
@@ -133,25 +157,21 @@ object Command {
    * Attempts to extract a Sauna command from a [[JsValue]]. If successful,
    * passes it on to the processing method.
    *
-   * @param json         The [[JsValue]] to extract a command from.
+   * @see https://github.com/snowplow-incubator/sauna/wiki/Commands-for-analysts
+   * @param json The [[JsValue]] to extract a command from.
+   * @param criterion optional schema criterion that command must conform
    * @tparam T The type of the command's data.
    * @return Right containing a tuple of the command's envelope and data
    *         if the extraction and processing was successful, Left containing
    *         an error message otherwise.
    */
-  def extractCommand[T](json: JsValue)(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
-    json.validate[SelfDescribing] match {
-      case JsSuccess(selfDescribing, _) =>
-        validateSelfDescribing(selfDescribing, igluCentralResolver) match {
-          case Right(_) =>
-            selfDescribing.data.validate[SaunaCommand] match {
-              case JsSuccess(command, _) => processCommand[T](command)
-              case JsError(error) => Left(s"Encountered an issue while parsing Sauna command: $error")
-            }
-          case Left(error) => Left(s"Could not validate command JSON: $error")
-        }
-      case JsError(error) => Left(s"Encountered an issue while parsing self-describing JSON: $error")
-    }
+  def extractCommand[T: Reads](json: JsValue, criterion: SchemaCriterion): Either[ExtractionResult, (CommandEnvelope, T)] = {
+    for {
+      sdJson  <- json.validate[SelfDescribing].asEither.leftMap(jsonError(NotSelfDescribing))
+      _       <- validateSelfDescribing(sdJson, igluCentralResolver, rootCommand)
+      command <- sdJson.data.validate[SaunaCommand].asEither.leftMap(jsonError(NotCommand))
+      result  <- processCommand[T](command, criterion)
+    } yield result
   }
 
   /**
@@ -163,49 +183,33 @@ object Command {
    *         if the processing was successful, Left containing
    *         an error message otherwise.
    */
-  def processCommand[T](command: SaunaCommand)(implicit tReads: Reads[T]): Either[String, (CommandEnvelope, T)] = {
-    validateSelfDescribing(command.envelope, igluCentralResolver) match {
-      case Right(_) =>
-        command.envelope.data.validate[CommandEnvelope] match {
-          case JsSuccess(envelope, _) =>
-            validateSelfDescribing(command.command, igluCentralResolver) match {
-              case Right(_) =>
-                command.command.data.validate[T] match {
-                  case JsSuccess(data, _) => Right((envelope, data))
-                  case JsError(error) => Left(s"Encountered an issue while parsing Sauna command data: $error")
-                }
-              case Left(error) => Left(s"Could not validate command data JSON: $error")
-            }
-          case JsError(error) => Left(s"Encountered an issue while parsing Sauna command envelope: $error")
-        }
-      case Left(error) => Left(s"Could not validate command envelope JSON: $error")
-    }
+  def processCommand[T: Reads](command: SaunaCommand, criterion: SchemaCriterion): Either[ExtractionResult, (CommandEnvelope, T)] = {
+    for {
+      _        <- validateSelfDescribing(command.envelope, igluCentralResolver, envelope)
+      envelope <- command.envelope.data.validate[CommandEnvelope].asEither.leftMap(jsonError(NotEnvelope))
+      _        <- validateSelfDescribing(command.command, igluCentralResolver, criterion)
+      data     <- command.command.data.validate[T].asEither.leftMap(jsonError(NotData))
+    } yield (envelope, data)
   }
 
   /**
-   * Validates self-describing data against its' schema.
+   * Validates self-describing data against its' schema and check against criterion if necessary
    *
    * @param selfDescribing The self-describing data to validate.
    * @param igluResolver   [[Resolver]] containing info about Iglu repositories.
    * @return Right if the data was successfully validated against the schema,
    *         Left with an error message otherwise.
    */
-  def validateSelfDescribing(selfDescribing: SelfDescribing, igluResolver: Resolver): Either[String, Unit] =
-    igluResolver.lookupSchema(selfDescribing.schema) match {
-      case Success(schema) =>
-        Json.fromJson[JsonNode](selfDescribing.data) match {
-          case JsSuccess(jsonNodeData, _) =>
-            val jsonSchema = JsonSchemaFactory.byDefault().getJsonSchema(schema)
-            val processingReport = jsonSchema.validate(jsonNodeData)
-            if (processingReport.isSuccess) {
-              Right(())
-            } else {
-              Left(processingReport.toString)
-            }
-          case JsError(error) => Left(error.toString())
-        }
-      case Failure(error) => Left(error.toString())
-    }
+  def validateSelfDescribing(selfDescribing: SelfDescribing, igluResolver: Resolver, criterion: SchemaCriterion): Either[ExtractionResult, Unit] = {
+    for {
+      _            <- matchCriterion(criterion, selfDescribing.schema)
+      schema       <- igluResolver.lookupSchema(selfDescribing.schema).toEither.leftMap(ExtractionResult.error)
+      jsonNodeData <- Json.fromJson[JsonNode](selfDescribing.data).asEither.leftMap(jsonError(NotJson))
+      jsonSchema    = JsonSchemaFactory.byDefault().getJsonSchema(schema)
+      processingReport = jsonSchema.validate(jsonNodeData)
+      result       <- if (processingReport.isSuccess) Right(()) else Left(ExtractionError(processingReport.toString))
+    } yield result
+  }
 
   /**
    * Validates a Sauna command envelope.
@@ -215,15 +219,15 @@ object Command {
    *         and the command's data can be executed,
    *         Some containing an error message otherwise.
    */
-  def validateEnvelope(envelope: CommandEnvelope): Either[String, Unit] = {
+  def validateEnvelope(envelope: CommandEnvelope): Either[ExtractionResult, Unit] = {
     envelope.execution.timeToLive match {
       case Some(ms) =>
         val commandLife = envelope.whenCreated.until(LocalDateTime.now(), ChronoUnit.MILLIS)
         if (commandLife > ms)
-          Left(s"Command has expired: time to live is $ms but $commandLife has passed")
+          Left(ExtractionError("Command has expired: time to live is $ms but $commandLife has passed"))
         else
-          Right()
-      case None => Right()
+          Right(())
+      case None => Right(())
     }
   }
 
@@ -260,5 +264,24 @@ object Command {
         case _ => Left(ExtractionSkip)
       }
     } else Left(ExtractionSkip)
->>>>>>> e2da1da... In a command
+
+  sealed trait ExtractionFailure
+  case object NotData extends ExtractionFailure             // root.data does not conform T
+  case object NotJson extends ExtractionFailure             // internal JSON error
+  case object NotCommand extends ExtractionFailure
+  case object NotEnvelope extends ExtractionFailure
+  case object NotSelfDescribing extends ExtractionFailure
+
+  /** Transform JSON-specific error into human-readable message */
+  private def jsonError(failure: ExtractionFailure)(cause: Seq[(JsPath, Seq[ValidationError])]): ExtractionResult = {
+    val error = Json.stringify(JsError.toJson(cause))
+    val message = failure match {
+      case NotData => s"Encountered an issue while parsing Sauna command data: $error"
+      case NotJson => s"JSON-parsing problem: $error"
+      case NotCommand => s"Encountered an issue while parsing Sauna command: $error"
+      case NotEnvelope => s"Encountered an issue while parsing Sauna command envelope: $error"
+      case NotSelfDescribing => s"Encountered an issue while parsing self-describing JSON: $error"
+    }
+    ExtractionError(message)
+  }
 }

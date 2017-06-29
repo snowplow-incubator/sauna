@@ -20,9 +20,11 @@ import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 // scala
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
 import scala.concurrent.{Await, Future}
 import scala.io.Source.fromInputStream
+import scala.util.{Failure, Success}
 
 // scalatest
 import org.scalatest._
@@ -186,6 +188,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
   val slackWebhookUrl: Option[String] = sys.env.get("SLACK_WEBHOOK_URL")
   val pagerDutyServiceKey: Option[String] = sys.env.get("PAGERDUTY_SERVICE_KEY")
+
+  val postmarkApiToken: Option[String] = sys.env.get("POSTMARK_API_TOKEN")
+  val postmarkInboundEmail: Option[String] = sys.env.get("POSTMARK_INBOUND_EMAIL")
 
   val saunaRoot = System.getProperty("java.io.tmpdir", "/tmp") + "/saunaRoot"
 
@@ -900,5 +905,86 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     // Assert that nothing went wrong.
     assert(error == null)
+  }
+
+  test("SendGrid command responder") {
+    assume(sendgridToken.isDefined)
+    assume(postmarkApiToken.isDefined)
+    assume(postmarkInboundEmail.isDefined)
+
+    // Get some data from a resource file.
+    var command: String = fromInputStream(getClass.getResourceAsStream("/commands/sendgrid.json")).getLines().mkString
+    command = command.replaceAll("POSTMARK_INBOUND_EMAIL", postmarkInboundEmail.get)
+    val subject: String = UUID.randomUUID().toString
+    command = command.replaceAll("RANDOM_UUID", subject)
+
+    // Define a mock logger.
+    var error: String = "Did not send SendGrid email"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Sent email via Sendgrid"
+          if (!message.text.contains(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Sendgrid(sendgridToken.get)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = SendEmailResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+    val postmarkWrapper = new Postmark(postmarkApiToken.get)
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    // Time for Sendgrid to send the email, and for Postmark to process it & expose to inbound API.
+    Thread.sleep(60000)
+
+    // Assert that nothing went wrong with the command.
+    assert(error == null)
+
+    // Verify that the email was successfully sent.
+    postmarkWrapper.getInboundMessage(subject).onComplete {
+      case Success(message) =>
+        if (message.status == 200) {
+          val json: JsValue = Json.parse(message.body)
+          assert((json \ "TotalCount").as[Int] == 1)
+          val inbound: JsLookupResult = (json \ "InboundMessages") (0)
+          assert((inbound \ "From").as[String].equals("staging@saunatests.com"))
+          assert((inbound \ "To").as[String].equals(postmarkInboundEmail.get))
+          assert((inbound \ "Subject").as[String].equals(subject))
+        }
+        else
+          fail(message.body)
+      case Failure(error) =>
+        fail(error)
+    }
+
+    Thread.sleep(5000)
   }
 }

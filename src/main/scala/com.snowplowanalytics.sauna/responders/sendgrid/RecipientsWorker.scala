@@ -222,14 +222,14 @@ object RecipientsWorker {
    * result would be:
    *
    * [
-   * {
-   * "name1": "value11",
-   * "name2": "value12"
-   * },
-   * {
-   * "name1": "value21",
-   * "name2": "value22"
-   * }
+   *   {
+   *     "name1": "value11",
+   *     "name2": "value12"
+   *   },
+   *   {
+   *     "name1": "value21",
+   *     "name2": "value22"
+   *   }
    * ]
    *
    * @param keys     Seq of attribute keys, repeated for each recipient from `chunk`

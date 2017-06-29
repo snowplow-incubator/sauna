@@ -24,6 +24,9 @@ import akka.actor.{ActorRef, Props}
 // Iglu
 import com.snowplowanalytics.iglu.client.SchemaCriterion
 
+// Iglu
+import com.snowplowanalytics.iglu.client.SchemaCriterion
+
 // Sauna
 import apis.Slack
 import apis.Slack._
@@ -56,6 +59,8 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
 }
 
 object SendMessageResponder {
+
+  val criterion = SchemaCriterion("com.slack.sauna.commands", "send_message", "jsonschema", 1, 0)
 
   case class WebhookMessageReceived(
     data: WebhookMessage,

@@ -15,6 +15,8 @@ package responders
 package pagerduty
 
 // scala
+import com.snowplowanalytics.iglu.client.SchemaCriterion
+
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.{Failure, Success}
 
@@ -56,6 +58,8 @@ class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends R
 }
 
 object CreateEventResponder {
+
+  val criterion = SchemaCriterion("com.pagerduty.sauna.commands", "create_event", "jsonschema", 1, 0)
 
   case class PagerDutyEventReceived(
     data: PagerDutyEvent,

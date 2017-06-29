@@ -22,9 +22,14 @@ import org.scalatest._
 // play
 import play.api.libs.json._
 
+// Iglu
+import com.snowplowanalytics.iglu.client.SchemaCriterion.{ parse => criterion }
+
 // sauna
 import Command._
 import CommandTest._
+import apis.Hipchat
+
 
 object CommandTest {
 
@@ -37,7 +42,8 @@ object CommandTest {
 class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with OptionValues {
   test("extractCommand invalid JSON") {
     val command = Json.parse(""""{}""""")
-    val result = Command.extractCommand[SampleCommandData](command)
+    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-0-*").toOption.get
+    val result = Command.extractCommand[SampleCommandData](command, commandCriterion)
     assert(result.isLeft)
   }
 
@@ -62,7 +68,8 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         |  }
         |}
       """.stripMargin)
-    val result = Command.extractCommand[SampleCommandData](command)
+    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-0-*").toOption.get
+    val result = Command.extractCommand[SampleCommandData](command, commandCriterion)
     assert(result.isLeft)
   }
 
@@ -91,7 +98,8 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         |  }
         |}
       """.stripMargin)
-    val result = Command.extractCommand[SampleCommandData](command)
+    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-0-*").toOption.get
+    val result = Command.extractCommand[SampleCommandData](command, commandCriterion)
     assert(result.isLeft)
   }
 
@@ -120,7 +128,8 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         |  }
         |}
       """.stripMargin)
-    val result = Command.extractCommand[SampleCommandData](command)
+    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-0-*").toOption.get
+    val result = Command.extractCommand[SampleCommandData](command, commandCriterion)
     assert(result.isLeft)
   }
 
@@ -155,7 +164,8 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         |  }
         |}
       """.stripMargin)
-    val result = Command.extractCommand[SampleCommandData](command)
+    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-0-*").toOption.get
+    val result = Command.extractCommand[SampleCommandData](command, commandCriterion)
     assert(result.isLeft)
   }
 
@@ -169,7 +179,10 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
       ),
       null)
     val result = Command.validateEnvelope(envelope)
-    assert(result.isLeft && result.left.get.contains("Command has expired"))
+    assert(result match {
+      case Left(Command.ExtractionError(m)) if m.startsWith("Command has expired") => true
+      case _ => false
+    })
   }
 
   test("processEnvelope valid") {
@@ -252,9 +265,8 @@ class CommandTest extends FunSuite with BeforeAndAfter with EitherValues with Op
         |  }
         |}
       """.stripMargin)
-    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/unknown_command/jsonschema/1-0-0").toOption.get
+    val commandCriterion = criterion("iglu:com.hipchat.sauna.commands/send_room_notification/jsonschema/1-2-0").toOption.get
     val result = Command.extractCommand[Hipchat.RoomNotification](command, commandCriterion)
     assert(result == Left(Command.ExtractionSkip))
   }
->>>>>>> e2da1da... In a command
 }

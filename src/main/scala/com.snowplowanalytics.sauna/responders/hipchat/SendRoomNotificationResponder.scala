@@ -21,6 +21,9 @@ import scala.util.{Failure, Success}
 // akka
 import akka.actor.{ActorRef, Props}
 
+// iglu
+import com.snowplowanalytics.iglu.client.SchemaCriterion
+
 // sauna
 import apis.Hipchat
 import apis.Hipchat._
@@ -58,6 +61,8 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
 }
 
 object SendRoomNotificationResponder {
+
+  val criterion = SchemaCriterion("com.hipchat.sauna.commands", "send_room_notification", "jsonschema", 1, 0)
 
   case class RoomNotificationReceived(
     data: RoomNotification,
