@@ -47,6 +47,7 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[loggers.HipchatConfig_1_0_0],
       getConfig[responders.OptimizelyConfig_1_0_0],
       getConfig[responders.SendgridConfig_1_0_0],
+      getConfig[responders.SendgridConfig_1_0_1],
       getConfig[responders.HipchatConfig_1_0_0],
       getConfig[responders.SlackConfig_1_0_0],
       getConfig[responders.PagerDutyConfig_1_0_0],

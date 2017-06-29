@@ -382,21 +382,40 @@ object Mediator {
 
   /**
    * Function producing `Props` (still requiring logger) for Sendgrid responders
-   * (only `RecipientsResponder` so far)
+   * ([[RecipientsResponder]] and [[SendEmailResponder]])
    *
    * @param saunaSettings global settings object
    * @return list of functions that accept logger and produce sendgrid responders
    */
   def sendgridCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
-    saunaSettings.sendgridConfig match {
-      case Some(SendgridConfig_1_0_0(true, id, params)) =>
+    val sendgrid_1_0_0_constructor: List[ActorConstructor] = saunaSettings.sendgridConfig_1_0_0.collect {
+      case SendgridConfig_1_0_0(true, id, params) =>
+
         val apiWrapper: Sendgrid = new Sendgrid(params.apiKeyId)
+
         if (params.recipientsEnabled) {
           ((logger: SaunaLogger) => (id, RecipientsResponder.props(logger, apiWrapper))) :: Nil
         } else Nil
 
-      case _ => Nil
-    }
+    }.getOrElse(Nil)
+
+    val sendgrid_1_0_1_constructor: List[ActorConstructor] = saunaSettings.sendgridConfig_1_0_1.collect {
+      case SendgridConfig_1_0_1(true, id, params) =>
+
+        val apiWrapper: Sendgrid = new Sendgrid(params.apiKeyId)
+
+        val recipientsProps = if (params.recipientsEnabled) {
+          ((logger: SaunaLogger) => (id, RecipientsResponder.props(logger, apiWrapper))) :: Nil
+        } else Nil
+
+        val emailProps = if (params.emailsEnabled) {
+          ((logger: SaunaLogger) => (id, SendEmailResponder.props(apiWrapper, logger))) :: Nil
+        } else Nil
+
+        recipientsProps ++ emailProps
+    }.getOrElse(Nil)
+
+    sendgrid_1_0_0_constructor ++ sendgrid_1_0_1_constructor
   }
 
   /**
