@@ -36,10 +36,10 @@ import utils._
 /**
  * Pusher API wrapper. Encapsulates all communications with Pusher
  *
- * @param token 	app id.
- * @param appKey 	api key
- * @param appSecret 	api secret
- * @param cluster  	cluster
+ * @param appId 	The pusher application ID
+ * @param appKey 	Pusher API Key
+ * @param appSecret Pusher API secret key
+ * @param cluster  	Pusher app cluster
  * @param logger 	A logger actor.
  */
  class Pusher(appId: String, appKey: String, appSecret: String, cluster: Option[String], logger: ActorRef){
@@ -63,9 +63,8 @@ import utils._
 		import Event.Result
 
 		val channels = WrapAsJava.seqAsJavaList(event.channels.getOrElse(Nil).toSeq)
-		Result from{ () =>
-			pusher.trigger(channels, event.name, event.data.json, socketId)
-		}
+		val creator = () => pusher.trigger(channels, event.name, event.data.json, socketId)
+		Result.from{creator}
 	}
  }
 
@@ -102,7 +101,7 @@ import utils._
 			def from(fn: () => com.pusher.rest.data.Result)  = {
 				val result = Try(fn()) match{
 					case Success(r) => r
-					case Failure(err) => throw new Exception(err)
+					case Failure(err) => throw new Exception("Cannot retrieve pusher data: " + err.getMessage())
 				}
 
 				val message = result.getMessage
