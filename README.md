@@ -1,8 +1,8 @@
 # Sauna
 
-[ ![Build Status] [travis-image] ] [travis]
-[ ![Release] [release-image] ] [releases] 
-[ ![License] [license-image] ] [license]
+[![Build Status][travis-image]][travis]
+[![Release][release-image]][releases]
+[![License][license-image]][license]
 
 Sauna is a decisioning and response framework, powered by Scala, Akka actors and Iglu.
 
@@ -23,9 +23,9 @@ You can read more about how to install and configure Sauna in [Guide for Devops]
 
 ## Find out more
 
-|  **[Devops Guide] [devops-guide]**     | **[Analysts Guide] [analysts-guide]**     | **[Developers Guide] [developers-guide]**     |
+|  **[Devops Guide][devops-guide]**     | **[Analysts Guide][analysts-guide]**     | **[Developers Guide][developers-guide]**     |
 |:--------------------------------------:|:-----------------------------------------:|:---------------------------------------------:|
-|  [![i1] [devops-image]] [devops-guide] | [![i2] [analysts-image]] [analysts-guide] | [![i3] [developers-image]] [developers-guide] |
+|  [![i1][devops-image]][devops-guide] | [![i2][analysts-image]][analysts-guide] | [![i3][developers-image]][developers-guide] |
 
 
 ## Features
@@ -41,17 +41,17 @@ You can read more about how to install and configure Sauna in [Guide for Devops]
 
 Sauna designed to have extremely loosely-coupled architecture and we would love to get your contributions within each of the three sub-systems.
 
-If you would like help implementing a new responder, observer or logger check out our **[Guide for developers] [developers-guide]** page on the wiki!
+If you would like help implementing a new responder, observer or logger check out our **[Guide for developers][developers-guide]** page on the wiki!
 
 ## Questions or need help?
 
-Check out the **[Talk to us] [talk-to-us]** page on our wiki.
+Check out the **[Talk to us][talk-to-us]** page on our wiki.
 
 ## Copyright and license
 
 Sauna is copyright 2016 Snowplow Analytics Ltd.
 
-Licensed under the **[Apache License, Version 2.0] [license]** (the "License");
+Licensed under the **[Apache License, Version 2.0][license]** (the "License");
 you may not use this software except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
