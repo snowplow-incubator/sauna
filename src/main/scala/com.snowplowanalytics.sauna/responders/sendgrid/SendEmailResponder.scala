@@ -35,7 +35,6 @@ import com.snowplowanalytics.iglu.client.SchemaCriterion
 // sauna
 import apis.Sendgrid
 import apis.Sendgrid._
-import loggers.Logger.Notification
 import observers.Observer.{ObserverCommandEvent, ObserverEvent}
 import responders.Responder.{ResponderEvent, ResponderResult}
 import responders.sendgrid.SendEmailResponder._

@@ -137,9 +137,7 @@ trait Responder[OE <: ObserverEvent, RE <: ResponderEvent] extends Actor {
   /**
    * Log unstructured notification
    */
-  def notify(message: String): Unit = {
-    logger ! Notification(message)
-  }
+  def notifyLogger(message: String): Unit = logger ! Notification(message)
 }
 
 object Responder {

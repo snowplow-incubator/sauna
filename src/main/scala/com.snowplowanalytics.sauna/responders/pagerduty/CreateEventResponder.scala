@@ -29,7 +29,6 @@ import com.snowplowanalytics.iglu.client.SchemaCriterion
 // sauna
 import apis.PagerDuty
 import apis.PagerDuty.PagerDutyEvent
-import loggers.Logger.Notification
 import observers.Observer._
 import responders.Responder._
 import responders.pagerduty.CreateEventResponder._
@@ -52,8 +51,8 @@ class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends R
         if (message.status == 200)
           context.parent ! PagerDutyEventSent(event, s"Created PagerDuty event: ${message.body}")
         else
-          logger ! Notification(s"Unexpected response from PagerDuty: ${message.body}")
-      case Failure(error) => logger ! Notification(s"Error while creating PagerDuty event: $error")
+          notifyLogger(s"Unexpected response from PagerDuty: ${message.body}")
+      case Failure(error) => notifyLogger(s"Error while creating PagerDuty event: $error")
     }
 }
 

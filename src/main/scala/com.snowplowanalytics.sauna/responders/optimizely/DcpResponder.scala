@@ -73,7 +73,7 @@ class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: Act
           case Right(event) => Some(event)
           case Left(Some(error)) =>
             // TODO: cases where path is only partly correct should be handled differently, without deleting source file
-            notify(error)
+            notifyLogger(error)
             None
           case Left(None) =>
             None
@@ -100,7 +100,7 @@ class DcpResponder(optimizely: Optimizely, importRegion: String, val logger: Act
       }
       .onComplete {
         case Success(message) => context.parent ! CustomersProfilesUploaded(event, message)
-        case Failure(error) => notify(error.toString)
+        case Failure(error) => notifyLogger(error.toString)
       }
   }
 

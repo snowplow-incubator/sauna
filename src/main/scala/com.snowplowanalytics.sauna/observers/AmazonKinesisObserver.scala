@@ -39,7 +39,7 @@ import Observer.KinesisRecordReceived
 class AmazonKinesisObserver(streamName: String, kclConfig: KinesisClientLibConfiguration) extends Actor with Observer {
   override def preStart: Unit = {
     super.preStart()
-    notify("Started Kinesis Observer")
+    notifyLogger("Started Kinesis Observer")
 
     /**
      * [[KinesisRecordReader]] instance that will return processed records
@@ -55,7 +55,7 @@ class AmazonKinesisObserver(streamName: String, kclConfig: KinesisClientLibConfi
      */
     KCLWorkerRunner(kclConfig).runAsyncSingleRecordProcessor[Record](1 minute) { record: Record =>
       Future {
-        notify(s"Received Kinesis Record from $streamName")
+        notifyLogger(s"Received Kinesis Record from $streamName")
         context.parent ! KinesisRecordReceived(streamName, record.getSequenceNumber, record.getData, self)
       }
     }

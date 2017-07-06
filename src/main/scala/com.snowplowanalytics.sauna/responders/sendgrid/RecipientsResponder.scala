@@ -68,7 +68,7 @@ class RecipientsResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Resp
           case pathRegexp(attrs) if attrs.split(",").contains("email") =>
             Some(RecipientsPublished(attrs.split(",").toList, e))
           case pathRegexp(_) =>
-            notify(s"RecipientsResponder: attribute 'email' for [${observerEvent.id}] must be included")
+            notifyLogger(s"RecipientsResponder: attribute 'email' for [${observerEvent.id}] must be included")
             None
           case _ => None
         }
@@ -82,9 +82,9 @@ class RecipientsResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Resp
   def process(event: RecipientsPublished): Unit = {
     event.source.streamContent match {
       case Some(content) =>
-        worker ! Delegate(RecipientsChunks.parse(content, event, notify _))
+        worker ! Delegate(RecipientsChunks.parse(content, event, notifyLogger _))
       case None =>
-        notify(s"FAILURE: event's [${event.source.id}] source doesn't exist")
+        notifyLogger(s"FAILURE: event's [${event.source.id}] source doesn't exist")
     }
   }
 }
