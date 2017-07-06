@@ -78,9 +78,9 @@ class TargetingListResponder(optimizely: Optimizely, val logger: ActorRef) exten
         Future.sequence(iterables).map(_.foreach(logResponse)).onComplete {
           case Success(_) =>
             context.parent ! TargetingListUploaded(event, s"Targeting list from ${event.source.id} has been successfully published")
-          case Failure(error) => notify(error.toString)
+          case Failure(error) => notifyLogger(error.toString)
         }
-      case None => notify(s"Cannot read file [${event.source.id}]")
+      case None => notifyLogger(s"Cannot read file [${event.source.id}]")
     }
   }
 
@@ -110,15 +110,15 @@ class TargetingListResponder(optimizely: Optimizely, val logger: ActorRef) exten
       // log results
       logger ! Manifestation(id.toString, name, status, description, lastModified)
       if (status == 201) {
-        notify(s"Successfully uploaded targeting lists with name [$name]")
+        notifyLogger(s"Successfully uploaded targeting lists with name [$name]")
       } else {
-        notify(s"Unable to upload targeting list with name [$name] : [${response.body}]")
+        notifyLogger(s"Unable to upload targeting list with name [$name] : [${response.body}]")
       }
 
     } catch {
       case e: JsonParseException =>
         logger ! Manifestation(defaultId, defaultName, status, defaultDescription, defaultLastModified)
-        notify(s"Problems while parsing Optimizely API response. See [${response.body}]")
+        notifyLogger(s"Problems while parsing Optimizely API response. See [${response.body}]")
     }
   }
 }

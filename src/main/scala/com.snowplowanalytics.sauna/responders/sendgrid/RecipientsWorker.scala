@@ -73,12 +73,12 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
               chunks.customFields = Some(orderedFields)
               self ! Start(chunks)
             case Left(error) =>
-              notify(error)
+              notifyLogger(error)
           }
         case Success(Left(error)) =>
-          notify("Cannot extract custom fields information: " + error)
+          notifyLogger("Cannot extract custom fields information: " + error)
         case Failure(exception) =>
-          notify(exception.toString)
+          notifyLogger(exception.toString)
       }
 
     // Enqueue chunks
@@ -118,7 +118,7 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
       .postRecipients(json)
       .onComplete {
         case Success(response) => processResponse(chunk.length, response.body)
-        case Failure(err) => notify(err.toString)
+        case Failure(err) => notifyLogger(err.toString)
       }
   }
 
@@ -152,29 +152,27 @@ class RecipientsWorker(apiWrapper: Sendgrid) extends Actor {
         errors.map(_.value).find(_.apply("error_indices").as[Seq[Int]].contains(errorIndex)) match {
           case Some(error) =>
             val reason = error.apply("message").as[String]
-            notify(s"Error $errorIndex caused due to [$reason]")
+            notifyLogger(s"Error $errorIndex caused due to [$reason]")
 
           case None =>
-            notify(s"Unable to find reason for error [$errorIndex]")
+            notifyLogger(s"Unable to find reason for error [$errorIndex]")
         }
       }
 
       if (errorCount + newCount + updatedCount != total) {
-        notify("Several records disappeared. It's rare Sendgrid bug. Double-check you input")
+        notifyLogger("Several records disappeared. It's rare Sendgrid bug. Double-check you input")
       }
 
     } catch {
       case NonFatal(e) =>
-        notify(s"Got exception [${e.getMessage}] while parsing Sendgrid's response")
+        notifyLogger(s"Got exception [${e.getMessage}] while parsing Sendgrid's response")
     }
   }
 
   /**
    * Helper method to send notifications
    */
-  def notify(message: String): Unit = {
-    context.parent ! Notification(message)
-  }
+  def notifyLogger(message: String): Unit = context.parent ! Notification(message)
 }
 
 

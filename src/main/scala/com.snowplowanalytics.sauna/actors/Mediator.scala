@@ -130,25 +130,25 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
           val updatedState = state.addRejecter(rejecter)
           processedEvents.put(event, updatedState)
           if (updatedState.rejecters.size == responderActors.size) {
-            notify(s"Warning: observer event from [${event.id}] was rejected by all responders")
+            notifyLogger(s"Warning: observer event from [${event.id}] was rejected by all responders")
           }
         case None =>
           processedEvents.put(event, MessageState.empty.addRejecter(rejecter))
           if (responderActors.size == 1) {
-            notify(s"Warning: observer event from [${event.id}] was rejected by single running responder")
+            notifyLogger(s"Warning: observer event from [${event.id}] was rejected by single running responder")
           }
       }
 
     // Mutate `processedEvents` primary state and clean-up resources
     case result: Responder.ResponderResult =>
-      notify(result.message)
+      notifyLogger(result.message)
       val original = result.source.source
       processedEvents.get(original) match {
         case Some(state) =>
           val updatedState = state.addFinisher(sender())
           updatedState.check match {
             case AllFinished(actorStamps) =>
-              notify(s"All actors finished processing message [${original.id}]. Deleting")
+              notifyLogger(s"All actors finished processing message [${original.id}]. Deleting")
               original match {
                 case l: LocalFilePublished => original.observer ! Observer.DeleteLocalFile(l.file)
                 case s: S3FilePublished => original.observer ! Observer.DeleteS3Object(s.id, s.s3Source)
@@ -156,11 +156,11 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
               }
               processedEvents.remove(original)
             case InProcess(stillWorking) =>
-              notify(s"Some actors still processing message [${original.id}]")
+              notifyLogger(s"Some actors still processing message [${original.id}]")
               processedEvents.put(original, updatedState)
           }
         case None =>
-          notify(s"Mediator received unknown (not-accepted) ResponderResult [$result]")
+          notifyLogger(s"Mediator received unknown (not-accepted) ResponderResult [$result]")
       }
 
     // Forward notification
@@ -169,7 +169,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
 
     // Check state
     case Tick =>
-      getWarnings.foreach(notify)
+      getWarnings.foreach(notifyLogger)
   }
 
   override def postStop(): Unit = {
@@ -196,8 +196,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
     }
   }
 
-  def notify(message: String): Unit =
-    logger ! Notification(message)
+  def notifyLogger(message: String): Unit = logger ! Notification(message)
 }
 
 object Mediator {
