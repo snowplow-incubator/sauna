@@ -43,9 +43,7 @@ trait Observer {
    * Send message to supervisor trait to forward it to loggers
    * This means observer should also be a child of supvervisor
    */
-  def notify(message: String): Unit = {
-    context.parent ! Notification(message)
-  }
+  def notifyLogger(message: String): Unit = context.parent ! Notification(message)
 }
 
 object Observer {

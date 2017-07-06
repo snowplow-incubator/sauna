@@ -28,7 +28,6 @@ import akka.actor.{ActorRef, Props}
 // sauna
 import apis.Hipchat
 import apis.Hipchat._
-import loggers.Logger.Notification
 import observers.Observer._
 import responders.Responder._
 import responders.hipchat.SendRoomNotificationResponder._
@@ -52,11 +51,11 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
               case Right(_) =>
                 Some(RoomNotificationReceived(data, e))
               case Left(error) =>
-                logger ! Notification(error)
+                notifyLogger(error)
                 None
             }
           case Left(error) =>
-            logger ! Notification(error)
+            notifyLogger(error)
             None
         }
       case _ => None
@@ -74,8 +73,8 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
         if (message.status >= 200 && message.status <= 204)
           context.parent ! RoomNotificationSent(event, s"Successfully sent HipChat notification: $message")
         else
-          logger ! Notification(s"Unexpected response from HipChat: ${message.body}")
-      case Failure(error) => logger ! Notification(s"Error while sending HipChat notification: $error")
+          notifyLogger(s"Unexpected response from HipChat: ${message.body}")
+      case Failure(error) => notifyLogger(s"Error while sending HipChat notification: $error")
     }
 }
 
