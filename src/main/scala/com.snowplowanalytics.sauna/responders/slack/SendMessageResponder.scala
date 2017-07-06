@@ -28,7 +28,6 @@ import play.api.libs.json.Json
 // Sauna
 import apis.Slack
 import apis.Slack._
-import loggers.Logger.Notification
 import observers.Observer._
 import responders.Responder.{ResponderEvent, ResponderResult}
 import responders.slack.SendMessageResponder._
@@ -52,11 +51,11 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
               case Right(_) =>
                 Some(WebhookMessageReceived(data, e))
               case Left(error) =>
-                logger ! Notification(error)
+                notifyLogger(error)
                 None
             }
           case Left(error) =>
-            logger ! Notification(error)
+            notifyLogger(error)
             None
         }
       case _ => None
@@ -69,8 +68,8 @@ class SendMessageResponder(slack: Slack, val logger: ActorRef) extends Responder
         if (message.status == 200)
           context.parent ! WebhookMessageSent(event, s"Successfully sent Slack message: $message")
         else
-          logger ! Notification(s"Slack message sent but got unexpected response: $message")
-      case Failure(error) => logger ! Notification(s"Error while sending Slack message: $error")
+          notifyLogger(s"Slack message sent but got unexpected response: $message")
+      case Failure(error) => notifyLogger(s"Error while sending Slack message: $error")
     }
 }
 

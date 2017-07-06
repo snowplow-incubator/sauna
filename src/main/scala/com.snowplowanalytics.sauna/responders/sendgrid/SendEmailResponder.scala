@@ -28,7 +28,6 @@ import play.api.libs.json.Json
 // sauna
 import apis.Sendgrid
 import apis.Sendgrid._
-import loggers.Logger.Notification
 import observers.Observer.{ObserverCommandEvent, ObserverEvent}
 import responders.Responder.{ResponderEvent, ResponderResult}
 import responders.sendgrid.SendEmailResponder._
@@ -52,11 +51,11 @@ class SendEmailResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Respo
               case Right(_) =>
                 Some(SendgridEmailReceived(data, e))
               case Left(error) =>
-                logger ! Notification(error)
+                notifyLogger(error)
                 None
             }
           case Left(error) =>
-            logger ! Notification(error)
+            notifyLogger(error)
             None
         }
       case _ => None
@@ -69,8 +68,8 @@ class SendEmailResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Respo
         if (message.status >= 200 && message.status <= 299)
           context.parent ! SendgridEmailSent(event, s"Successfully sent Sendgrid email!")
         else
-          logger ! Notification(s"Unexpected response from Sendgrid: ${message.body}")
-      case Failure(error) => logger ! Notification(s"Error while sending Sendgrid message: $error")
+          notifyLogger(s"Unexpected response from Sendgrid: ${message.body}")
+      case Failure(error) => notifyLogger(s"Error while sending Sendgrid message: $error")
     }
 }
 

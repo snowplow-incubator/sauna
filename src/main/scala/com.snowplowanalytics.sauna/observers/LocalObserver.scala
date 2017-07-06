@@ -99,7 +99,7 @@ class LocalObserver(root: Path) extends Actor with Observer {
       sizes.foreach { case (path, size) =>
         updateFile(path, size) match {
           case Ready =>
-            notify(s"Detected new local file [${path.toString}]")
+            notifyLogger(s"Detected new local file [${path.toString}]")
             context.parent ! LocalFilePublished(path, self)
           case Updated => ()
           case Error(_, _) => ()

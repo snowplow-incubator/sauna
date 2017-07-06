@@ -57,7 +57,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
 
   def receive: Receive = {
     case filePublished: S3FilePublished =>
-      notify(s"Detected new S3 file [${filePublished.id}]")
+      notifyLogger(s"Detected new S3 file [${filePublished.id}]")
       context.parent ! filePublished
 
     case deleteFile: DeleteS3Object =>
@@ -79,7 +79,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
         self ! S3FilePublished(decodedFileName, s3Source, self)
 
       case None =>
-        notify(s"Unknown message [$message] was published")
+        notifyLogger(s"Unknown message [$message] was published")
         sqs.delete(message)
     }
   }
@@ -93,7 +93,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
     throwable match {
       case e: InterruptedException =>
         monitor.stop()
-        notify("SqsMonitor thread has been stopped")
+        notifyLogger("SqsMonitor thread has been stopped")
       case e: AbortedException => // Not sure why SQSClient throws it on actor shutdown
         monitor.stop()
         monitorThread.interrupt()
