@@ -33,7 +33,8 @@ object Dependencies {
 
   object Libraries {
     // Java
-    val typesafeConfig    = "com.typesafe"           % "config"                % V.typesafeConfig
+    val typesafeConfig    = "com.typesafe"             % "config"              % V.typesafeConfig
+    val opsGenieSDK       = "com.opsgenie.integration" % "sdk-shaded"          % V.opsGenie
 
     // Scala
     val totoshi           = "com.github.tototoshi"   %% "scala-csv"            % V.totoshi
@@ -51,7 +52,6 @@ object Dependencies {
     val akkaClusterTools  = "com.typesafe.akka"      %% "akka-cluster-tools"   % V.akka
     val igluCore          = "com.snowplowanalytics"  %% "iglu-core"            % V.igluCore
     val igluScalaClient   = "com.snowplowanalytics"  %% "iglu-scala-client"    % V.igluScalaClient
-    val opsGenieSDK       = "com.opsgenie.integration" % "sdk-shaded"                % V.opsGenie
 
     // Test
     val akkaTestkit       = "com.typesafe.akka"      %% "akka-testkit"         % V.akka              // scope to test?
