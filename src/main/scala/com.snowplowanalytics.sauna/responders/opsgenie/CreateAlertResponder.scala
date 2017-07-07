@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -49,24 +49,24 @@ class CreateAlertResponder(opsgenie: OpsGenie, val logger: ActorRef) extends Res
     import OpsGenie._
 
     def extractEvent(observerEvent: ObserverEvent): Option[CreateAlertReceived] = {
-    observerEvent match {
-      case e: ObserverCommandEvent =>
-        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
-        Command.extractCommand[Alert](commandJson) match {
-          case Right((envelope, data)) =>
-            Command.validateEnvelope(envelope) match {
-              case None =>
-                Some(CreateAlertReceived(data, e))
-              case Some(error) =>
-                logger ! Notification(error)
-                None
-            }
-          case Left(error) =>
-            logger ! Notification(error)
-            None
-        }
-      case _ => None
-    }
+      observerEvent match {
+        case e: ObserverCommandEvent =>
+          val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
+          Command.extractCommand[Alert](commandJson) match {
+            case Right((envelope, data)) =>
+              Command.validateEnvelope(envelope) match {
+                case None =>
+                  Some(CreateAlertReceived(data, e))
+                case Some(error) =>
+                  logger ! Notification(error)
+                  None
+              }
+            case Left(error) =>
+              logger ! Notification(error)
+              None
+          }
+        case _ => None
+      }
   }
 
   /**

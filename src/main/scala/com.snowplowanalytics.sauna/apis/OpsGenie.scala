@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -60,7 +60,6 @@ object OpsGenie {
   import com.ifountain.opsgenie.client.swagger.model.{CreateAlertRequest => POJOCreateAlertRequest, TeamRecipient}
   import com.ifountain.opsgenie.client.swagger.model.{SuccessResponse => POJOSuccessResponse}
   import scala.util.{Try, Success, Failure}
-  import scala.language.postfixOps
   
   type Alias = String
   type Description = String
@@ -97,12 +96,12 @@ object OpsGenie {
     lazy val request: POJOCreateAlertRequest = {
       val request: POJOCreateAlertRequest =  new POJOCreateAlertRequest();
       request.setMessage(message)
-      if(alias.isDefined) request.setAlias(alias.get)
-      if(description.isDefined) request.setDescription(description.get)
-      if(entity.isDefined) request.setEntity(entity.get)
-      if(user.isDefined) request.setUser(user.get)
-      if(note.isDefined) request.setNote(note.get)
-        
+      alias.foreach {a => request.setAlias(a)}
+      description.foreach {descr => request.setDescription(descr)}
+      entity.foreach {e => request.setEntity(e)}
+      user.foreach {u => request.setUser(u)}
+      note.foreach {n => request.setNote(note.get)}
+
       if(teams.isDefined) teams.get.foreach{t => request.addTeamsItem(new TeamRecipient().name(t))}
       if(recipients.isDefined) recipients.get.foreach{r => request.addTeamsItem(new TeamRecipient().name(r))}
       if(actions.isDefined) actions.get.foreach{a => request.addActionsItem(a)}
@@ -116,42 +115,42 @@ object OpsGenie {
    * Custom reader for an Alert instance.
    */
   implicit val alertReads: Reads[Alert] = (
-      (JsPath \ "message").read[Message] and
-      (JsPath \ "teams").readNullable[Seq[Team]] and
-      (JsPath \ "alias").readNullable[Alias] and
-      (JsPath \ "description").readNullable[Description] and
-      (JsPath \ "recipients").readNullable[Seq[Recipient]] and
-      (JsPath \ "actions").readNullable[Seq[Action]] and
-      (JsPath \ "source").readNullable[Source] and
-      (JsPath \ "tags").readNullable[Seq[Tag]] and
-      (JsPath \ "details").readNullable[Map[String, String]] and
-      (JsPath \ "entity").readNullable[Entity] and
-      (JsPath \ "user").readNullable[User] and
-      (JsPath \ "note").readNullable[Note]
-    ) (Alert.apply _)
+    (JsPath \ "message").read[Message] and
+    (JsPath \ "teams").readNullable[Seq[Team]] and
+    (JsPath \ "alias").readNullable[Alias] and
+    (JsPath \ "description").readNullable[Description] and
+    (JsPath \ "recipients").readNullable[Seq[Recipient]] and
+    (JsPath \ "actions").readNullable[Seq[Action]] and
+    (JsPath \ "source").readNullable[Source] and
+    (JsPath \ "tags").readNullable[Seq[Tag]] and
+    (JsPath \ "details").readNullable[Map[String, String]] and
+    (JsPath \ "entity").readNullable[Entity] and
+    (JsPath \ "user").readNullable[User] and
+    (JsPath \ "note").readNullable[Note]
+  )(Alert.apply _)
 
   implicit val alertWrites: Writes[Alert] = (
-      (JsPath \ "message").write[Message] and
-      (JsPath \ "teams").writeNullable[Seq[Team]] and
-      (JsPath \ "alias").writeNullable[Alias] and
-      (JsPath \ "description").writeNullable[Description] and
-      (JsPath \ "recipients").writeNullable[Seq[Recipient]] and
-      (JsPath \ "actions").writeNullable[Seq[Action]] and
-      (JsPath \ "source").writeNullable[Source] and
-      (JsPath \ "tags").writeNullable[Seq[Tag]] and
-      (JsPath \ "details").writeNullable[Map[String, String]] and
-      (JsPath \ "entity").writeNullable[Entity] and
-      (JsPath \ "user").writeNullable[User] and
-      (JsPath \ "note").writeNullable[Note]
-    ) (unlift(Alert.unapply))
+    (JsPath \ "message").write[Message] and
+    (JsPath \ "teams").writeNullable[Seq[Team]] and
+    (JsPath \ "alias").writeNullable[Alias] and
+    (JsPath \ "description").writeNullable[Description] and
+    (JsPath \ "recipients").writeNullable[Seq[Recipient]] and
+    (JsPath \ "actions").writeNullable[Seq[Action]] and
+    (JsPath \ "source").writeNullable[Source] and
+    (JsPath \ "tags").writeNullable[Seq[Tag]] and
+    (JsPath \ "details").writeNullable[Map[String, String]] and
+    (JsPath \ "entity").writeNullable[Entity] and
+    (JsPath \ "user").writeNullable[User] and
+    (JsPath \ "note").writeNullable[Note]
+  )(unlift(Alert.unapply))
 
   trait CreateAlertResponse
   case class CreateAlertSuccess(val response: POJOSuccessResponse) extends CreateAlertResponse{
-    lazy val id = response.getRequestId()
-    lazy val data = response.getData()
-    lazy val took = response.getTook()
+    def id = response.getRequestId()
+    def data = response.getData()
+    def took = response.getTook()
   }
-  case class CreateAlertError(val message: String) extends java.lang.Exception(message) with CreateAlertResponse
+  case class CreateAlertError(val message: String) extends CreateAlertResponse
 
   object CreateAlertResponse{
     def apply(response: Try[POJOSuccessResponse]) = response match{
