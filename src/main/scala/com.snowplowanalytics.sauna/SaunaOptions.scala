@@ -14,11 +14,13 @@ package com.snowplowanalytics.sauna
 
 // java
 import java.io.File
+import java.io.EOFException
 
 // scala
 import scala.io.Source
 import scala.reflect.ClassTag
 import scala.util.control.NonFatal
+import scala.util.{Failure, Success}
 
 // iglu
 import com.snowplowanalytics.iglu.core.SchemaKey
@@ -85,7 +87,7 @@ case class SaunaOptions(configurationLocation: File) {
     for {
       configs <- configMap.get(className).map(_.headOption)
       config <- configs
-      record <- parseConfig[S](config)
+      record <- parseConfig[S](className, config)
     } yield record
   }
 
@@ -102,7 +104,7 @@ case class SaunaOptions(configurationLocation: File) {
       configs <- List(configMap.get(className))
       config <- configs.toList
       bytes <- config
-      record <- parseConfig[S](bytes)
+      record <- parseConfig[S](className, bytes)
     } yield record
   }
 
@@ -253,17 +255,22 @@ object SaunaOptions {
   /**
    * Parse array of bytes, supposed to be Avro JSON instance configuration
    *
+   * @param className Classname for the avro json being processed.
    * @param content Avro JSON with configuration
    * @tparam S one of configuration types with defined Avro schemas
    * @return some configuration if `content` conforms class
    */
-  private[sauna] def parseConfig[S: SchemaFor: FromRecord](content: Array[Byte]): Option[S] =
-    try {
-      val is = AvroInputStream.json[S](content)
-      val instances = is.singleEntity.toOption
-      is.close()
-      instances
-    } catch {
-      case NonFatal(e) => sys.error(s"Cannot parse configuration file [${content.toString}]. Make sure its valid JSON version of Avro instance\n${e.getMessage}")
+  private[sauna] def parseConfig[S: SchemaFor: FromRecord](className: String, content: Array[Byte]): Option[S] = {
+    val is = AvroInputStream.json[S](content)
+    val instances = is.singleEntity
+    instances match{
+      case Success(_) => ()
+      case Failure(e: EOFException) => ()
+      case Failure(e) =>
+        is.close()
+        sys.error(s"Cannot parse configuration [${className}]. Make sure its valid JSON version of Avro instance\n${e.getMessage}")
     }
+    is.close()
+    instances.toOption
+  }
 }
