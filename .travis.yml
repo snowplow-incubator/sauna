@@ -1,16 +1,25 @@
 language: scala
+
 scala:
-- 2.11.8
+  - 2.11.8
+
 jdk:
-- oraclejdk8
+  - oraclejdk8
+
 script:
-- sbt test
+  - sbt test
+
+before_deploy:
+  - pip install --user release-manager==0.2.0
+
 deploy:
   skip_cleanup: true
   provider: script
   script: ./.travis/deploy.sh $TRAVIS_TAG
   on:
     tags: true
+    condition: '"$(.travis/is_release_tag.sh $TRAVIS_TAG)" == "" && $? == 0'
+
 env:
   global:
   - secure: jJzX+eFS8pOdBdL/VpIAyN7MyVZWRdwTVpnyjDPleBVcreMkaZACijQZXFba9P4lz0S5Qd57YF7WnYnsVZ51e2Mju8Y/NR4jrByDlvowiufUI9RQcSnR2V/Qooukhlk1o4Fid2y+20cDx14/LrXOt8R7x9fr96yWMFbK80XqH/MbFybq5nGVR9GlaCcsEjeuDglfg+muKi0SqVUSoW15ppcFIokyaE4u71VW/uW2gAu1NwWsIBFoChOSjsO5EYz5vXtwGndhfOiqCGKBH5sTOthX7DyMyZox9bxi7ep2RaDlkjeaZxxMni6L53Zlgvl7A4cv5XYx0lRXXNTTDIGiTt3G5YGick/uOQ5y3q42Ci7uCV+CofLivwAc8mnmfSol6a4gxhJHmKB/Ye/lhvw+AZ+O1ItogATZ/qWfO9BmOjGLz8ZezXJpbHwg69ytjX8FsifZe9yqT6uKwAJak31BcvsZSw4rAGKZyIBakV8UQAC3vY47GxivvsPfZmdrwdYmFWPumSEzFBiAbQPqzVPka412T4f/1sOPl4Hs6OdvwgIMqpKBf0QlwY18o8nh39410pgD4CeqPo2l9o3UQOknv8ShDtVY2n7h81aKFy+km+YbsACAxlz9dG1HlHtef+7VF3GhPrQiCQKUVYU/ZIZ3q1IBdbrVFJlmLx4w6go12+Q=

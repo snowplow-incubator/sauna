@@ -74,12 +74,12 @@ object BuildSettings {
     assemblyOption in assembly ~= { _.copy(prependShellScript = Some(defaultShellScript)) },
 
     // Name it as an executable
-    assemblyJarName in assembly := { s"${name.value}" },
+    assemblyJarName in assembly := { s"${name.value}-${version.value}.jar" },
 
     // Make this executable
     mainClass in assembly := Some("com.snowplowanalytics.sauna.Sauna"),
 
-    test in assembly := {},        // Speed up packaging
+    // test in assembly := {},        // Uncomment to disable tests (speeds up packaging)
 
     assemblyMergeStrategy in assembly := {
       case PathList("org", "apache", "commons", "logging", xs @ _*) =>
