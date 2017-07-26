@@ -1,3 +1,19 @@
+Version 0.2.0 (2017-07-26)
+--------------------------
+Refactor CI/CD using release-manager (#98)
+Rename notify to notifyLogger (#92)
+Update README to valid CommonMark (#78)
+Add SendGrid send email responder (#84)
+Add PagerDuty create event responder (#52)
+Add Slack send message responder (#83)
+Add HipChat send room notification responder (#70)
+Add ObserverEvent (#75)
+Add versioning to generated class names (#82)
+Add base command processing (#81)
+Add Kinesis record observer (#53)
+Allow for multiple observers with the same schema (#86)
+Fix typo in S3 credentials provider (#87)
+
 Version 0.1.0 (2016-09-12)
 --------------------------
 Initial release
