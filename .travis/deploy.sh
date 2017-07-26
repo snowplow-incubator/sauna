@@ -1,23 +1,15 @@
 #!/bin/bash
 
-tag_version=$1
+tag=$1
 
-mkdir ~/.bintray/
-FILE=$HOME/.bintray/.credentials
-cat <<EOF >$FILE
-realm = Bintray API Realm
-host = api.bintray.com
-user = $BINTRAY_SNOWPLOW_GENERIC_USER
-password = $BINTRAY_SNOWPLOW_GENERIC_API_KEY
-EOF
+release=${tag:0}
+
+if [ "${release}" == "" ]; then
+    echo "Warning! No release specified! Ignoring."
+    exit 2
+fi
 
 cd $TRAVIS_BUILD_DIR
-pwd
 
-project_version=$(sbt version -Dsbt.log.noformat=true | perl -ne 'print $1 if /(\d+\.\d+[^\r\n]*)/')
-if [ "${project_version}" == "${tag_version}" ]; then
-    sbt universal:publish
-else
-    echo "Tag version '${tag_version}' doesn't match version in scala project ('${project_version}'). Aborting!"
-    exit 1
-fi
+export TRAVIS_BUILD_RELEASE_TAG=${release}
+release-manager --config ./.travis/release_sauna.yml --check-version --make-version --make-artifact --upload-artifact
