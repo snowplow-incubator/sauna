@@ -24,8 +24,10 @@ import actors._
 object Sauna extends App {
 
   SaunaOptions.parser.parse(args, SaunaOptions.initial) match {
-    case Some(options) => run(options.extract)
-    case None => sys.exit(1)
+    case Some(options) =>
+      run(options.extract)
+    case None =>
+      sys.exit(1)
   }
 
   /**
