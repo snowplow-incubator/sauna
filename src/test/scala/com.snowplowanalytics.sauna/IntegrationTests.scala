@@ -298,7 +298,12 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       def step1: Receive = {
         case message: Notification =>
           val expectedText = "Detected new local file"
-          if (!message.text.contains(expectedText)) {
+          val observerText = "Active observers:"
+          val responderText = "No active responders (or running in a test environment)"
+
+          if (message.text.contains(observerText) || message.text.contains(responderText)) {
+            // Ignore startup entity info
+          } else if (!message.text.contains(expectedText)) {
             error = s"In step1, [${message.text}] does not contain [$expectedText]"
           } else {
             context.become(step2)
@@ -411,6 +416,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       def step1: Receive = {
         case message: Notification =>
           val expectedText = "Detected new S3 file"
+
           if (!message.text.contains(expectedText)) {
             error = s"In step1, [${message.text}] does not contain [$expectedText]"
           } else {
@@ -526,7 +532,12 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       def step1: Receive = {
         case message: Notification =>
           val expectedText = "Detected new local file"
-          if (!message.text.contains(expectedText)) {
+          val observerText = "Active observers:"
+          val responderText = "No active responders (or running in a test environment)"
+
+          if (message.text.contains(observerText) || message.text.contains(responderText)) {
+            // Ignore startup entity info
+          } else if (!message.text.contains(expectedText)) {
             error = s"in step1, [${message.text}] does not contain [$expectedText]]"
           } else {
             context.become(step2)
