@@ -44,18 +44,24 @@ class CreateEventResponder(pagerDuty: PagerDuty, val logger: ActorRef) extends R
   def extractEvent(observerEvent: ObserverEvent): Option[PagerDutyEventReceived] = {
     observerEvent match {
       case e: ObserverCommandEvent =>
-        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
-        Command.extractCommand[PagerDutyEvent](commandJson) match {
-          case Right((envelope, data)) =>
-            Command.validateEnvelope(envelope) match {
-              case Right(_) =>
-                Some(PagerDutyEventReceived(data, e))
-              case Left(error) =>
-                notifyLogger(error)
-                None
-            }
-          case Left(error) =>
-            notifyLogger(error)
+        try {
+          val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
+          Command.extractCommand[PagerDutyEvent](commandJson) match {
+            case Right((envelope, data)) =>
+              Command.validateEnvelope(envelope) match {
+                case Right(_) =>
+                  Some(PagerDutyEventReceived(data, e))
+                case Left(error) =>
+                  notifyLogger(error)
+                  None
+              }
+            case Left(error) =>
+              notifyLogger(error)
+              None
+          }
+        } catch {
+          case e: Exception =>
+            notifyLogger("Error in PagerDuty event: " + e.getMessage)
             None
         }
       case _ => None

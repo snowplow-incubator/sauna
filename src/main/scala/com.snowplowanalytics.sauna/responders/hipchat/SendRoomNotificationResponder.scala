@@ -44,18 +44,24 @@ class SendRoomNotificationResponder(hipchat: Hipchat, val logger: ActorRef) exte
   def extractEvent(observerEvent: ObserverEvent): Option[RoomNotificationReceived] = {
     observerEvent match {
       case e: ObserverCommandEvent =>
-        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
-        Command.extractCommand[RoomNotification](commandJson) match {
-          case Right((envelope, data)) =>
-            Command.validateEnvelope(envelope) match {
-              case Right(_) =>
-                Some(RoomNotificationReceived(data, e))
-              case Left(error) =>
-                notifyLogger(error)
-                None
-            }
-          case Left(error) =>
-            notifyLogger(error)
+        try {
+          val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
+          Command.extractCommand[RoomNotification](commandJson) match {
+            case Right((envelope, data)) =>
+              Command.validateEnvelope(envelope) match {
+                case Right(_) =>
+                  Some(RoomNotificationReceived(data, e))
+                case Left(error) =>
+                  notifyLogger(error)
+                  None
+              }
+            case Left(error) =>
+              notifyLogger(error)
+              None
+          }
+        } catch {
+          case e: Exception =>
+            notifyLogger("Error in HipChat event: " + e.getMessage)
             None
         }
       case _ => None

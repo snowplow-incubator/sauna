@@ -164,8 +164,11 @@ object Command {
           case JsSuccess(envelope, _) =>
             validateSelfDescribing(command.command, igluCentralResolver) match {
               case Right(_) =>
+                println(command.command.data)
                 command.command.data.validate[T] match {
-                  case JsSuccess(data, _) => Right((envelope, data))
+                  case JsSuccess(data, _) =>
+                    println(data)
+                    Right((envelope, data))
                   case JsError(error) => Left(s"Encountered an issue while parsing Sauna command data: $error")
                 }
               case Left(error) => Left(s"Could not validate command data JSON: $error")

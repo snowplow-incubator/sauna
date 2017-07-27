@@ -44,18 +44,24 @@ class SendEmailResponder(sendgrid: Sendgrid, val logger: ActorRef) extends Respo
   def extractEvent(observerEvent: ObserverEvent): Option[SendgridEmailReceived] = {
     observerEvent match {
       case e: ObserverCommandEvent =>
-        val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
-        Command.extractCommand[SendgridEmail](commandJson) match {
-          case Right((envelope, data)) =>
-            Command.validateEnvelope(envelope) match {
-              case Right(_) =>
-                Some(SendgridEmailReceived(data, e))
-              case Left(error) =>
-                notifyLogger(error)
-                None
-            }
-          case Left(error) =>
-            notifyLogger(error)
+        try {
+          val commandJson = Json.parse(Source.fromInputStream(e.streamContent).mkString)
+          Command.extractCommand[SendgridEmail](commandJson) match {
+            case Right((envelope, data)) =>
+              Command.validateEnvelope(envelope) match {
+                case Right(_) =>
+                  Some(SendgridEmailReceived(data, e))
+                case Left(error) =>
+                  notifyLogger(error)
+                  None
+              }
+            case Left(error) =>
+              notifyLogger(error)
+              None
+          }
+        } catch {
+          case e: Exception =>
+            notifyLogger("Error in SendGrid event: " + e.getMessage)
             None
         }
       case _ => None
