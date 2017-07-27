@@ -44,7 +44,36 @@ case class SaunaSettings(
   // Observers
   localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],
   amazonS3Configs: List[observers.AmazonS3Config_1_0_0],
-  amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0])
+  amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0]) {
+
+  /**
+    * Get ids of all parsed configs
+    * @todo refactor with shapeless
+    */
+  def getIds: Map[String, List[String]] = {
+    val loggers = Map(
+      "Loggers" -> List(
+        amazonDynamodbConfig.map(_.id), hipchatLoggerConfig.map(_.id)).flatten
+    )
+
+    val responders = Map(
+      "Responders" -> List(
+        optimizelyConfig.map(_.id),
+        sendgridConfig_1_0_0.map(_.id),
+        sendgridConfig_1_0_1.map(_.id),
+        hipchatResponderConfig.map(_.id),
+        slackConfig.map(_.id),
+        pagerDutyConfig.map(_.id)).flatten
+    )
+
+    val observers = Map(
+      "Observers" -> List(
+        localFilesystemConfigs.map(_.id), amazonS3Configs.map(_.id), amazonKinesisConfigs.map(_.id)).flatten
+    )
+
+    loggers ++ responders ++ observers
+  }
+}
 
 object SaunaSettings {
   def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil)

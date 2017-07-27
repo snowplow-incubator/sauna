@@ -45,12 +45,14 @@ case class SaunaOptions(configurationLocation: File) {
     SaunaSettings(
       getConfig[loggers.AmazonDynamodbConfig_1_0_0],
       getConfig[loggers.HipchatConfig_1_0_0],
+
       getConfig[responders.OptimizelyConfig_1_0_0],
       getConfig[responders.SendgridConfig_1_0_0],
       getConfig[responders.SendgridConfig_1_0_1],
       getConfig[responders.HipchatConfig_1_0_0],
       getConfig[responders.SlackConfig_1_0_0],
       getConfig[responders.PagerDutyConfig_1_0_0],
+
       getConfigs[observers.LocalFilesystemConfig_1_0_0],
       getConfigs[observers.AmazonS3Config_1_0_0],
       getConfigs[observers.AmazonKinesisConfig_1_0_0])

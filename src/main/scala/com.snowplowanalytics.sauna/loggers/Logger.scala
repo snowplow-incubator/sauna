@@ -38,12 +38,12 @@ class Logger(dynamodbProps: Option[DynamodbProps], hipchatProps: Option[HipchatP
   def receive = {
     case notification: Notification =>
       hipchatLogger.foreach { _ ! notification }
-      println(s"NOTIFICATION: [${notification.text}].")
+      println(s"NOTIFICATION: [${notification.text}]")
 
     case manifestation: Manifestation =>
       import manifestation._
       dynamodbLogger.foreach { _ ! manifestation }
-      println(s"MANIFESTATION: uid = [$uid], name = [$name], status = [$status], description = [$description], lastModified = [$lastModified].")
+      println(s"MANIFESTATION: uid = [$uid], name = [$name], status = [$status], description = [$description], lastModified = [$lastModified]")
   }
 }
 

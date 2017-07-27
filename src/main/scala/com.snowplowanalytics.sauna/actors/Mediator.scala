@@ -59,6 +59,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
       s3ObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
       kinesisObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) }
 
+
   // Terminate application if none observer were configured
   // null is valid value when overriding observers in tests
   if (observers != null && observers.isEmpty) {
@@ -69,7 +70,9 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
    * Single system logger, accepting all Notifications and Manifestations
    * from all observers, responders, etc
    */
-  val logger = context.actorOf(loggerCreator(saunaSettings))
+  val logger: SaunaLogger = context.actorOf(loggerCreator(saunaSettings))
+
+  def notifyLogger(message: String): Unit = logger ! Notification(message)
 
   /**
    * Map of currently processing events from all observers
@@ -80,9 +83,20 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
   /**
    * List of responder actors, communicating with 3rd-party APIs
    */
-  val responderActors = respondersProps(saunaSettings)
+  val responderActors: List[ActorRef] = respondersProps(saunaSettings)
     .map(creator => creator(logger))
     .map { case (name, props) => context.actorOf(props, name) }
+
+  if (logger != null) {
+    if (observers != null && observers.nonEmpty) {
+      notifyLogger(s"Active observers: ${observers.map(_.path.name).mkString(", ")}")
+    }
+
+    if (responderActors != null && responderActors.nonEmpty)
+      notifyLogger(s"Active responders: ${responderActors.map(_.path.name).mkString(", ")}")
+    else
+      notifyLogger(s"No active responders")
+  }
 
   /**
    * Check current state for orphan messages and notify user about them
@@ -112,7 +126,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
 
     // Broadcast observer event to all responders
     case observerEvent: Observer.ObserverEvent =>
-      responderActors.map { responder => responder ! observerEvent }
+      responderActors.foreach { responder => responder ! observerEvent }
 
     // Track what responders accepted broadcast
     case Responder.Accepted(message, responder) =>
@@ -185,18 +199,18 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
     try {
       Await.result(context.system.terminate(), 5.seconds)
     } catch {
-      case e: TimeoutException => ()
+      case _: TimeoutException => ()
     } finally {
       error match {
-        case Some(e) => sys.error("At least one observer must be configured")
+        case Some(e) =>
+          println(e)
+          sys.exit(1)
         case None =>
           println("Mediator actor stopped")
-          sys.exit()
+          sys.exit(0)
       }
     }
   }
-
-  def notifyLogger(message: String): Unit = logger ! Notification(message)
 }
 
 object Mediator {

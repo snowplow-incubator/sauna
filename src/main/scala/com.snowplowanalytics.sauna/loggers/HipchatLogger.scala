@@ -26,8 +26,6 @@ import utils._
 class HipchatLogger(token: String, roomId: String) extends Actor {
   import HipchatLogger._
 
-  println(self)
-
   import context.dispatcher
 
   def receive = {

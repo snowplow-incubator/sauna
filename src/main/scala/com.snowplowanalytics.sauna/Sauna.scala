@@ -22,10 +22,14 @@ import actors._
  * Main class, starts the Sauna program.
  */
 object Sauna extends App {
-
   SaunaOptions.parser.parse(args, SaunaOptions.initial) match {
-    case Some(options) => run(options.extract)
-    case None => sys.exit(1)
+    case Some(options) =>
+      println("Initializing...")
+      val settings = options.extract
+      logConfigs(settings)
+      run(settings)
+    case None =>
+      sys.exit(1)
   }
 
   /**
@@ -37,5 +41,14 @@ object Sauna extends App {
     val system = ActorSystem("sauna")
     println("Actor system started...")
     system.actorOf(Props(new Mediator(saunaSettings)))
+  }
+
+  /** Print all parsed configurations */
+  private def logConfigs(settings: SaunaSettings): Unit = {
+    settings.getIds.foreach { case (k, v) =>
+      if (v.nonEmpty) println(s"$k: ${v.mkString(", ")}")
+      else println(s"No $k configured")
+    }
+    println("")
   }
 }
