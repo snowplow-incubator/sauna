@@ -1,0 +1,55 @@
+{
+  "namespace": "com.snowplowanalytics.sauna.observers",
+  "name": "AzureEventHubsConfig_1_0_0",
+  "type": "record",
+  "fields": [
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "parameters",
+      "type": {
+        "name": "AzureEventHubsConfigParameters_1_0_0",
+        "type": "record",
+        "fields": [
+          {
+            "name": "eventHubName",
+            "type": "string"
+          },
+          {
+            "name": "consumerGroupName",
+            "type": "string"
+          },
+          {
+            "name": "serviceBusNamespaceName",
+            "type": "string"
+          },
+          {
+            "name": "storageConnectionString",
+            "type": "string"
+          },
+          {
+            "name": "eventHubConnectionString",
+            "type": "string"
+          },
+          {
+            "name": "checkPointFrequency",
+            "type": "int"
+          }
+
+        ],
+        "required": [
+          "eventHubName",
+          "serviceBusNameSpaceName",
+          "storageConnectionString",
+          "eventHubConnectionString"
+        ]
+      }
+    }
+  ]
+}

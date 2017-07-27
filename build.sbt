@@ -29,6 +29,8 @@ lazy val root = (project in file("."))
       Dependencies.Libraries.awscala,
       Dependencies.Libraries.gfcAwsKinesis,
       Dependencies.Libraries.gfcAwsKinesisAkka,
+      Dependencies.Libraries.azureEventHub,
+      Dependencies.Libraries.azureEventHubEPH,
       Dependencies.Libraries.nscalaTime,
       Dependencies.Libraries.scopt,
       Dependencies.Libraries.avro4s,

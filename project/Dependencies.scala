@@ -18,6 +18,8 @@ object Dependencies {
     val typesafeConfig    = "1.3.0"
     val totoshi           = "1.2.2"
     val awscala           = "0.5.7"
+    val eventhubClient    = "0.10.0"
+    val azureEventHubEPH  = "0.14.2"
     val gfcAwsKinesis     = "0.10.2"
     val gfcAwsKinesisAkka = "0.10.2"
     val nscalaTime        = "2.12.0"
@@ -33,6 +35,8 @@ object Dependencies {
   object Libraries {
     // Java
     val typesafeConfig    = "com.typesafe"           % "config"                % V.typesafeConfig
+    val azureEventHub     = "com.microsoft.azure"    % "azure-eventhubs"       % V.eventhubClient
+    val azureEventHubEPH  = "com.microsoft.azure"    % "azure-eventhubs-eph"   % V.azureEventHubEPH
 
     // Scala
     val totoshi           = "com.github.tototoshi"   %% "scala-csv"            % V.totoshi
