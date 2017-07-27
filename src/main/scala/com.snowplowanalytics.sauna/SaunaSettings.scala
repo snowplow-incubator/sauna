@@ -27,6 +27,7 @@ package com.snowplowanalytics.sauna
  * @param localFilesystemConfigs list of local roots to observe
  * @param amazonS3Configs        list of S3 buckets to observe
  * @param amazonKinesisConfigs   list of Kinesis streams to observe
+ * @param aureEventhubsConfigs   list of Azure Eventhubs streams to observe
  */
 case class SaunaSettings(
   // Loggers
@@ -46,8 +47,9 @@ case class SaunaSettings(
   // Observers
   localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],
   amazonS3Configs: List[observers.AmazonS3Config_1_0_0],
-  amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0])
+  amazonKinesisConfigs: List[observers.AmazonKinesisConfig_1_0_0],
+  azureEventHubsConfigs: List[observers.AzureEventHubsConfig_1_0_0])
 
 object SaunaSettings {
-  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, None, Nil, Nil, Nil)
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil, Nil)
 }

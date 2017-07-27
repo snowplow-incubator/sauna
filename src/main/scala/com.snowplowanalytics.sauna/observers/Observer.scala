@@ -19,6 +19,10 @@ import scala.util.Try
 // awscala
 import awscala.sqs.SQS
 
+// eventhubs
+import com.microsoft.azure.eventhubs.EventData
+import com.microsoft.azure.eventprocessorhost.PartitionContext
+
 // akka
 import akka.actor.{Actor, ActorRef}
 
@@ -126,6 +130,21 @@ object Observer {
     }
 
     def id: String = s"kinesis-$streamName-$seqNr"
+
+    def streamContent: ByteArrayInputStream = new ByteArrayInputStream(byteArray)
+  }
+
+  /**
+   * Record has been received from Azure EventHubs
+   *
+   * @param context    Partition context
+   * @param data       Event data
+   * @param observer   observer that witnessed the record receipt
+   */
+  case class EventHubRecordReceived(context: PartitionContext, data: EventData, observer: ActorRef) extends ObserverCommandEvent {
+    val byteArray = data.getBytes()
+    
+    def id: String = s"eventhub-${context.getPartitionId()}-${byteArray}"
 
     def streamContent: ByteArrayInputStream = new ByteArrayInputStream(byteArray)
   }

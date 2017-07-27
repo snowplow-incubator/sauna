@@ -59,7 +59,8 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
   val observers: List[ActorRef] =
     localObserversCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
       s3ObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
-      kinesisObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) }
+      kinesisObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) } ++
+      eventhubsObserverCreator(saunaSettings).map { case (name, props) => context.actorOf(props, name) }
 
   // Terminate application if none observer were configured
   // null is valid value when overriding observers in tests
@@ -169,6 +170,7 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
                 case l: LocalFilePublished => original.observer ! Observer.DeleteLocalFile(l.file)
                 case s: S3FilePublished => original.observer ! Observer.DeleteS3Object(s.id, s.s3Source)
                 case r: KinesisRecordReceived => ()
+                case e: EventHubRecordReceived => ()
               }
               processedEvents.remove(original)
             case InProcess(stillWorking) =>
@@ -569,6 +571,19 @@ object Mediator {
       if (config.enabled) {
         List((config.id, AmazonKinesisObserver.props(config)))
       } else Nil
+    }
+  }
+
+  /**
+   * Function producing `props` for Azure Eventhubs observer
+   *
+   * @param saunaSettings global settings object
+   * @return immutable `Props` object ready to be used for creating several
+   *         Azure Eventhubs observers
+   */
+  def eventhubsObserverCreator(saunaSettings: SaunaSettings): List[(ActorName, Props)] = {
+    saunaSettings.azureEventHubsConfigs.filter(_.enabled).map {
+      config => (config.id, AzureEventHubsObserver.props(config))
     }
   }
 
