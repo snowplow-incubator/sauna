@@ -69,7 +69,9 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
    * Single system logger, accepting all Notifications and Manifestations
    * from all observers, responders, etc
    */
-  val logger = context.actorOf(loggerCreator(saunaSettings))
+  val logger: SaunaLogger = context.actorOf(loggerCreator(saunaSettings))
+
+  def notifyLogger(message: String): Unit = logger ! Notification(message)
 
   /**
    * Map of currently processing events from all observers
@@ -80,9 +82,21 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
   /**
    * List of responder actors, communicating with 3rd-party APIs
    */
-  val responderActors = respondersProps(saunaSettings)
+  val responderActors: List[SaunaLogger] = respondersProps(saunaSettings)
     .map(creator => creator(logger))
     .map { case (name, props) => context.actorOf(props, name) }
+
+  if (logger != null) {
+    if (observers != null && !observers.isEmpty)
+      notifyLogger(s"Active observers: ${observers.mkString(";")}")
+    else
+      notifyLogger(s"No active observers (or running in a test environment)")
+
+    if (responderActors != null && !responderActors.isEmpty)
+      notifyLogger(s"Active responders: ${responderActors.mkString(";")}")
+    else
+      notifyLogger(s"No active responders (or running in a test environment)")
+  }
 
   /**
    * Check current state for orphan messages and notify user about them
@@ -188,15 +202,15 @@ class Mediator(saunaSettings: SaunaSettings) extends Actor {
       case e: TimeoutException => ()
     } finally {
       error match {
-        case Some(e) => sys.error("At least one observer must be configured")
+        case Some(e) =>
+          println(e)
+          sys.exit(1)
         case None =>
           println("Mediator actor stopped")
-          sys.exit()
+          sys.exit(0)
       }
     }
   }
-
-  def notifyLogger(message: String): Unit = logger ! Notification(message)
 }
 
 object Mediator {
