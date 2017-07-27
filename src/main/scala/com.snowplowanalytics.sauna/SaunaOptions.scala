@@ -36,7 +36,7 @@ import observers._
 
 /**
  * Options parsed from command line
- * 
+ *
  * @param configurationLocation root to directory with all configuration files
  */
 case class SaunaOptions(configurationLocation: File) {
@@ -52,12 +52,13 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[OptimizelyConfig],
       getConfig[SendgridConfig],
       getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config])
+      getConfigs[AmazonS3Config],
+      getConfigs[AmazonKinesisConfig])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
    * which was valid self-describing Avro
-   * Key - class name, value - map of ids to content of `data` field 
+   * Key - class name, value - map of ids to content of `data` field
    * anything except observers is single-element/no-element list
    */
   private lazy val configMap: Map[String, List[Array[Byte]]] =

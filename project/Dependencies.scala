@@ -18,6 +18,8 @@ object Dependencies {
     val typesafeConfig = "1.3.0"
     val totoshi = "1.2.2"
     val awscala = "0.5.7"
+    val gfcAwsKinesis = "0.10.2"
+    val gfcAwsKinesisAkka = "0.10.2"
     val nscalaTime = "2.12.0"
     val scopt = "3.5.0"
     val avro4s = "1.5.4"
@@ -34,6 +36,8 @@ object Dependencies {
     // Scala
     val totoshi          = "com.github.tototoshi"   %% "scala-csv"          % V.totoshi
     val awscala          = "com.github.seratch"     %% "awscala"            % V.awscala
+    val gfcAwsKinesis    = "com.gilt"               %% "gfc-aws-kinesis"    % V.gfcAwsKinesis
+    val gfcAwsKinesisAkka = "com.gilt"              %% "gfc-aws-kinesis-akka" % V.gfcAwsKinesisAkka
     val nscalaTime       = "com.github.nscala-time" %% "nscala-time"        % V.nscalaTime
     val scopt            = "com.github.scopt"       %% "scopt"              % V.scopt
     val avro4s           = "com.sksamuel.avro4s"    %% "avro4s-core"        % V.avro4s
