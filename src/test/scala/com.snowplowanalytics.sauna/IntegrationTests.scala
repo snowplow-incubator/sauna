@@ -185,6 +185,13 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val kinesisStreamName = sys.env.getOrElse("KINESIS_STREAM_NAME", "sauna-integration-test")
   val kinesisRegion = sys.env.getOrElse("KINESIS_REGION", "us-east-1")
 
+  val eventHubName: Option[String] = sys.env.get("AZURE_EVENTHUB_EVENTHUBNAME")
+  val consumerGroupName = sys.env.getOrElse("AZURE_EVENTHUB_CONSUMER_GROUP_NAME", "$Default")
+  val serviceBusNamespaceName: Option[String] = sys.env.get("AZURE_EVENTHUB_SB_NAMESPACE_NAME")
+  val storageConnectionString: Option[String] = sys.env.get("AZURE_EVENTHUB_STORAGE_CONNECTION_STRING")
+  val eventHubConnectionString = sys.env.get("AZURE_EVENTHUB_CONNECTION_STRING")
+  val checkPointFrequency: Int = sys.env.getOrElse("AZURE_EVENTHUB_CHECKPOINT_FREQ", 5)
+
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
   val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
   val opsgenieToken: Option[String] = sys.env.get("OPSGENIE_API_KEY")
@@ -750,6 +757,63 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     assert(apiRecord !== null, "Could not consume the produced record using a raw client call")
     assert(apiRecord.getRecords.size() === 1)
     assert(new String(apiRecord.getRecords.get(0).getData.array(), Charset.forName(charset)) === data)
+
+    // ...as well as the observer.
+    assert(observerRecord !== null, "Could not consume the produced record using the observer")
+    assert(new String(observerRecord.data.array(), Charset.forName(charset)) === data)
+  }
+
+  test("Azure Eventhub (mock responder)") {
+    assume(eventHubName.isDefined)
+    assume(serviceBusNamespaceName.isDefined)
+    assume(eventHubConnectionString.isDefined)
+    assume(serviceBusNamespaceName.isDefined)
+    var observerRecord: EventhubRecordReceived = null
+
+    val dummyLogger = system.actorOf(Props(new Actor {
+      override def receive: PartialFunction[Any, Unit] = {
+        case _ =>
+      }
+    }))
+
+
+    val responder = Props(new Responder[ObserverEvent, AnyEvent] {
+      override def logger: ActorRef = dummyLogger
+
+      override def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] =
+        Some(AnyEvent(observerEvent))
+
+      override def process(event: AnyEvent): Unit = {
+        event.source match {
+          case r@ EventhubRecordReceived(_, _, _, _) =>
+            observerRecord = r
+        }
+      }
+    })
+
+    val eventhubsObserver = AzureEventhubsObserver.props(AzureEventHubsConfig_1_0_0(
+      eventHubName.get,
+      serviceBusNamespaceName.get,
+      eventHubConnectionString.get,
+      storageConnectionString.get,
+      consumerGroupName,
+      checkPointFrequency
+      )
+    )
+
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), eventhubObserver, dummyLogger)))
+
+    Thread.sleep(75000)
+
+    val host: EventProcessorHost  = new EventProcessorHost(eventHubName.get, consumerGroupName,
+    eventHubConnectionString.get, storageConnectionString.get)
+
+    val charset = "UTF-8"
+    val data = UUID.randomUUID().toString
+    val sendEvent: EventData = new EventData(data.getBytes(charset))
+    ehClient.sendSync(sendEvent)
+
+    Thread.sleep(5000)
 
     // ...as well as the observer.
     assert(observerRecord !== null, "Could not consume the produced record using the observer")

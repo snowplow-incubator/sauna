@@ -143,8 +143,9 @@ object Observer {
    */
   case class EventHubRecordReceived(context: PartitionContext, data: EventData, observer: ActorRef) extends ObserverCommandEvent {
     val byteArray = data.getBytes()
+    val seqNum = data.getSystemProperties().getSequenceNumber()
     
-    def id: String = s"eventhub-${context.getPartitionId()}-${byteArray}"
+    def id: String = s"eventhub-${context.getPartitionId()}-${seqNum}"
 
     def streamContent: ByteArrayInputStream = new ByteArrayInputStream(byteArray)
   }
