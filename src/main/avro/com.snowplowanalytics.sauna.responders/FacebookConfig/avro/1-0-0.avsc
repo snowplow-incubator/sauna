@@ -1,0 +1,36 @@
+{
+  "namespace": "com.snowplowanalytics.sauna.responders",
+  "name": "FacebookCustomAudienceConfig_1_0_0",
+  "type": "record",
+  "fields": [
+    {
+      "name": "enabled",
+      "type": "boolean"
+    },
+    {
+      "name": "id",
+      "type": "string"
+    },
+    {
+      "name": "parameters",
+      "type": {
+        "name": "FacebookCustomAudienceConfigParameters_1_0_0",
+        "type": "record",
+        "fields": [
+          {
+            "name": "accountId",
+            "type": "string"
+          },
+          {
+            "name": "accessToken",
+            "type": "string"
+          },
+          {
+            "name": "appSecret",
+            "type": "string"
+          }
+        ]
+      }
+    }
+  ]
+}

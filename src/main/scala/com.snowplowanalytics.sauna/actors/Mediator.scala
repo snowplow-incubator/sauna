@@ -35,6 +35,7 @@ import responders.sendgrid._
 import responders.slack._
 import responders.opsgenie._
 import responders.pusher._
+import responders.facebook._
 
 /**
  * Root user-level (supervisor) actor
@@ -361,7 +362,7 @@ object Mediator {
   /**
    * List of functions able to consctruct particular responders
    */
-  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _, opsGenieCreator _, pusherCreator _)
+  val responderCreators = List(sendgridCreator _, optimizelyCreator _, hipchatCreator _, slackCreator _, pagerDutyCreator _, opsGenieCreator _, pusherCreator _, facebookAdsCreator _)
 
   def respondersProps(saunaSettings: SaunaSettings): List[ActorConstructor] = {
     responderCreators.flatMap { constructor => constructor(saunaSettings) }
@@ -433,6 +434,21 @@ object Mediator {
     }.getOrElse(Nil)
 
     sendgrid_1_0_0_constructor ++ sendgrid_1_0_1_constructor
+  }
+
+  /**
+   * A function producing `Props` based on loggers for the Facebook Ads responder.
+   *
+   * @param saunaSettings A global settings object.
+   * @return A list of functions that accept loggers and produce Facebook Custom Audience responders.
+   */
+  def facebookAdsCreator(saunaSettings: SaunaSettings): List[ActorConstructor] = {
+    saunaSettings.facebookConfig.collect {
+      case responders.FacebookCustomAudienceConfig_1_0_0(true, id, params) =>
+        (
+          (logger: SaunaLogger) => (id, CustomAudienceResponder.props(params, logger))
+        ) :: Nil
+    }.getOrElse(Nil)
   }
 
   /**

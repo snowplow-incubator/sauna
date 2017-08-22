@@ -68,6 +68,7 @@ import responders.sendgrid._
 import responders.slack._
 import responders.opsgenie._
 import responders.pusher._
+import responders.facebook._
 
 object IntegrationTests {
 
@@ -199,6 +200,10 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val pagerDutyServiceKey: Option[String] = sys.env.get("PAGERDUTY_SERVICE_KEY")
   val Seq(pusherAppId, pusherKey, pusherSecret, pusherCluster) =
     Seq("APPID", "SECRET", "KEY", "CLUSTER").map{k=>sys.env.get(s"PUSHER_$k")}
+
+  val facebookCAaccessToken: Option[String] = sys.env.get("FACEBOOK_CA_ACCESS_TOKEN")
+  val facebookCAaccountId: Option[String] = sys.env.get("FACEBOOK_CA_ACCOUNT_ID")
+  val facebookCAappSecret: Option[String] = sys.env.get("FACEBOOK_CA_APP_SECRET")
 
   val postmarkApiToken: Option[String] = sys.env.get("POSTMARK_API_TOKEN")
   val postmarkInboundEmail: Option[String] = sys.env.get("POSTMARK_INBOUND_EMAIL")
@@ -905,7 +910,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     // Assert that nothing went wrong.
     assert(error == null)
-  }    
+  }
 
   test("Pusher responder") {
     assume(pusherAppId.isDefined)
@@ -930,6 +935,62 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val apiWrapper = new Pusher(pusherAppId.get, pusherKey.get, pusherSecret.get, pusherCluster, dummyLogger)
     val dummyObserver = Props(new MockRealTimeObserver())
     val responder = PublishEventResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(10000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }
+
+  test("Facebook Custom Audience responder") {
+    assume(facebookCAaccessToken.isDefined)
+    assume(facebookCAaccountId.isDefined)
+    assume(facebookCAappSecret.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/facebook.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Did not upload Facebook custom audience"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Error while uploading audience:"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = CustomAudienceResponder.props(facebookCAaccessToken.get, facebookCAappSecret.get, facebookCAaccountId.get, dummyLogger)
     val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
 
     Thread.sleep(3000)

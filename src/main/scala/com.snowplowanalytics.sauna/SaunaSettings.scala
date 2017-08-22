@@ -24,6 +24,7 @@ package com.snowplowanalytics.sauna
  * @param hipchatResponderConfig optional Hipchat responder configuration
  * @param slackConfig            optional Slack responder configuration
  * @param pagerDutyConfig        optional PagerDuty responder configuration
+ * @param facebookConfig         optional Facebook Ads responder configuration
  * @param localFilesystemConfigs list of local roots to observe
  * @param amazonS3Configs        list of S3 buckets to observe
  * @param amazonKinesisConfigs   list of Kinesis streams to observe
@@ -43,6 +44,7 @@ case class SaunaSettings(
   pagerDutyConfig: Option[responders.PagerDutyConfig_1_0_0],
   opsGenieConfig:  Option[responders.OpsGenieConfig_1_0_0],
   pusherConfig:   Option[responders.PusherConfig_1_0_0],
+  facebookConfig: Option[responders.FacebookCustomAudienceConfig_1_0_0],
 
   // Observers
   localFilesystemConfigs: List[observers.LocalFilesystemConfig_1_0_0],
@@ -51,5 +53,5 @@ case class SaunaSettings(
   azureEventHubsConfigs: List[observers.AzureEventHubsConfig_1_0_0])
 
 object SaunaSettings {
-  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, Nil, Nil, Nil, Nil)
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, None, Nil, Nil, Nil)
 }

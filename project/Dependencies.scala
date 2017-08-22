@@ -32,6 +32,7 @@ object Dependencies {
     val scalaTest         = "2.2.4"
     val opsGenie          = "2.8.1"
     val pusher 		  = "1.0.0"
+    val facebookAds       = "2.10.0"
   }
 
   object Libraries {
@@ -41,6 +42,7 @@ object Dependencies {
     val pusher           =  "com.pusher"               % "pusher-http-java"    % V.pusher
     val azureEventHub     = "com.microsoft.azure"      % "azure-eventhubs"     % V.eventhubClient
     val azureEventHubEPH  = "com.microsoft.azure"      % "azure-eventhubs-eph" % V.azureEventHubEPH
+    val facebookAds       = "com.facebook.ads.sdk"     %"facebook-java-ads-sdk"% V.facebookAds
 
     // Scala
     val totoshi           = "com.github.tototoshi"   %% "scala-csv"            % V.totoshi

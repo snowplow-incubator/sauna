@@ -41,7 +41,8 @@ lazy val root = (project in file("."))
       Dependencies.Libraries.igluScalaClient,
       Dependencies.Libraries.scalaTest,
       Dependencies.Libraries.opsGenieSDK,
-      Dependencies.Libraries.pusher
+      Dependencies.Libraries.pusher,
+      Dependencies.Libraries.facebookAds
     )
   )
   .enablePlugins(JavaAppPackaging)

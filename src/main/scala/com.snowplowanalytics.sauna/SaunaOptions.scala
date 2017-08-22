@@ -55,6 +55,7 @@ case class SaunaOptions(configurationLocation: File) {
       getConfig[responders.PagerDutyConfig_1_0_0],
       getConfig[responders.OpsGenieConfig_1_0_0],
       getConfig[responders.PusherConfig_1_0_0],
+      getConfig[responders.FacebookCustomAudienceConfig_1_0_0],
       getConfigs[observers.LocalFilesystemConfig_1_0_0],
       getConfigs[observers.AmazonS3Config_1_0_0],
       getConfigs[observers.AmazonKinesisConfig_1_0_0],
