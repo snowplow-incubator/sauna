@@ -21,6 +21,7 @@ import java.security.MessageDigest
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.util.{Try, Failure, Success}
+import scala.util.{Either, Right, Left}
 
 // play
 import play.api.libs.json._
@@ -56,14 +57,14 @@ class CustomAudienceResponder(
         Command.extractCommand[CustomAudiencePayload](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
-              case None =>
+              case Right(_) =>
                 Some(CustomAudiencePayloadReceived(data, e))
-              case Some(error) =>
-                logger ! Notification(error)
+              case Left(error) =>
+                notifyLogger(error)
                 None
             }
           case Left(error) =>
-            logger ! Notification(error)
+            notifyLogger(error)
             None
         }
       case _ => None
@@ -78,7 +79,7 @@ class CustomAudienceResponder(
   def process(event: CustomAudiencePayloadReceived): Unit =
     dispatch(event.data) match {
       case Success(message) => context.parent ! CustomAudiencePayloadSent(event, s"Successfully sent HipChat notification: $message")
-      case Failure(error) => logger ! Notification(s"Error while uploading audience: $error")
+      case Failure(error) => notifyLogger(s"Error while uploading audience: $error")
     }
 
   def dispatch(payload: CustomAudiencePayload) = Try{
@@ -146,7 +147,7 @@ object CustomAudienceResponder {
      * properly formatted, hashed and does not exceed the Facebook APi limits/
      */
     def payload(): String = {
-      val _users = if(! preHashed ) users.rebuildHashed() else users
+      val _users = if(!preHashed) users.rebuildHashed() else users
       val obj = Json.obj("schema" -> Json.toJson(_users.schema), "data" -> Json.toJson(_users.data))
       Json.stringify(obj)
     }

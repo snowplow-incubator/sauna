@@ -31,7 +31,7 @@ object Dependencies {
     val igluScalaClient   = "0.5.0"
     val scalaTest         = "2.2.4"
     val opsGenie          = "2.8.1"
-    val pusher 		  = "1.0.0"
+    val pusher 		      = "1.0.0"
     val facebookAds       = "2.10.0"
   }
 

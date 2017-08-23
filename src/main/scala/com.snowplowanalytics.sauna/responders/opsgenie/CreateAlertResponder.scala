@@ -23,6 +23,7 @@ import scala.io.Source
 import scala.io.Source.fromInputStream
 import scala.util.control.NonFatal
 import scala.util.{Failure, Success}
+import scala.util.{Right, Left}
 
 // akka
 import akka.actor.{ActorRef, Props}
@@ -55,14 +56,14 @@ class CreateAlertResponder(opsgenie: OpsGenie, val logger: ActorRef) extends Res
           Command.extractCommand[Alert](commandJson) match {
             case Right((envelope, data)) =>
               Command.validateEnvelope(envelope) match {
-                case None =>
+                case Right(_) =>
                   Some(CreateAlertReceived(data, e))
-                case Some(error) =>
-                  logger ! Notification(error)
+                case Left(error) =>
+                  notifyLogger(error)
                   None
               }
             case Left(error) =>
-              logger ! Notification(error)
+              notifyLogger(error)
               None
           }
         case _ => None

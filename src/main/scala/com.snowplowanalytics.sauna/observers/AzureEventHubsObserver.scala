@@ -39,8 +39,8 @@ class AzureEventHubsObserver(
 
   val host: EventProcessorHost  = new EventProcessorHost(eventHubName, consumerGroupName.getOrElse("$Default"), 
     eventHubConnectionString, storageConnectionString)
-  val notifier = (s: String) => notify(s)
-  notify("Registering host named " + host.getHostName())
+  val notifier = (s: String) => notifyLogger(s)
+  notifyLogger("Registering host named " + host.getHostName())
   val options: EventProcessorOptions = new EventProcessorOptions()
   options.setExceptionNotification(new ErrorNotificationHandler(notifier))
   
@@ -50,9 +50,9 @@ class AzureEventHubsObserver(
       host.registerEventProcessorFactory(evpf, options).get()
     }catch {
       case e: ExecutionException => 
-        notify(e.getCause().toString())
+        notifyLogger(e.getCause().toString())
       case e: Exception =>
-        notify(s"Failure while registering: ${e.toString()}")
+        notifyLogger(s"Failure while registering: ${e.toString()}")
     }
     super.preStart()
   }
@@ -63,7 +63,7 @@ class AzureEventHubsObserver(
 
   override def postStop: Unit = {
     host.unregisterEventProcessor()
-    notify("Calling forceExecutorShutdown")
+    notifyLogger("Calling forceExecutorShutdown")
     EventProcessorHost.forceExecutorShutdown(120)
   }
 }

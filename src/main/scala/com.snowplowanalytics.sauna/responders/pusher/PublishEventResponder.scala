@@ -18,6 +18,7 @@ package pusher
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.io.Source
 import scala.util.{Failure, Success}
+import scala.util.{Right, Left}
 
 // play
 import play.api.libs.json._
@@ -43,14 +44,14 @@ class PublishEventResponder(pusher: Pusher, val logger: ActorRef) extends Respon
         Command.extractCommand[Event](commandJson) match {
           case Right((envelope, data)) =>
             Command.validateEnvelope(envelope) match {
-              case None =>
+              case Right(_) =>
                 Some(EventReceived(data, e))
-              case Some(error) =>
-                logger ! Notification(error)
+              case Left(error) =>
+                notifyLogger(error)
                 None
             }
           case Left(error) =>
-            logger ! Notification(error)
+            notifyLogger(error)
             None
         }
       case _ => None
@@ -63,7 +64,7 @@ class PublishEventResponder(pusher: Pusher, val logger: ActorRef) extends Respon
    * @param event The event containing a event.
    */
   def process(event: EventReceived): Unit = {
-    val notifyWrapper = (s: String) => logger ! Notification(s"Error while sending Pusher notification: $s") 
+    val notifyWrapper = (s: String) => notifyLogger(s"Error while sending Pusher notification: $s")
     pusher.publishEvent(event.data).onComplete {
       case Success(result) if result.status.isSuccessful  => context.parent ! EventSent(event, s"Successfully sent Pusher notification: $result")
       case Success(result) => notifyWrapper(result.toString)

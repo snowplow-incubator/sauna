@@ -51,6 +51,12 @@ import awscala.s3.S3
 import awscala.sqs.SQS
 import awscala.{Credentials, Region}
 
+// eventhubs
+import com.microsoft.azure.eventhubs.EventHubClient
+import com.microsoft.azure.eventhubs.EventData
+import com.microsoft.azure.eventprocessorhost._
+import com.microsoft.azure.servicebus.ConnectionStringBuilder
+
 // sauna
 import IntegrationTests._
 import actors.Mediator
@@ -59,6 +65,7 @@ import loggers.Logger
 import loggers.Logger.{Manifestation, Notification}
 import observers.Observer._
 import observers._
+import Observer.EventHubRecordReceived
 import responders.Responder
 import responders.Responder.{ResponderEvent, ResponderResult}
 import responders.hipchat._
@@ -191,7 +198,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   val serviceBusNamespaceName: Option[String] = sys.env.get("AZURE_EVENTHUB_SB_NAMESPACE_NAME")
   val storageConnectionString: Option[String] = sys.env.get("AZURE_EVENTHUB_STORAGE_CONNECTION_STRING")
   val eventHubConnectionString = sys.env.get("AZURE_EVENTHUB_CONNECTION_STRING")
-  val checkPointFrequency: Int = sys.env.getOrElse("AZURE_EVENTHUB_CHECKPOINT_FREQ", 5)
+  val checkPointFrequency: Int = sys.env.getOrElse("AZURE_EVENTHUB_CHECKPOINT_FREQ", "5").toInt
 
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
   val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
@@ -773,7 +780,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     assume(serviceBusNamespaceName.isDefined)
     assume(eventHubConnectionString.isDefined)
     assume(serviceBusNamespaceName.isDefined)
-    var observerRecord: EventhubRecordReceived = null
+    var observerRecord: EventHubRecordReceived = null
 
     val dummyLogger = system.actorOf(Props(new Actor {
       override def receive: PartialFunction[Any, Unit] = {
@@ -790,23 +797,22 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
       override def process(event: AnyEvent): Unit = {
         event.source match {
-          case r@ EventhubRecordReceived(_, _, _, _) =>
+          case r@ EventHubRecordReceived(_, _, _) =>
             observerRecord = r
         }
       }
     })
 
-    val eventhubsObserver = AzureEventhubsObserver.props(AzureEventHubsConfig_1_0_0(
+    val eventhubsObserver = AzureEventHubsObserver.props(
       eventHubName.get,
       serviceBusNamespaceName.get,
       eventHubConnectionString.get,
       storageConnectionString.get,
-      consumerGroupName,
+      Some(consumerGroupName),
       checkPointFrequency
-      )
     )
 
-    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), eventhubObserver, dummyLogger)))
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), eventhubsObserver, dummyLogger)))
 
     Thread.sleep(75000)
 
@@ -816,13 +822,15 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val charset = "UTF-8"
     val data = UUID.randomUUID().toString
     val sendEvent: EventData = new EventData(data.getBytes(charset))
-    ehClient.sendSync(sendEvent)
+
+    val ehClient: EventHubClient = EventHubClient.createFromConnectionStringSync(eventHubConnectionString.get)
+    (1 to 5).foreach{i => ehClient.sendSync(sendEvent)}
 
     Thread.sleep(5000)
 
     // ...as well as the observer.
     assert(observerRecord !== null, "Could not consume the produced record using the observer")
-    assert(new String(observerRecord.data.array(), Charset.forName(charset)) === data)
+    assert(new String(observerRecord.data.getBytes, Charset.forName(charset)) === data)
   }
 
   test("HipChat responder") {

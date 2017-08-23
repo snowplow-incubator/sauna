@@ -53,5 +53,5 @@ case class SaunaSettings(
   azureEventHubsConfigs: List[observers.AzureEventHubsConfig_1_0_0])
 
 object SaunaSettings {
-  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, None, Nil, Nil, Nil)
+  def apply(): SaunaSettings = SaunaSettings(None, None, None, None, None, None, None, None, None, None, None, Nil, Nil, Nil, Nil)
 }
