@@ -14,7 +14,7 @@
 lazy val root = (project in file("."))
   .settings(
     name          := "sauna",
-    version       := "0.2.0-rc4",
+    version       := "0.2.0-rc5",
     description   := "A decisioning and response framework"
   )
   .settings(BuildSettings.buildSettings)
