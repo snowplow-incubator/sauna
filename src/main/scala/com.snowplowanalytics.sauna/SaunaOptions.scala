@@ -29,17 +29,13 @@ import com.sksamuel.avro4s._
 // play-json
 import play.api.libs.json._
 
-// sauna
-import responders._
-import loggers._
-import observers._
-
 /**
  * Options parsed from command line
- * 
+ *
  * @param configurationLocation root to directory with all configuration files
  */
 case class SaunaOptions(configurationLocation: File) {
+
   import SaunaOptions._
 
   /**
@@ -47,17 +43,24 @@ case class SaunaOptions(configurationLocation: File) {
    */
   def extract: SaunaSettings =
     SaunaSettings(
-      getConfig[AmazonDynamodbConfig],
-      getConfig[HipchatConfig],
-      getConfig[OptimizelyConfig],
-      getConfig[SendgridConfig],
-      getConfigs[LocalFilesystemConfig],
-      getConfigs[AmazonS3Config])
+      getConfig[loggers.AmazonDynamodbConfig_1_0_0],
+      getConfig[loggers.HipchatConfig_1_0_0],
+
+      getConfig[responders.OptimizelyConfig_1_0_0],
+      getConfig[responders.SendgridConfig_1_0_0],
+      getConfig[responders.SendgridConfig_1_0_1],
+      getConfig[responders.HipchatConfig_1_0_0],
+      getConfig[responders.SlackConfig_1_0_0],
+      getConfig[responders.PagerDutyConfig_1_0_0],
+
+      getConfigs[observers.LocalFilesystemConfig_1_0_0],
+      getConfigs[observers.AmazonS3Config_1_0_0],
+      getConfigs[observers.AmazonKinesisConfig_1_0_0])
 
   /**
    * Lazy enabledConfigs for all configurations parsed from `configurations` directory,
    * which was valid self-describing Avro
-   * Key - class name, value - map of ids to content of `data` field 
+   * Key - class name, value - map of ids to content of `data` field
    * anything except observers is single-element/no-element list
    */
   private lazy val configMap: Map[String, List[Array[Byte]]] =
@@ -74,7 +77,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @tparam S class of configuration with defined Avro schema
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
-  private[sauna] def getConfig[S: SchemaFor: FromRecord: ClassTag]: Option[S] = {
+  private[sauna] def getConfig[S: SchemaFor : FromRecord : ClassTag]: Option[S] = {
     val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
     for {
       configs <- configMap.get(className).map(_.headOption)
@@ -90,7 +93,7 @@ case class SaunaOptions(configurationLocation: File) {
    * @tparam S class of configuration with defined Avro schema
    * @return some configuration if it was parsed into configuration enabledConfigs
    */
-  private[sauna] def getConfigs[S: SchemaFor: FromRecord: ClassTag]: List[S] = {
+  private[sauna] def getConfigs[S: SchemaFor : FromRecord : ClassTag]: List[S] = {
     val className = implicitly[ClassTag[S]].runtimeClass.getSimpleName
     for {
       configs <- List(configMap.get(className))
@@ -131,7 +134,7 @@ object SaunaOptions {
    * JSON that contains `schema` and `data`
    *
    * @param schema string of SchemaKey
-   * @param data JSON instance with configuration
+   * @param data   JSON instance with configuration
    */
   private[sauna] case class Envelope(schema: SchemaKey, data: JsValue)
 
@@ -144,8 +147,8 @@ object SaunaOptions {
    */
   def buildConfigMap(files: List[File]): Either[String, Map[String, List[Envelope]]] = {
     val enabledConfigs = sequence(files.map(parseSelfDescribing)).right.map { configs =>
-      configs.filter(filterEnabled).groupBy(_.schema.name)
-    }.left.map( list => list.mkString(", "))
+      configs.filter(filterEnabled).groupBy(_.schema)
+    }.left.map(list => list.mkString(", "))
 
     enabledConfigs.right.flatMap { map =>
       getUnique(map)
@@ -165,7 +168,7 @@ object SaunaOptions {
       val json = Json.parse(content)
       val envelope = for {
         schema <- (json \ "schema").asOpt[String].flatMap(SchemaKey.fromUri)
-        data   <- (json \ "data").asOpt[JsObject]
+        data <- (json \ "data").asOpt[JsObject]
       } yield Envelope(schema, data)
       envelope match {
         case Some(e) => Right(e)
@@ -224,9 +227,9 @@ object SaunaOptions {
    * @param enabledConfigs configuration enabledConfigs with list of possible enabled configurations
    * @return validated configuration enabledConfigs with
    */
-  private[sauna] def getUnique(enabledConfigs: Map[String, List[Envelope]]): Either[String, Map[String, List[Envelope]]] = {
+  private[sauna] def getUnique(enabledConfigs: Map[SchemaKey, List[Envelope]]): Either[String, Map[String, List[Envelope]]] = {
     val (valid, invalid) = enabledConfigs.partition {
-      case (schema, envelopes) => schema.contains(".observers") || envelopes.size == 1
+      case (schema, envelopes) => schema.vendor.contains(".observers") || envelopes.size == 1
     }
 
     val ids = valid.flatMap {
@@ -238,7 +241,9 @@ object SaunaOptions {
     } else if (invalid.nonEmpty) {
       Left(s"Multiple configurations enabled: [${invalid.keys.mkString(",")}]")
     } else {
-      Right(valid)
+      Right(valid.map {
+        case (schema, envelopes) => (s"${schema.name}_${schema.version.model}_${schema.version.revision}_${schema.version.addition}", envelopes)
+      })
     }
   }
 
@@ -249,7 +254,7 @@ object SaunaOptions {
    * @tparam S one of configuration types with defined Avro schemas
    * @return some configuration if `content` conforms class
    */
-  private[sauna] def parseConfig[S: SchemaFor: FromRecord](content: Array[Byte]): Option[S] =
+  private[sauna] def parseConfig[S: SchemaFor : FromRecord](content: Array[Byte]): Option[S] =
     try {
       val is = AvroInputStream.json[S](content)
       val instances = is.singleEntity.toOption

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -13,15 +13,18 @@
 package com.snowplowanalytics.sauna
 
 // java
-import java.io.ByteArrayInputStream
-import java.io.{File, PrintWriter}
+import java.io.{ByteArrayInputStream, File, PrintWriter}
+import java.nio.ByteBuffer
+import java.nio.charset.Charset
 import java.nio.file.{Files, Paths}
 import java.util.UUID
 
 // scala
-import scala.io.Source.fromInputStream
-import scala.concurrent.{ Future, Await }
+import scala.concurrent.ExecutionContext.Implicits.global
 import scala.concurrent.duration._
+import scala.concurrent.{Await, Future}
+import scala.io.Source.fromInputStream
+import scala.util.{Failure, Success}
 
 // scalatest
 import org.scalatest._
@@ -37,39 +40,57 @@ import akka.pattern.ask
 import akka.util.Timeout
 
 // amazonaws
+import com.amazonaws.auth.BasicAWSCredentials
+import com.amazonaws.regions.Regions
+import com.amazonaws.services.kinesis.AmazonKinesisClient
+import com.amazonaws.services.kinesis.model.{GetRecordsRequest, PutRecordRequest}
 import com.amazonaws.services.s3.model.AmazonS3Exception
 
 // awscala
-import awscala.{Credentials, Region}
 import awscala.s3.S3
 import awscala.sqs.SQS
+import awscala.{Credentials, Region}
 
 // sauna
+import IntegrationTests._
 import actors.Mediator
-import apis.{ Optimizely, Sendgrid }
+import apis._
 import loggers.Logger
 import loggers.Logger.{Manifestation, Notification}
+import observers.Observer._
 import observers._
-import observers.Observer.{ ObserverBatchEvent, LocalFilePublished }
 import responders.Responder
 import responders.Responder.{ResponderEvent, ResponderResult}
-import responders.sendgrid._
+import responders.hipchat._
 import responders.optimizely._
-import IntegrationTests.AnyEvent
+import responders.pagerduty._
+import responders.sendgrid._
+import responders.slack._
 
 
 object IntegrationTests {
+
+  case class ObserverTrigger(data: Any)
+
   /**
    * Supervisor actor
    */
-  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil)) {
+  class RootActor(respondersProps: List[Props], observerProps: Props, override val logger: ActorRef) extends Mediator(SaunaSettings()) {
     override val observers = List(context.actorOf(observerProps))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
+
+    override def receive: Receive = super.receive orElse {
+      case ot: ObserverTrigger =>
+        observers.foreach {
+          _ ! ot.data
+        }
+    }
   }
 
-  case class AnyEvent(source: ObserverBatchEvent) extends Responder.ResponderEvent[ObserverBatchEvent]
+  case class AnyEvent(source: ObserverEvent) extends Responder.ResponderEvent
 
   val filePath = "some-non-existing-file-123/opt/sauna/com.sendgrid.contactdb/recipients/v1/tsv:email,birthday,middle_name,favorite_number,when_promoted/ua-team/joe/warehouse.tsv"
+
   class MockLocalFilePublished(data: String, observer: ActorRef) extends LocalFilePublished(java.nio.file.Paths.get(filePath), observer) {
     override def streamContent = Some(new ByteArrayInputStream(data.getBytes("UTF-8")))
   }
@@ -77,8 +98,9 @@ object IntegrationTests {
   /**
    * Dummy responder ignoring all observer event
    */
-  class DummyResponder(val logger: ActorRef) extends Responder[AnyEvent] {
-    def extractEvent(observerEvent: ObserverBatchEvent): Option[AnyEvent] = None
+  class DummyResponder(val logger: ActorRef) extends Responder[ObserverEvent, AnyEvent] {
+    def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] = None
+
     def process(observerEvent: AnyEvent) = ???
   }
 
@@ -91,7 +113,7 @@ object IntegrationTests {
   /**
    * Supervisor actor tracking execution time
    */
-  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings(None, None, None, None, Nil, Nil)) {
+  class RootActorAwait(respondersProps: List[Props]) extends Mediator(SaunaSettings()) {
     override val logger = context.actorOf(Props(new NoopActor))
     override val observers = List(context.actorOf(Props(new NoopActor)))
     override val responderActors = respondersProps.map(p => context.actorOf(p))
@@ -99,7 +121,9 @@ object IntegrationTests {
     var results = 0
     var finished: Long = 0L
 
-    def readyToAnswer: Receive = { case WhenFinished => sender() ! finished }
+    def readyToAnswer: Receive = {
+      case WhenFinished => sender() ! finished
+    }
 
     def receiveResults: Receive = {
       case result: ResponderResult =>
@@ -113,12 +137,25 @@ object IntegrationTests {
     override def receive = {
       case mock: MockLocalFilePublished =>
         mocksSent = mocksSent + 1
-        responderActors.foreach { _ ! mock }
+        responderActors.foreach {
+          _ ! mock
+        }
         if (mocksSent == 2) context.become(receiveResults)
     }
   }
 
-  class NoopActor extends Actor { def receive = { case _ => () } }
+  class NoopActor extends Actor {
+    def receive = {
+      case _ => ()
+    }
+  }
+
+  class MockRealTimeObserver extends Actor with Observer {
+    override def receive: Receive = {
+      case data: String => context.parent ! new KinesisRecordReceived("", "", ByteBuffer.wrap(data.getBytes()), self)
+    }
+  }
+
 }
 
 /**
@@ -139,11 +176,21 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
   val awsAccessKeyId: Option[String] = sys.env.get("AWS_ACCESS_KEY_ID")
   val secretAccessKey: Option[String] = sys.env.get("AWS_SECRET_ACCESS_KEY")
-  val awsBucketName = sys.env.getOrElse("AWS_BUCKET_NAME", "sauna-integration-test-bucket-staging")  // "sauna-integration-test" for eng-sandbox
-  val awsQueueName = sys.env.getOrElse("AWS_QUEUE_NAME", "sauna-integration-test-queue-staging")     // "sauna-integration-test-queue" for eng-sandbox
+  val awsBucketName = sys.env.getOrElse("AWS_BUCKET_NAME", "sauna-integration-test-bucket-staging") // "sauna-integration-test" for eng-sandbox
+  val awsQueueName = sys.env.getOrElse("AWS_QUEUE_NAME", "sauna-integration-test-queue-staging") // "sauna-integration-test-queue" for eng-sandbox
   val awsRegion = sys.env.getOrElse("AWS_REGION", "us-east-1")
 
+  val kinesisApplicationName = sys.env.getOrElse("KINESIS_APPLICATION_NAME", "sauna-integration-test")
+  val kinesisStreamName = sys.env.getOrElse("KINESIS_STREAM_NAME", "sauna-integration-test")
+  val kinesisRegion = sys.env.getOrElse("KINESIS_REGION", "us-east-1")
+
   val sendgridToken: Option[String] = sys.env.get("SENDGRID_API_KEY_ID")
+  val hipchatToken: Option[String] = sys.env.get("HIPCHAT_TOKEN")
+  val slackWebhookUrl: Option[String] = sys.env.get("SLACK_WEBHOOK_URL")
+  val pagerDutyServiceKey: Option[String] = sys.env.get("PAGERDUTY_SERVICE_KEY")
+
+  val postmarkApiToken: Option[String] = sys.env.get("POSTMARK_API_TOKEN")
+  val postmarkInboundEmail: Option[String] = sys.env.get("POSTMARK_INBOUND_EMAIL")
 
   val saunaRoot = System.getProperty("java.io.tmpdir", "/tmp") + "/saunaRoot"
 
@@ -168,20 +215,31 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     var expectedLines: Seq[String] = Seq()
 
     val responders =
-      Props(new Responder[AnyEvent] {
+      Props(new Responder[ObserverEvent, AnyEvent] {
         val logger: ActorRef = null
 
-        def extractEvent(event: ObserverBatchEvent): Option[AnyEvent] = {
+        def extractEvent(event: ObserverEvent): Option[AnyEvent] = {
           Some(AnyEvent(event))
         }
 
         val pathPattern: String = ".*"
 
         def process(event: AnyEvent): Unit = {
-          expectedLines = fromInputStream(event.source.streamContent.get).getLines().toSeq
-          self ! new ResponderResult {
-            override def source: ResponderEvent[ObserverBatchEvent] = event
-            override def message: String = "OK!"
+          event.source match {
+            case e: ObserverFileEvent =>
+              expectedLines = fromInputStream(e.streamContent.get).getLines().toSeq
+              self ! new ResponderResult {
+                override def source: ResponderEvent = event
+
+                override def message: String = "OK!"
+              }
+            case e: ObserverCommandEvent =>
+              expectedLines = fromInputStream(e.streamContent).getLines().toSeq
+              self ! new ResponderResult {
+                override def source: ResponderEvent = event
+
+                override def message: String = "OK!"
+              }
           }
         }
       })
@@ -240,9 +298,16 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       def step1: Receive = {
         case message: Notification =>
           val expectedText = "Detected new local file"
-          if (!message.text.contains(expectedText)) {
+          val observerText = "No active observers"
+          val responderText = "No active responders"
+
+          if (message.text.contains(observerText) || message.text.contains(responderText)) {
+            // Ignore startup entity info
+          } else if (!message.text.contains(expectedText)) {
             error = s"In step1, [${message.text}] does not contain [$expectedText]"
-          } else { context.become(step2) }
+          } else {
+            context.become(step2)
+          }
 
         case message =>
           error = s"In step1, got unexpected message $message"
@@ -253,7 +318,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "Successfully uploaded targeting lists with name"
           if (!message.text.startsWith(expectedText)) {
             error = s"In step2, [${message.text}] does not start with [$expectedText]"
-          } else { context.become(step3) }
+          } else {
+            context.become(step3)
+          }
 
         case message: Manifestation =>
           id = message.uid
@@ -267,7 +334,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "new-lists.tsv has been successfully published"
           if (!message.text.endsWith(expectedText)) {
             error = s"In step3, [${message.text}] does not end with [$expectedText]"
-          } else { context.become(step4) }
+          } else {
+            context.become(step4)
+          }
 
         case message =>
           error = s"in step3, got unexpected message [$message]"
@@ -294,7 +363,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // Cleanup
     apiWrapper.deleteTargetingList(optimizelyProjectId, "dec_ab_group")
 
-    system.actorOf(Props(new IntegrationTests.RootActor(List(responderProps), localObserver, logger)))  // TODO: try different names
+    system.actorOf(Props(new IntegrationTests.RootActor(List(responderProps), localObserver, logger))) // TODO: try different names
 
     // wait
     Thread.sleep(3000)
@@ -328,7 +397,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     val s3 = S3(credentials)
     val sqs = SQS(credentials)
     val queue = sqs.queue(awsQueueName)
-                   .getOrElse(throw new Exception("No queue with that name found"))
+      .getOrElse(throw new Exception("No queue with that name found"))
 
     // clean up, if object does not exist, Amazon S3 returns a success message instead of an error message
     s3.deleteObject(awsBucketName, destination)
@@ -347,11 +416,12 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       def step1: Receive = {
         case message: Notification =>
           val expectedText = "Detected new S3 file"
+
           if (!message.text.contains(expectedText)) {
             error = s"In step1, [${message.text}] does not contain [$expectedText]"
-          } else { 
+          } else {
             error = "Remain on step1"
-            context.become(step2) 
+            context.become(step2)
           }
 
         case message =>
@@ -363,9 +433,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "Successfully uploaded targeting lists with name"
           if (!message.text.startsWith(expectedText)) {
             error = s"In step2, [${message.text}] does not start with [$expectedText]"
-          } else { 
+          } else {
             error = "Remain on step2"
-            context.become(step3) 
+            context.become(step3)
           }
 
         case message: Manifestation =>
@@ -380,9 +450,9 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           val expectedText = "warehouse.tsv has been successfully published"
           if (!message.text.endsWith(expectedText)) {
             error = s"In step3, [${message.text}] does not end with [$expectedText]"
-          } else { 
+          } else {
             error = "Remain on step3"
-            context.become(step4) 
+            context.become(step4)
           }
 
         case message =>
@@ -395,7 +465,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
           if (!message.text.startsWith(expectedText)) {
             error = s"In step4, [${message.text}] does not start with [$expectedText]"
           } else {
-            error = null  // Success
+            error = null // Success
           }
 
         case message =>
@@ -439,7 +509,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       assert(false, "processed file should have been deleted")
     } catch {
       case e: AmazonS3Exception if e.getMessage.contains("The specified key does not exist") =>
-        // do nothing, it was expected exception
+      // do nothing, it was expected exception
     }
   }
 
@@ -449,7 +519,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
     // prepare for start, define some variables
     val source = Paths.get("src/test/resources/dynamic_client_profiles.tsv")
     val destinationPath = s"$saunaRoot/com.optimizely.dcp/datasource/v1/$optimizelyServiceId/$optimizelyDatasourceId/tsv:isVip,customerId,spendSegment,birth/ua-team/joe"
-    val destinationName = "warehouse"   // It will be uploaded with `.csv` extension
+    val destinationName = "warehouse" // It will be uploaded with `.csv` extension
     val destination = Paths.get(s"$destinationPath/$destinationName")
 
     new File(destinationPath).mkdirs()
@@ -462,7 +532,12 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
       def step1: Receive = {
         case message: Notification =>
           val expectedText = "Detected new local file"
-          if (!message.text.contains(expectedText)) {
+          val observerText = "No active observers"
+          val responderText = "No active responders"
+
+          if (message.text.contains(observerText) || message.text.contains(responderText)) {
+            // Ignore startup entity info
+          } else if (!message.text.contains(expectedText)) {
             error = s"in step1, [${message.text}] does not contain [$expectedText]]"
           } else {
             context.become(step2)
@@ -518,7 +593,7 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
   }
 
   test("local recipients") {
-    assume(sendgridToken.isDefined)   // Or this should be moved into integration tests
+    assume(sendgridToken.isDefined) // Or this should be moved into integration tests
 
     val data = List(
       "\"bob@foo.com1980-06-21\"\t\"Al\"\t\"13\"\t\"a2013-12-15 14:05:06.789\"",
@@ -539,7 +614,11 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     val sendgrid = new Sendgrid(sendgridToken.get)
     val recipients = system.actorOf(RecipientsResponder.props(logger, sendgrid))
-    val noopRef = system.actorOf(Props(new Actor { def receive = { case _ => () }}))
+    val noopRef = system.actorOf(Props(new Actor {
+      def receive = {
+        case _ => ()
+      }
+    }))
 
     // send a message, get a Future notification that it was processed
     recipients ! new IntegrationTests.MockLocalFilePublished(data, noopRef)
@@ -586,5 +665,337 @@ class IntegrationTests extends FunSuite with BeforeAndAfter {
 
     assert(end - time > 4000, "file was processed too fast") // 2 x 3000 lines == 4 seconds
     assert(respectLineLimit, "too many lines in a single chunk")
+  }
+
+  // Likely to fail during simultaneous builds (push/pull/deploy)
+  ignore("Kinesis (mock responder)") {
+    assume(awsAccessKeyId.isDefined)
+    assume(secretAccessKey.isDefined)
+
+    var observerRecord: KinesisRecordReceived = null
+
+    val dummyLogger = system.actorOf(Props(new Actor {
+      override def receive: PartialFunction[Any, Unit] = {
+        case _ =>
+      }
+    }))
+
+
+    val responder = Props(new Responder[ObserverEvent, AnyEvent] {
+      override def logger: ActorRef = dummyLogger
+
+      override def extractEvent(observerEvent: ObserverEvent): Option[AnyEvent] =
+        Some(AnyEvent(observerEvent))
+
+      override def process(event: AnyEvent): Unit = {
+        event.source match {
+          case r@KinesisRecordReceived(_, _, _, _) =>
+            observerRecord = r
+        }
+      }
+    })
+
+    val kinesisObserver = AmazonKinesisObserver.props(AmazonKinesisConfig_1_0_0(
+      true,
+      kinesisApplicationName,
+      AmazonKinesisObserverParameters_1_0_0(
+        AwsConfigParameters_1_0_0(
+          awsAccessKeyId.get,
+          secretAccessKey.get
+        ),
+        AmazonKinesisConfigParameters_1_0_0(
+          kinesisRegion,
+          kinesisStreamName,
+          5000,
+          ShardIteratorType_1_0_0.LATEST,
+          None
+        )
+      )
+    ))
+
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), kinesisObserver, dummyLogger)))
+
+    // KCL consumers can take a while to get started - give the observer plenty of time.
+    Thread.sleep(120000)
+
+    val amazonKinesisClient = new AmazonKinesisClient(
+      new BasicAWSCredentials(awsAccessKeyId.get, secretAccessKey.get))
+    amazonKinesisClient.configureRegion(Regions.fromName(kinesisRegion))
+
+    // Obtain a shard iterator using the API (the test stream uses a single shard, so this works fine).
+    val shardId = amazonKinesisClient
+      .describeStream(kinesisStreamName).getStreamDescription.getShards.get(0).getShardId
+    val iterator = amazonKinesisClient
+      .getShardIterator(kinesisStreamName, shardId, "LATEST").getShardIterator
+
+    // Push some random data to the stream.
+    val charset = "UTF-8"
+    val data = UUID.randomUUID().toString
+    amazonKinesisClient.putRecord(new PutRecordRequest()
+      .withStreamName(kinesisStreamName)
+      .withPartitionKey("partitionKey")
+      .withData(ByteBuffer.wrap(data.getBytes(charset))))
+
+    Thread.sleep(10000)
+
+    // Retrieve the data that was just pushed using a raw client call.
+    val apiRecord = amazonKinesisClient.getRecords(new GetRecordsRequest()
+      .withShardIterator(iterator))
+
+    // Make sure the data was successfully retrieved by the client...
+    assert(apiRecord !== null, "Could not consume the produced record using a raw client call")
+    assert(apiRecord.getRecords.size() === 1)
+    assert(new String(apiRecord.getRecords.get(0).getData.array(), Charset.forName(charset)) === data)
+
+    // ...as well as the observer.
+    assert(observerRecord !== null, "Could not consume the produced record using the observer")
+    assert(new String(observerRecord.data.array(), Charset.forName(charset)) === data)
+  }
+
+  test("HipChat responder") {
+    assume(hipchatToken.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/hipchat.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Did not send HipChat notification"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Sent HipChat notification"
+          if (!message.text.contains(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Hipchat(hipchatToken.get, dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = SendRoomNotificationResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(10000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }
+
+  test("Slack responder") {
+    assume(slackWebhookUrl.isDefined)
+
+    // Get some data from a resource file.
+    val command: String = fromInputStream(getClass.getResourceAsStream("/commands/slack.json")).getLines().mkString
+
+    // Define a mock logger.
+    var error: String = "Did not send Slack message"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Sent Slack message"
+          if (!message.text.contains(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Slack(slackWebhookUrl.get, dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = SendMessageResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(5000)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }
+
+  test("PagerDuty responder") {
+    assume(pagerDutyServiceKey.isDefined)
+
+    // Get some data from a resource file - replace the service key with an environment variable.
+    var command: String = fromInputStream(getClass.getResourceAsStream("/commands/pagerDuty.json")).getLines().mkString
+    command = command.replaceAll("PAGERDUTY_SERVICE_KEY", pagerDutyServiceKey.get)
+
+    // Define a mock logger.
+    var error: String = "Did not create PagerDuty event"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Created PagerDuty event"
+          if (!message.text.contains(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new PagerDuty(dummyLogger)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = CreateEventResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    Thread.sleep(7500)
+
+    // Assert that nothing went wrong.
+    assert(error == null)
+  }
+
+  test("SendGrid command responder") {
+    assume(sendgridToken.isDefined)
+    assume(postmarkApiToken.isDefined)
+    assume(postmarkInboundEmail.isDefined)
+
+    // Get some data from a resource file.
+    var command: String = fromInputStream(getClass.getResourceAsStream("/commands/sendgrid.json")).getLines().mkString
+    command = command.replaceAll("POSTMARK_INBOUND_EMAIL", postmarkInboundEmail.get)
+    val subject: String = UUID.randomUUID().toString
+    command = command.replaceAll("RANDOM_UUID", subject)
+
+    // Define a mock logger.
+    var error: String = "Did not send SendGrid email"
+    val dummyLogger = system.actorOf(Props(new Actor {
+      def step1: Receive = {
+        case message: Notification =>
+          val expectedText = "Sent email via Sendgrid"
+          if (!message.text.contains(expectedText)) {
+            error = s"in step1, [${message.text}] does not contain [$expectedText]]"
+          } else {
+            context.become(step2)
+          }
+
+        case message =>
+          error = s"in step1, got unexpected message [$message]"
+      }
+
+      def step2: Receive = {
+        case message: Notification =>
+          val expectedText = s"All actors finished processing message"
+          if (!message.text.startsWith(expectedText)) {
+            error = s"in step2, [${message.text}] is not equal to [$expectedText]]"
+          } else {
+            error = null
+          }
+
+        case message =>
+          error = s"in step2, got unexpected message [$message]"
+      }
+
+      override def receive = step1
+    }))
+
+    // Define other actors.
+    val apiWrapper = new Sendgrid(sendgridToken.get)
+    val dummyObserver = Props(new MockRealTimeObserver())
+    val responder = SendEmailResponder.props(apiWrapper, dummyLogger)
+    val root = system.actorOf(Props(new IntegrationTests.RootActor(List(responder), dummyObserver, dummyLogger)))
+    val postmarkWrapper = new Postmark(postmarkApiToken.get)
+
+    Thread.sleep(3000)
+
+    // Manually trigger the observer.
+    root ! ObserverTrigger(command)
+
+    // Time for Sendgrid to send the email, and for Postmark to process it & expose to inbound API.
+    Thread.sleep(60000)
+
+    // Assert that nothing went wrong with the command.
+    assert(error == null)
+
+    // Verify that the email was successfully sent.
+    postmarkWrapper.getInboundMessage(subject).onComplete {
+      case Success(message) =>
+        if (message.status == 200) {
+          val json: JsValue = Json.parse(message.body)
+          assert((json \ "TotalCount").as[Int] == 1)
+          val inbound: JsLookupResult = (json \ "InboundMessages") (0)
+          assert((inbound \ "From").as[String].equals("staging@saunatests.com"))
+          assert((inbound \ "To").as[String].equals(postmarkInboundEmail.get))
+          assert((inbound \ "Subject").as[String].equals(subject))
+        }
+        else
+          fail(message.body)
+      case Failure(error) =>
+        fail(error)
+    }
+
+    Thread.sleep(5000)
   }
 }

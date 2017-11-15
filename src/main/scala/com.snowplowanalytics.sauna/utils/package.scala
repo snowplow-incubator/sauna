@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -39,6 +39,22 @@ package object utils {
       case Success(json) => Right(json)
       case Failure(error) => Left(error)
     }
+  }
 
+  implicit class EitherFlatMap[L, R](val either: Either[L, R]) extends AnyVal {
+    def flatMap[RR](f: R => Either[L, RR]): Either[L, RR] = either match {
+      case Right(r) => f(r)
+      case Left(l) => Left(l)
+    }
+
+    def map[RR](f: R => RR): Either[L, RR] = either match {
+      case Right(r) => Right(f(r))
+      case Left(l) => Left(l)
+    }
+
+    def leftMap[LL](f: L => LL): Either[LL, R] = either match {
+      case Left(l) => Left(f(l))
+      case Right(r) => Right(r)
+    }
   }
 }

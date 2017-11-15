@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -14,6 +14,7 @@ package com.snowplowanalytics.sauna
 package observers
 
 // scala
+import scala.concurrent.ExecutionContext
 import scala.util.control.NonFatal
 
 // java
@@ -23,17 +24,17 @@ import java.net.URLDecoder
 import akka.actor._
 
 // play
-import play.api.libs.json.{ Json, JsValue }
+import play.api.libs.json.{JsValue, Json}
 
 // awscala
-import awscala.{ Region, Credentials }
 import awscala.s3.{Bucket, S3}
-import awscala.sqs.{Queue, SQS, Message}
+import awscala.sqs.{Message, Queue, SQS}
+import awscala.{Credentials, Region}
 import com.amazonaws.AbortedException
 
 // sauna
+import observers.Observer.{DeleteS3Object, S3FilePublished}
 import responders.Responder._
-import Observer.{ DeleteS3Object, S3FilePublished }
 
 
 /**
@@ -44,6 +45,9 @@ import Observer.{ DeleteS3Object, S3FilePublished }
  * @param queue
  */
 class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observer {
+
+  implicit val executionContext: ExecutionContext = context.system.dispatchers.lookup("singleton-dispatcher")
+
   import AmazonS3Observer._
 
   val monitor: AmazonSqsMonitor = new AmazonSqsMonitor(sqs, queue, forwardFilePublished, stopNotify)
@@ -53,7 +57,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
 
   def receive: Receive = {
     case filePublished: S3FilePublished =>
-      notify(s"Detected new S3 file [${filePublished.path}]")
+      notifyLogger(s"Detected new S3 file [${filePublished.id}]")
       context.parent ! filePublished
 
     case deleteFile: DeleteS3Object =>
@@ -75,7 +79,7 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
         self ! S3FilePublished(decodedFileName, s3Source, self)
 
       case None =>
-        notify(s"Unknown message [$message] was published")
+        notifyLogger(s"Unknown message [$message] was published")
         sqs.delete(message)
     }
   }
@@ -89,8 +93,8 @@ class AmazonS3Observer(s3: S3, sqs: SQS, queue: Queue) extends Actor with Observ
     throwable match {
       case e: InterruptedException =>
         monitor.stop()
-        notify("SqsMonitor thread has been stopped")
-      case e: AbortedException =>   // Not sure why SQSClient throws it on actor shutdown
+        notifyLogger("SqsMonitor thread has been stopped")
+      case e: AbortedException => // Not sure why SQSClient throws it on actor shutdown
         monitor.stop()
         monitorThread.interrupt()
       case e => throw e
@@ -130,19 +134,19 @@ object AmazonS3Observer {
    */
   private[observers] def extractBucketAndFile(body: JsValue): Option[(String, String)] = {
     for {
-      s3     <- (body \ "Records" \\ "s3").headOption
+      s3 <- (body \ "Records" \\ "s3").headOption
       bucket <- (s3 \ "bucket" \ "name").asOpt[String]
-      file   <- (s3 \ "object" \ "key").asOpt[String]
+      file <- (s3 \ "object" \ "key").asOpt[String]
     } yield (URLDecoder.decode(bucket, "UTF-8"), file)
   }
 
   def props(s3: S3, sqs: SQS, queue: Queue): Props =
     Props(new AmazonS3Observer(s3, sqs, queue))
 
-  def props(parameters: AmazonS3ConfigParameters): Props = {
+  def props(parameters: AmazonS3ConfigParameters_1_0_0): Props = {
     // AWS configuration. Safe to throw exception on initialization
     val region = Region(parameters.awsRegion)
-    val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsAccessKeyId)
+    val credentials = new Credentials(parameters.awsAccessKeyId, parameters.awsSecretAccessKey)
     val s3 = S3(credentials)(region)
     val sqs = SQS(credentials)(region)
     val queue = sqs.queue(parameters.sqsQueueName)

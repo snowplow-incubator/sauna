@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2016 Snowplow Analytics Ltd. All rights reserved.
+ * Copyright (c) 2016-2017 Snowplow Analytics Ltd. All rights reserved.
  *
  * This program is licensed to you under the Apache License Version 2.0,
  * and you may not use this file except in compliance with the Apache License Version 2.0.
@@ -16,24 +16,33 @@ package responders
 // akka
 import akka.actor.{Actor, ActorRef}
 
+// Play
+import play.api.libs.json.Reads
+
 // awscala
 import awscala.s3.{Bucket, S3}
 import awscala.sqs.Message
 
+// Iglu
+import com.snowplowanalytics.iglu.client.SchemaCriterion
+
 // sauna
 import loggers.Logger.Notification
-import observers.Observer.ObserverBatchEvent
-import Responder._
-
+import observers.Observer._
+import responders.Responder._
+import utils.Command
 
 /**
  * Responder actors are responsible for extracting events designated for them
  * from observer-events. After event extracted, responder can delegate it
  * to dedicated worker
  *
- * @tparam RE responder event, which responder supposed to process
+ * @tparam OE observer event (input),
+ *            this is aux type to mark what events could be accepted
+ * @tparam RE responder event (output),
+ *            which responder supposed to process
  */
-trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
+trait Responder[OE <: ObserverEvent, RE <: ResponderEvent] extends Actor {
 
   /**
    * Common for all responders actor logger to dump errors and warnings
@@ -41,10 +50,13 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
    */
   def logger: ActorRef
 
+  /**
+    * All responders check if observer's message is addressed to them
+    */
   def receive = {
     // Check if message should be handled by responder and actually process it
     // Mediator awaits for `ResponderAck`
-    case message: ObserverBatchEvent =>
+    case message: ObserverEvent =>
       extractEvent(message) match {
         case Some(event) =>
           sender() ! Accepted(message, self)
@@ -71,7 +83,44 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
    * @return Some responder-specific event if this observer-event need to be
    *         processed by this responder, None if event need to be skept
    */
-  def extractEvent(observerEvent: ObserverBatchEvent): Option[RE]
+  def extractEvent(observerEvent: ObserverEvent): Option[RE]
+
+  /**
+    * Try to extract responder-specific event from `ObserverCommandEvent`
+    * and **log** error if extraction was not successful
+    *
+    * @param observerEvent
+    * @param criterion
+    * @param constructor
+    * @tparam P
+    * @return
+    */
+  def extractEventFromCommand[P: Reads](
+    observerEvent: ObserverEvent,
+    criterion: SchemaCriterion,
+    constructor: (P, ObserverCommandEvent) => RE
+  ): Option[RE] = {
+    observerEvent match {
+      case e: ObserverCommandEvent =>
+        val result = for {
+          commandJson <- Command.parseJson(e.streamContent)
+          pair <- Command.extractCommand[P](commandJson, criterion)
+          (envelope, data) = pair
+          _ <- Command.validateEnvelope(envelope)
+        } yield constructor(data, e)
+
+        result match {
+          case Right(event) => Some(event)
+          case Left(Command.ExtractionError(message)) =>
+            notifyLogger(message)
+            None
+          case Left(Command.ExtractionSkip) =>
+            None
+        }
+      case _ => None
+    }
+
+  }
 
   /**
    * Primary responder's method. Process file or delegate job to worker actor.
@@ -88,9 +137,7 @@ trait Responder[RE <: ResponderEvent[ObserverBatchEvent]] extends Actor {
   /**
    * Log unstructured notification
    */
-  def notify(message: String): Unit = {
-    logger ! Notification(message)
-  }
+  def notifyLogger(message: String): Unit = logger ! Notification(message)
 }
 
 object Responder {
@@ -103,23 +150,23 @@ object Responder {
    * This is the only message that root actor can safely ask about
    */
   sealed trait ResponderAck extends Product with Serializable
-  case class Rejected(observerEvent: ObserverBatchEvent, responder: ActorRef) extends ResponderAck
-  case class Accepted(observerEvent: ObserverBatchEvent, responder: ActorRef) extends ResponderAck
+
+  case class Rejected(observerEvent: ObserverEvent, responder: ActorRef) extends ResponderAck
+
+  case class Accepted(observerEvent: ObserverEvent, responder: ActorRef) extends ResponderAck
 
   /**
    * Every responder must be able to process some specific type of event
    * This event must contain a source, which in turn is always observer-event,
-   * which can be used to obtain full picture and so far is always
-   * `ObserverBatchEvent` event, but in future it can be anything that can
+   * which can be used to obtain full picture and can be anything that can
    * provide full event's data
    */
-  trait ResponderEvent[I <: ObserverBatchEvent] {
+  trait ResponderEvent {
     /**
      * Each responder event need to include reference to some source from
-     * which whole event data can be extracted, usually this is `ObserverBatchEvent`
-     * Responder can extract `ResponderEvent` from `I`
+     * which whole event data (`ResponderEvent`) can be extracted.
      */
-    def source: I
+    def source: ObserverEvent
   }
 
   /**
@@ -128,13 +175,14 @@ object Responder {
    */
   trait ResponderResult {
     def message: String
-    def source: ResponderEvent[ObserverBatchEvent]
+
+    def source: ResponderEvent
   }
 
   /**
    * Helper class to represent a bucket from which published file can streamed
    *
-   * @param s3 AWS S3 credentials
+   * @param s3     AWS S3 credentials
    * @param bucket AWS S3 bucket
    */
   case class S3Source(s3: S3, bucket: Bucket, message: Message)

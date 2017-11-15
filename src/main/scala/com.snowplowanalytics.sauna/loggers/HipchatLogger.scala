@@ -26,8 +26,6 @@ import utils._
 class HipchatLogger(token: String, roomId: String) extends Actor {
   import HipchatLogger._
 
-  println(self)
-
   import context.dispatcher
 
   def receive = {
@@ -46,6 +44,6 @@ class HipchatLogger(token: String, roomId: String) extends Actor {
 object HipchatLogger {
   val urlPrefix = "https://api.hipchat.com/v2/"
 
-  def props(parameters: HipchatConfigParameters): Props =
+  def props(parameters: HipchatConfigParameters_1_0_0): Props =
     Props(new HipchatLogger(parameters.token, parameters.roomId))
 }

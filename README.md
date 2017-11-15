@@ -1,8 +1,8 @@
 # Sauna
 
-[ ![Build Status] [travis-image] ] [travis]
-[ ![Release] [release-image] ] [releases] 
-[ ![License] [license-image] ] [license]
+[![Build Status][travis-image]][travis]
+[![Release][release-image]][releases]
+[![License][license-image]][license]
 
 Sauna is a decisioning and response framework, powered by Scala, Akka actors and Iglu.
 
@@ -11,8 +11,8 @@ Sauna is a decisioning and response framework, powered by Scala, Akka actors and
 Download the latest Sauna from Bintray:
 
 ```bash
-$ wget http://dl.bintray.com/snowplow/snowplow-generic/sauna_0.1.0.zip
-$ unzip sauna_0.1.0.zip
+$ wget http://dl.bintray.com/snowplow/snowplow-generic/sauna_0.2.0.zip
+$ unzip sauna_0.2.0.zip
 $ ./sauna --configurations {{path-to-avroconfigs}}
 ```
 
@@ -23,35 +23,44 @@ You can read more about how to install and configure Sauna in [Guide for Devops]
 
 ## Find out more
 
-|  **[Devops Guide] [devops-guide]**     | **[Analysts Guide] [analysts-guide]**     | **[Developers Guide] [developers-guide]**     |
+|  **[Devops Guide][devops-guide]**     | **[Analysts Guide][analysts-guide]**     | **[Developers Guide][developers-guide]**     |
 |:--------------------------------------:|:-----------------------------------------:|:---------------------------------------------:|
-|  [![i1] [devops-image]] [devops-guide] | [![i2] [analysts-image]] [analysts-guide] | [![i3] [developers-image]] [developers-guide] |
+|  [![i1][devops-image]][devops-guide] | [![i2][analysts-image]][analysts-guide] | [![i3][developers-image]][developers-guide] |
 
 
 ## Features
 
-- [Optimizely][optimizely] [Targeting lists][targeting-lists] upload
-- [Optimizely][optimizely] [Dynamic Customer Profiles][dcp] upload
-- [Sendgrid][sendgrid] [Recipients list][recipients-list] upload
-- Listening events on [Local filesystem][local-observer]
-- Listening events on [Amazon S3][s3-observer]
+- Batch observers:
+  - Listening events on [Local filesystem][local-observer]
+  - Listening events on [Amazon S3][s3-observer]
+- Batch responders:
+  - [Optimizely][optimizely] [Targeting lists][targeting-lists] upload
+  - [Optimizely][optimizely] [Dynamic Customer Profiles][dcp] upload
+  - [Sendgrid][sendgrid] [Recipients list][recipients-list] upload
+- Real-time observer:
+  - Listening events on [Kinesis Streams][kinesis-observer]
+- Real-time responders:
+  - [HipChat][hipchat] send room notification
+  - [Slack][slack] send message
+  - [PagerDuty][pagerduty] create event
+  - [SendGrid][sendgrid-send-email] send email
 
 
 ## Contributing
 
 Sauna designed to have extremely loosely-coupled architecture and we would love to get your contributions within each of the three sub-systems.
 
-If you would like help implementing a new responder, observer or logger check out our **[Guide for developers] [developers-guide]** page on the wiki!
+If you would like help implementing a new responder, observer or logger check out our **[Guide for developers][developers-guide]** page on the wiki!
 
 ## Questions or need help?
 
-Check out the **[Talk to us] [talk-to-us]** page on our wiki.
+Check out the **[Talk to us][talk-to-us]** page on our wiki.
 
 ## Copyright and license
 
-Sauna is copyright 2016 Snowplow Analytics Ltd.
+Sauna is copyright 2016-2017 Snowplow Analytics Ltd.
 
-Licensed under the **[Apache License, Version 2.0] [license]** (the "License");
+Licensed under the **[Apache License, Version 2.0][license]** (the "License");
 you may not use this software except in compliance with the License.
 
 Unless required by applicable law or agreed to in writing, software
@@ -67,21 +76,28 @@ limitations under the License.
 [license-image]: http://img.shields.io/badge/license-Apache--2-blue.svg?style=flat
 [license]: http://www.apache.org/licenses/LICENSE-2.0
 
-[release-image]: http://img.shields.io/badge/release-0.1.0-blue.svg?style=flat
+[release-image]: http://img.shields.io/badge/release-0.2.0-blue.svg?style=flat
 [releases]: https://github.com/snowplow/sauna/releases
 
 [vagrant-install]: http://docs.vagrantup.com/v2/installation/index.html
 [virtualbox-install]: https://www.virtualbox.org/wiki/Downloads
 
-[targeting-lists]: https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#targeting-list
-[dcp]: https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#dcp-batch
-[recipients-list]: https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide
+[s3-observer]: https://github.com/snowplow/sauna/wiki/Amazon-S3-Observer-setup-guide
+[local-observer]: https://github.com/snowplow/sauna/wiki/Local-Filesystem-Observer-setup-guide
 
 [optimizely]: https://optimizely.com/
 [sendgrid]: https://sendgrid.com/
 
-[s3-observer]: https://github.com/snowplow/sauna/wiki/Amazon-S3-Observer-setup-guide
-[local-observer]: https://github.com/snowplow/sauna/wiki/Local-Filesystem-Observer-setup-guide
+[targeting-lists]: https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#targeting-list
+[dcp]: https://github.com/snowplow/sauna/wiki/Optimizely-responder-user-guide#dcp-batch
+[recipients-list]: https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#upload-recipients
+
+[kinesis-observer]: https://github.com/snowplow/sauna/wiki/Amazon-Kinesis-Observer-setup-guide
+
+[hipchat]: https://github.com/snowplow/sauna/wiki/HipChat-Responder-user-guide#send-room-notification
+[slack]: https://github.com/snowplow/sauna/wiki/Slack-Responder-user-guide#send-message
+[pagerduty]: https://github.com/snowplow/sauna/wiki/PagerDuty-Responder-user-guide#create-event
+[sendgrid-send-email]: https://github.com/snowplow/sauna/wiki/SendGrid-responder-user-guide#send-email
 
 [configuration]: https://github.com/snowplow/sauna/wiki/Setting-up-Sauna#configuration
 
