@@ -1,8 +1,8 @@
 # Sauna
 
-[ ![Build Status] [travis-image] ] [travis]
-[ ![Release] [release-image] ] [releases] 
-[ ![License] [license-image] ] [license]
+[![Build Status][travis-image]][travis]
+[![Release][release-image]][releases] 
+[![License][license-image]][license]
 
 Sauna is a decisioning and response framework, powered by Scala, Akka actors and Iglu.
 
@@ -23,9 +23,8 @@ You can read more about how to install and configure Sauna in [Guide for Devops]
 
 ## Find out more
 
-|  **[Devops Guide] [devops-guide]**     | **[Analysts Guide] [analysts-guide]**     | **[Developers Guide] [developers-guide]**     |
+|  **[Devops Guide][devops-guide]**     | **[Analysts Guide][analysts-guide]**     | **[Developers Guide][developers-guide]**     |
 |:--------------------------------------:|:-----------------------------------------:|:---------------------------------------------:|
-|  [![i1] [devops-image]] [devops-guide] | [![i2] [analysts-image]] [analysts-guide] | [![i3] [developers-image]] [developers-guide] |
 
 
 ## Features
@@ -88,9 +87,5 @@ limitations under the License.
 [analysts-guide]: https://github.com/snowplow/sauna/wiki/Guide-for-analysts
 [developers-guide]: https://github.com/snowplow/sauna/wiki/Guide-for-developers
 [devops-guide]: https://github.com/snowplow/sauna/wiki/Guide-for-devops
-
-[devops-image]:  http://sauna-github-static.s3-website-us-east-1.amazonaws.com/devops.svg
-[analysts-image]: http://sauna-github-static.s3-website-us-east-1.amazonaws.com/analyst.svg
-[developers-image]:  http://sauna-github-static.s3-website-us-east-1.amazonaws.com/developer.svg
 
 [talk-to-us]: https://github.com/snowplow/snowplow/wiki/Talk-to-us
